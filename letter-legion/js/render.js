@@ -116,6 +116,7 @@ export class MatchView {
       add('book', hud.x + hud.w - 142, 8, 40, 40);
       this.rivalCard = { x: px, y: 54, w: pw, h: 62 };
       this.wavePanel = { x: px, y: 122, w: pw, h: 46 };
+      add('callWave', px, 122, pw, 46);
       this.playerCard = { x: px, y: 174, w: pw, h: 62 };
       const tw = (pw - 18) / 4;
       for (let i = 0; i < 4; i++) add('train' + i, px + i * (tw + 6), 244, tw, 46);
@@ -132,6 +133,7 @@ export class MatchView {
       const T = L.top;
       add('pause', T.w - 44, 4, 38, 36); add('speed', T.w - 86, 4, 38, 36); add('book', T.w - 128, 4, 38, 36);
       this.wavePanel = { x: 6, y: 4, w: T.w - 140, h: 36 };
+      add('callWave', 6, 4, T.w - 140, 36);
       this.rivalCard = null; this.playerCard = null;
       const px = 8, pw = hud.w - 16, y0 = hud.y + 6;
       const sw = clamp((pw - 160) / 4 - 6, 44, 70);
@@ -237,6 +239,7 @@ export class MatchView {
         case 'raise': { const [x, y] = this.toScreen(sideIdx, e.x, e.y); this.fx.push({ k: 'ring', x, y, t: 0, dur: 0.5, r: g.ts, col: '#b07cff' }); break; }
         case 'boss': if (me) { this.banner('BOSS: ' + BOSSES[e.boss].name, '#ff6b5e', 2.2, 0.6); A.play('boss'); } break;
         case 'wave': if (me) { this.banner(e.overtime ? `Sudden Death! First leak loses` : (e.boss ? `Wave ${e.w} — Boss incoming!` : `Wave ${e.w}`), e.overtime ? '#ff6b5e' : '#fff', 1.4, 0.3); this.text(this.L.hud.x + 40 || 60, 150, '+' + e.ink + ' ink', '#7fd7ff', 16); A.play('wave'); } break;
+        case 'call': if (me) { A.play('wave'); if (e.ink) this.text(this.geo[0].x + this.geo[0].w / 2, this.geo[0].y + this.geo[0].ts * 0.5, `+${e.ink} ink · early call!`, '#7fe08a', this.geo[0].ts * 0.36); } break;
         case 'item': if (me) { A.play(e.id === 'frost' ? 'freeze' : e.id === 'bomb' ? 'meteor' : 'skill'); this.banner(ITEM_BY_ID[e.id].name + '!', '#bfe9ff', 1.2, 0.3); if (e.id === 'bomb') { this.shake = 12; this.flash = 0.25; } if (e.id === 'frost') this.fx.push({ k: 'frostscreen', t: 0, dur: e.v }); } break;
       }
     }
@@ -695,19 +698,23 @@ export class MatchView {
       g.font = `bold 12px ${FONT2}`; g.fillStyle = '#ffb3bb'; g.fillText(`CPU · ${ctl.rival.tier}`, r.x + 62, r.y + 38);
       g.fillStyle = '#fff'; g.fillText(`♥ ${riv.lives}   ink ${fmt(riv.ink)}`, r.x + 62, r.y + 54);
     }
-    // wave panel
+    // wave panel (doubles as the "call next wave early" button when your board is clear)
     {
-      const r = this.wavePanel; this.panel(r);
+      const r = this.wavePanel; const canCall = m.canCallWave(0);
+      const hov = canCall && this.hover && this.hover.id === 'callWave';
+      if (canCall) { g.save(); g.shadowColor = '#7fe08a'; g.shadowBlur = 10 + 6 * Math.sin(this.time * 5); this.panel(r, hov ? 'rgba(40,110,60,0.95)' : 'rgba(30,80,45,0.9)'); g.restore(); g.strokeStyle = '#7fe08a'; g.lineWidth = 2; rr(g, r.x, r.y, r.w, r.h, 12); g.stroke(); }
+      else this.panel(r);
       const fw = m.finalWave; const w = m.wave;
       const t = m.timeToNextWave();
       g.textAlign = 'left'; g.textBaseline = 'middle'; g.font = `${Math.min(18, r.h * 0.45)}px ${FONT}`; g.fillStyle = '#fff';
       const label = m.overtime ? `Sudden death ${m.overtime}` : w === 0 ? 'Get ready!' : `Wave ${w}/${fw}`;
       g.fillText(label, r.x + 10, r.y + r.h * 0.38);
-      g.font = `bold ${Math.min(12, r.h * 0.3)}px ${FONT2}`; g.fillStyle = '#c8d0ff';
+      g.font = `bold ${Math.min(12, r.h * 0.3)}px ${FONT2}`; g.fillStyle = canCall ? '#b8ffc4' : '#c8d0ff';
       const nextBoss = Math.ceil((w + 1) / 5) * 5;
-      const info = w >= fw ? 'Final wave!' : `next in ${Math.ceil(t)}s · boss at ${nextBoss <= fw ? nextBoss : fw}`;
+      const bonus = m.curWave ? m.callWaveBonus() : 0;
+      const info = canCall ? (w === 0 ? '▶▶ Start now' : `▶▶ Call now +${bonus}`) : w >= fw ? 'Final wave!' : `next in ${Math.ceil(t)}s · boss at ${nextBoss <= fw ? nextBoss : fw}`;
       g.textAlign = 'right'; g.fillText(info, r.x + r.w - 10, r.y + r.h * 0.38);
-      const dur = m.curWave ? m.curWave.dur : 6; const f = clamp(1 - t / dur, 0, 1);
+      const dur = m.curWave ? m.curWave.dur : 2.5; const f = clamp(1 - t / dur, 0, 1);
       rr(g, r.x + 10, r.y + r.h - 12, r.w - 20, 6, 3); g.fillStyle = 'rgba(255,255,255,0.15)'; g.fill();
       rr(g, r.x + 10, r.y + r.h - 12, (r.w - 20) * f, 6, 3); g.fillStyle = m.curWave?.isBoss ? '#ff6b5e' : '#7fd7ff'; g.fill();
     }
@@ -754,7 +761,7 @@ export class MatchView {
       g.fillText('SUMMON ODDS', r.x + 10, r.y + 7);
       const rows = [['Letter S·L·B·K', 1 - gold - sh, '#e8e8f0'], ['Golden hero letter', gold, '#ffd24a'], ['Shovel', sh, '#ffd88a']];
       rows.forEach(([n, v, c], i) => { const yy = r.y + 24 + i * 17; if (yy + 14 > r.y + r.h) return; g.fillStyle = c; g.fillText(n, r.x + 10, yy); g.textAlign = 'right'; g.fillText(Math.round(v * 100) + '%', r.x + r.w - 10, yy); g.textAlign = 'left'; });
-      if (r.h > 86 && useful) { const left = Math.max(1, 6 - (me.sinceGold || 0)); g.fillStyle = '#ffe9a8'; g.fillText(left <= 1 ? 'Next summon: golden letter guaranteed!' : `Golden letter guaranteed within ${left} summons`, r.x + 10, r.y + r.h - 18); }
+      if (r.h > 86 && useful) { const left = Math.max(1, me.pityAt() + 1 - (me.sinceGold || 0)); g.fillStyle = '#ffe9a8'; g.fillText(left <= 1 ? 'Next summon: golden letter guaranteed!' : `Golden letter guaranteed within ${left} summons`, r.x + 10, r.y + r.h - 18); }
     }
     // tray
     this.trayAnim = this.trayAnim.map(v => Math.max(0, v - dt * 1.6));

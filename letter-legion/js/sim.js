@@ -7,7 +7,9 @@ import {
 import { RNG } from './rng.js';
 
 export const TRAY_SIZE = 3;
-const WAVE_DUR = 21, BOSS_WAVE_DUR = 28, FIRST_WAVE_DELAY = 6;
+const WAVE_DUR = 21, BOSS_WAVE_DUR = 28, FIRST_WAVE_DELAY = 2.5;
+// opening waves are short so the action starts fast: 12s, 14s, 16s, 18s, then 21s
+export const waveDur = (w, isBoss) => isBoss ? BOSS_WAVE_DUR : (w <= 4 ? 10 + 2 * w : WAVE_DUR);
 
 // ---------- map parsing ----------
 const parsedCache = {};
@@ -64,8 +66,8 @@ export function makeWave(w, rng, mapDef, overtime = 0) {
   const hp = waveHp(w) * mapDef.hpMult * (overtime ? Math.pow(1.45, overtime) : 1);
   const pool = WAVE_POOLS.find(p => w <= p.upTo).pool;
   const list = [];
-  const count = isBoss ? 4 + Math.floor(w / 3) : 7 + Math.floor(w * 1.1);
-  const spread = isBoss ? 8 : 11;
+  const count = isBoss ? 4 + Math.floor(w / 3) : 7 + Math.floor(w * 1.1) + (w <= 4 ? 2 : 0);
+  const spread = isBoss ? 8 : Math.min(11, waveDur(w, false) * (w <= 4 ? 0.8 : 0.6));
   const iv = spread / count;
   let t = 0;
   // themed group: sometimes a whole wave of one type
@@ -82,7 +84,7 @@ export function makeWave(w, rng, mapDef, overtime = 0) {
     list.push({ at: 2.5, type: 'boss', boss: bi, hp: hp * b.hp * (1 + 0.35 * cycle) });
   }
   list.sort((a, b) => a.at - b.at);
-  return { w, isBoss, list, dur: isBoss ? BOSS_WAVE_DUR : WAVE_DUR };
+  return { w, isBoss, list, dur: waveDur(w, isBoss) };
 }
 
 // ---------- modifiers from loadout / daily buff / weapons ----------
@@ -167,6 +169,8 @@ export class Side {
     for (const ch of h.word) { const i = held.indexOf(ch); if (i >= 0) { held.splice(i, 1); n++; } }
     return n / h.word.length;
   }
+  // pity threshold: a golden letter at least every 4 summons until your first hero, then every 6
+  pityAt() { return this.stats.heroes === 0 ? 3 : 5; }
   // golden letters only make sense while some unlocked hero can still be spelled or levelled up
   goldUseful() {
     const onBoard = this.heroesOnBoard();
@@ -179,7 +183,7 @@ export class Side {
     // bias toward the missing letters of the word you're closest to completing
     let best = [], bp = -1;
     for (const h of heroes) { const p = this.heroProgress(h); if (p >= 1) continue; if (p > bp + 1e-6) { bp = p; best = [h]; } else if (Math.abs(p - bp) < 1e-6) best.push(h); }
-    if (best.length && bp > 0 && this.rng.next() < 0.65) {
+    if (best.length && bp > 0 && this.rng.next() < (this.stats.heroes === 0 ? 0.85 : 0.65)) {
       const h = best[this.rng.int(best.length)];
       const held = this.heldGold().slice(); const missing = [];
       for (const ch of h.word) { const i = held.indexOf(ch); if (i >= 0) held.splice(i, 1); else missing.push(ch); }
@@ -212,7 +216,7 @@ export class Side {
       const r = this.rng.next();
       const canGold = this.goldUseful();
       const shovelChance = this.lockedCells().length > this.shovels ? 0.05 : 0;
-      if (canGold && (this.sinceGold || 0) >= 5) item = this.makeGold(this.rollGoldLetter()); // pity: never 6 summons in a row without one
+      if (canGold && (this.sinceGold || 0) >= this.pityAt()) item = this.makeGold(this.rollGoldLetter()); // pity: guaranteed golden letter
       else if (r < shovelChance) item = { kind: 'shovel' };
       else if (canGold && r < shovelChance + this.mods.gold) item = this.makeGold(this.rollGoldLetter());
       else item = this.makeBasic(BASIC_LETTERS[this.rng.int(4)]);
@@ -609,6 +613,22 @@ export class Match {
     return this.plan[w];
   }
   previewWave() { const w = this.wave + 1; if (w > this.finalWave) return null; return this.getPlan(w); }
+  // a side whose board is clear may call the next wave early for bonus ink (skips dead time)
+  callWaveBonus() { return Math.round(this.timeToNextWave() * (2 + 0.6 * Math.max(1, this.wave))); }
+  canCallWave(idx) {
+    if (this.state !== 'running' || this.tutorialHold || this.overtime) return false;
+    if (this.curWave && (this.spawnIdx < this.curWave.list.length || this.wave >= this.finalWave)) return false;
+    if (this.timeToNextWave() < 2) return false;
+    return !this.sides[idx].enemies.some(e => e.hp > 0);
+  }
+  callWave(idx) {
+    if (!this.canCallWave(idx)) return 0;
+    const bonus = this.curWave ? this.callWaveBonus() : 0;
+    const s = this.sides[idx]; s.ink += bonus; s.stats.calls = (s.stats.calls || 0) + 1;
+    s.emit({ t: 'call', ink: bonus });
+    if (!this.curWave) this.waveT = 0; else this.startWave();
+    return bonus;
+  }
   timeToNextWave() { return this.curWave ? Math.max(0, this.curWave.dur - this.waveT) : Math.max(0, -this.waveT); }
   onLeak(side) {
     // sudden death: first leak loses — decided at the end of the tick so neither side is favoured by update order

@@ -20,7 +20,7 @@ export class MatchController {
       player: { unlockedHeroes: unlocked, passives: opts.passives, actives: opts.actives, weapons: opts.weapons, dailyBuff: opts.dailyBuff, script: this.tutorial ? ['S', 'S', 'gold:K', 'gold:I', 'gold:N', 'gold:G', 'B', 'K', 'S', 'L'] : null },
       rival: { unlockedHeroes: rivalHeroes, cpuBonus: this.rival.power, dailyBuff: opts.dailyBuff },
     });
-    if (this.tutorial) { this.match.mapDef = { ...this.match.mapDef, waves: 6 }; this.match.tutorialHold = true; }
+    if (this.tutorial) { this.match.mapDef = { ...this.match.mapDef, waves: 4 }; this.match.tutorialHold = true; }
     this.brain = new CpuBrain(this.match.sides[1], this.tutorial ? { think: 3.0, skill: 0.2, spell: 0, mistakes: 0.4 } : this.rival);
     view.setMatch(this.match, this);
     this.highlightCells = null;
@@ -43,14 +43,14 @@ export class MatchController {
     const say = (txt) => this.hooks.hint(txt);
     const roadSide = me.cells.filter(c => !c.locked && c.row === 1).map(c => c.id);
     switch (n) {
-      case 0: say('Welcome, commander! Enemies march down the road toward <b>Prince Pip</b>. Click <b>SUMMON</b> to recruit a letter soldier.'); t.want = 'summon'; me.ink = Math.max(me.ink, me.summonCost()); break;
-      case 1: say('A <b>Swordsman S</b>! Drag it from your recruit tray onto a <b>glowing cell</b> next to the road.'); this.highlightCells = roadSide; t.want = 'place'; break;
-      case 2: say('Great! Letters attack on their own. Click <b>SUMMON</b> again.'); t.want = 'summon'; me.ink = Math.max(me.ink, me.summonCost()); break;
-      case 3: { const sc = me.cells.find(c => c.unit && c.unit.letter === 'S'); say('Another <b>S</b>! Drag it <b>onto your first S</b> to <b>MERGE</b> them into a stronger Level 2 soldier.'); this.highlightCells = sc ? [sc.id] : null; t.want = 'merge'; break; }
-      case 4: say('Merged letters hit much harder — and free up cells! Now for heroes: <b>summon 4 more times</b> to get golden letters.'); t.want = 'gold'; me.ink = Math.max(me.ink, 200); break;
-      case 5: { const row = me.cells.filter(c => !c.locked && c.row === 2).map(c => c.id); say('Golden letters spell <b>HEROES</b>! Place <b>K · I · N · G</b> in <b>one row, left to right</b>, in neighbouring cells.'); this.highlightCells = row; t.want = 'spell'; break; }
-      case 6: say('<b>KING</b> has joined your legion! Heroes cast special skills (watch the ring). Now defend Prince Pip — beat the rival by outlasting them!'); this.match.tutorialHold = false; t.want = null; this.later(() => { if (this.tut && this.tut.step === 6) this.tutStep(7); }, 7000); break;
-      case 7: say('Tips: keep <b>summoning</b> and <b>merging</b>. Drag letters to the <b>✖ bin</b> to sell. <b>Train</b> buttons upgrade a whole letter type.'); this.later(() => { if (this.tut && this.tut.step === 7) { this.hooks.hint(null); this.tut.step = 8; } }, 9000); break;
+      case 0: say('Protect <b>Prince Pip</b>! Click <b>SUMMON</b> to recruit a letter soldier.'); t.want = 'summon'; me.ink = Math.max(me.ink, me.summonCost()); break;
+      case 1: say('Drag the <b>S</b> onto a <b>glowing cell</b> by the road.'); this.highlightCells = roadSide; t.want = 'place'; break;
+      case 2: say('It fights on its own. <b>SUMMON</b> again!'); t.want = 'summon'; me.ink = Math.max(me.ink, me.summonCost()); break;
+      case 3: { const sc = me.cells.find(c => c.unit && c.unit.letter === 'S'); say('Drop the new <b>S</b> <b>onto your first S</b> to <b>MERGE</b> them (same letter + same level).'); this.highlightCells = sc ? [sc.id] : null; t.want = 'merge'; break; }
+      case 4: say('Stronger and a free cell! Now <b>summon</b> a few times for <b>golden letters</b>.'); t.want = 'gold'; me.ink = Math.max(me.ink, 200); break;
+      case 5: { const row = me.cells.filter(c => !c.locked && c.row === 2).map(c => c.id); say('Spell a hero: put <b>K · I · N · G</b> side by side in <b>one row, left → right</b>.'); this.highlightCells = row; t.want = 'spell'; break; }
+      case 6: say('<b>KING</b> joined your legion! Now hold the road — outlast the rival.'); this.match.tutorialHold = false; t.want = null; this.later(() => { if (this.tut && this.tut.step === 6) this.tutStep(7); }, 4500); break;
+      case 7: say('Tip: board clear? Click the <b>wave bar</b> to call the next wave early for bonus ink.'); this.later(() => { if (this.tut && this.tut.step === 7) { this.hooks.hint(null); this.tut.step = 8; } }, 7000); break;
     }
   }
   tutEvent(ev) {
@@ -122,6 +122,7 @@ export class MatchController {
     if (id === 'speed') { this.speed = this.speed > 1 ? 1 : 2; this.hooks.setFast(this.speed > 1); Audio.play('click'); return; }
     if (id === 'book') return this.hooks.spellbook();
     if (id === 'summon') return this.doSummon();
+    if (id === 'callWave') { this.match.callWave(0); return; }
     if (id.startsWith('train')) { const L = ['S', 'L', 'B', 'K'][+id.slice(5)]; if (!me.doTrain(L)) { Audio.play('error'); this.toast(me.trainCost(L) === Infinity ? 'Fully trained' : 'Not enough ink to train'); } else this.view.banner(`${UNITS[L].name}s trained! (+${me.train[L]})`, UNITS[L].color, 1.2, 0); return; }
     if (id.startsWith('item')) { const i = +id.slice(4); if (!me.useItem(i)) Audio.play('error'); return; }
     if (id === 'adSummon') {
@@ -173,7 +174,7 @@ export class MatchController {
       else if (v.hover) v.tip = this.buttonTip(v.hover, x, y);
       else if (v.stripHits) { const h = v.stripHits.find(s => x >= s.x && x < s.x + s.w && y >= s.y && y < s.y + s.h); if (h) v.tip = { x, y, lines: [`${h.hero.word} — ${h.hero.skill}`, h.hero.skillDesc, 'Place golden letters in a row, left→right'], col: h.hero.color }; }
     }
-    const interactive = v.hover || (v.hoverTray >= 0 && this.me.tray[v.hoverTray]) || (v.hoverCell && (v.hoverCell.unit || (v.hoverCell.locked && this.me.shovels) || v.selected));
+    const interactive = (v.hover && (v.hover.id !== 'callWave' || this.match.canCallWave(0))) || (v.hoverTray >= 0 && this.me.tray[v.hoverTray]) || (v.hoverCell && (v.hoverCell.unit || (v.hoverCell.locked && this.me.shovels) || v.selected));
     this.hooks.cursor(v.drag && v.drag.moved ? 'grabbing' : interactive ? 'pointer' : 'default');
   }
   pointerUp(x, y) {
@@ -215,6 +216,7 @@ export class MatchController {
     else if (k === 'q' || k === 'Q') this.button('item0');
     else if (k === 'w' || k === 'W') this.button('item1');
     else if (k === 'f' || k === 'F') this.button('speed');
+    else if (k === 'n' || k === 'N') this.button('callWave');
     else if (['1', '2', '3'].includes(k)) { const i = +k - 1; if (this.me.tray[i]) this.autoPlace({ tray: i }); }
   }
   unitTip(u) {
@@ -228,6 +230,7 @@ export class MatchController {
     const me = this.me;
     const T = {
       summon: ['Summon (Space)', 'Random letter, golden hero letter or shovel', 'Each summon costs more than the last'],
+      callWave: this.match.canCallWave(0) ? ['Call the next wave now (N)', 'Your board is clear — skip the wait', this.match.curWave ? `+${this.match.callWaveBonus()} bonus ink` : 'Start the first wave right away'] : ['Next wave timer', 'Clear your board to call the next wave early for bonus ink'],
       pause: ['Pause (Esc)'], speed: ['Game speed (F)'], book: ['Spellbook — all heroes & skills'],
       adSummon: ['Watch an ad: free summon', 'Once per match'], adShovel: ['Watch an ad: free shovel', 'Once per match'],
     };

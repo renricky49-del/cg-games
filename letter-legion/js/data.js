@@ -142,23 +142,23 @@ export const MAP_BY_ID = Object.fromEntries(MAPS.map(m => [m.id, m]));
 // ---------- CPU rivals (ladder) ----------
 // skill: 0..1 how well the CPU plays; think: seconds between decisions; spell: max word length it attempts
 export const RIVALS = [
-  { id: 'bumble', power: 0.6, name: 'Sir Bumble', tier: 'Rookie', map: 'ember', portrait: 0, think: 2.6, skill: 0.25, spell: 0, mistakes: 0.35,
+  { id: 'bumble', power: 0.5, name: 'Sir Bumble', tier: 'Rookie', map: 'ember', portrait: 0, think: 2.6, skill: 0.25, spell: 0, mistakes: 0.35,
     quote: 'I polished my sword! ...Which end is the pointy one?' , ward: 'Princess Pom' },
-  { id: 'wren', power: 0.72, name: 'Wren the Scribe', tier: 'Rookie', map: 'ember', portrait: 1, think: 2.0, skill: 0.4, spell: 4, mistakes: 0.25,
+  { id: 'wren', power: 0.55, name: 'Wren the Scribe', tier: 'Rookie', map: 'ember', portrait: 1, think: 2.0, skill: 0.4, spell: 4, mistakes: 0.25,
     quote: 'I have read every book on tactics. Twice.', ward: 'Princess Pom' },
-  { id: 'grizelda', power: 0.78, name: 'Grizelda', tier: 'Adept', map: 'marsh', portrait: 2, think: 1.6, skill: 0.5, spell: 4, mistakes: 0.18,
+  { id: 'grizelda', power: 0.62, name: 'Grizelda', tier: 'Adept', map: 'marsh', portrait: 2, think: 1.6, skill: 0.5, spell: 4, mistakes: 0.18,
     quote: 'Hee hee! My bog creatures adore fresh letters.', ward: 'Princess Pom' },
-  { id: 'baron', power: 0.85, name: 'Baron Fizzlewick', tier: 'Adept', map: 'marsh', portrait: 3, think: 1.35, skill: 0.6, spell: 4, mistakes: 0.14,
+  { id: 'baron', power: 0.7, name: 'Baron Fizzlewick', tier: 'Adept', map: 'marsh', portrait: 3, think: 1.35, skill: 0.6, spell: 4, mistakes: 0.14,
     quote: 'A gentleman never loses. He merely postpones winning.', ward: 'Princess Pom' },
-  { id: 'barnacle', power: 1.06, name: 'Captain Barnacle', tier: 'Veteran', map: 'bay', portrait: 4, think: 1.1, skill: 0.68, spell: 5, mistakes: 0.1,
+  { id: 'barnacle', power: 0.9, name: 'Captain Barnacle', tier: 'Veteran', map: 'bay', portrait: 4, think: 1.1, skill: 0.68, spell: 5, mistakes: 0.1,
     quote: 'Arr! Me parrot can spell better than ye!', ward: 'Princess Pom' },
-  { id: 'plume', power: 1.16, name: 'Madame Plume', tier: 'Veteran', map: 'bay', portrait: 5, think: 0.95, skill: 0.75, spell: 5, mistakes: 0.08,
+  { id: 'plume', power: 1.0, name: 'Madame Plume', tier: 'Veteran', map: 'bay', portrait: 5, think: 0.95, skill: 0.75, spell: 5, mistakes: 0.08,
     quote: 'Elegance, darling. Every letter in its place.', ward: 'Princess Pom' },
-  { id: 'inkwell', power: 1.24, name: 'Lord Inkwell', tier: 'Master', map: 'iron', portrait: 6, think: 0.8, skill: 0.82, spell: 5, mistakes: 0.05,
+  { id: 'inkwell', power: 1.1, name: 'Lord Inkwell', tier: 'Master', map: 'iron', portrait: 6, think: 0.8, skill: 0.82, spell: 5, mistakes: 0.05,
     quote: 'I invented half of these letters. Hmph.', ward: 'Princess Pom' },
-  { id: 'hoot', power: 1.45, name: 'Professor Hoot', tier: 'Master', map: 'iron', portrait: 7, think: 0.65, skill: 0.9, spell: 5, mistakes: 0.03,
+  { id: 'hoot', power: 1.3, name: 'Professor Hoot', tier: 'Master', map: 'iron', portrait: 7, think: 0.65, skill: 0.9, spell: 5, mistakes: 0.03,
     quote: 'Whooo will win? Statistically... me.', ward: 'Princess Pom' },
-  { id: 'frost', power: 1.85, name: 'Queen Frostquill', tier: 'Grandmaster', map: 'iron', portrait: 8, think: 0.5, skill: 1.0, spell: 5, mistakes: 0.0,
+  { id: 'frost', power: 1.6, name: 'Queen Frostquill', tier: 'Grandmaster', map: 'iron', portrait: 8, think: 0.5, skill: 1.0, spell: 5, mistakes: 0.0,
     quote: 'Your words will freeze on your tongue.', ward: 'Princess Pom' },
 ];
 export const RIVAL_BY_ID = Object.fromEntries(RIVALS.map(r => [r.id, r]));
@@ -226,6 +226,6 @@ export function xpForLevel(lvl) { return Math.round(100 + (lvl - 1) * 70 + Math.
 export const SUMMON_BASE = 10;
 export const SUMMON_STEP = 3;
 export const PASSIVE_INK = 1.5; // ink per second
-export const START_INK = 60;
+export const START_INK = 100;
 export const TRAIN_COSTS = [60, 120, 220, 360, 550];
 export const TRAIN_BONUS = 0.18; // +18% damage per training rank

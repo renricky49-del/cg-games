@@ -55,12 +55,14 @@ function title() {
       <div class="logo"><span class="l1">LETTER</span><span class="l2">LEGION</span></div>
       <div class="tagline">Summon letters · Merge them · <b>Spell heroes</b> · Defend Prince Pip!</div>
       <div class="title-btns">
-        <button class="btn big gold" id="play">${P.tutorialDone ? 'PLAY' : 'START TUTORIAL'}</button>
+        <button class="btn big gold" id="play">${P.tutorialDone ? 'PLAY' : 'PLAY — 1-MIN TUTORIAL'}</button>
+        ${P.tutorialDone ? '' : '<button class="btn small ghost" id="skipTut">I know this genre — skip tutorial</button>'}
         <button class="btn" data-go="settings">Settings</button>
       </div>
       <div class="foot">v1.0 · Rivals are computer-controlled (CPU)</div>
     </div>`);
   $('#play').onclick = () => { if (!P.tutorialDone) api.startTutorial(); else show('hub'); };
+  if ($('#skipTut')) $('#skipTut').onclick = () => { P.tutorialDone = true; saveProfile(); show('prematch', { mode: 'ladder', rivalIndex: 0 }); };
   wireGo();
 }
 

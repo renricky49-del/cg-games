@@ -132,8 +132,8 @@ function endMatch(res) {
     ctl = null; canvas.style.display = 'none'; Audio.setTrack('menu');
     // natural break → midgame ad (rate-limited inside the adapter; never right after session start)
     if (!wasTutorial) await CG.midgame();
-    show('hub');
-    if (wasTutorial) toast('Tutorial complete! Challenge the rival ladder ⚔', 2600);
+    if (wasTutorial && P.ladder === 0) { show('prematch', { mode: 'ladder', rivalIndex: 0 }); toast('Tutorial complete! Your first duel awaits ⚔', 2600); }
+    else show('hub');
   });
 }
 
