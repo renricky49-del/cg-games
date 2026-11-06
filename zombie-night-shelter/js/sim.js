@@ -2,7 +2,7 @@
 import {
   RUSH_TIME, GRACE_TIME, PACE, MAX_BED, MAX_DOOR, bedIncome, bedCost, bedDoorReq,
   doorMaxHp, doorCost, repairCost, REPAIR_FRAC, REPAIR_CD,
-  BUILDINGS, upgradeCost, totalSpent, turretStats, BOSSES, bossBase, SECOND_BOSS, DUO_HP, DUO_DMG, HUNT_CHANCE, BOSS_LVL_HP, BOSS_LVL_DMG, bossXpNeed,
+  BUILDINGS, upgradeCost, totalSpent, turretStats, BOSSES, bossBase, bossKinds, GROUP_HP, GROUP_DMG, HUNT_CHANCE, BOSS_LVL_HP, BOSS_LVL_DMG, bossXpNeed,
   PERSONALITIES, AI_NAMES,
 } from './data.js';
 import { buildMap } from './map.js';
@@ -75,20 +75,24 @@ export class Game {
     }
     this.player = this.survivors[0];
     // two bosses per night
-    this.bosses = this._makeBossPair(this.night.boss, SECOND_BOSS[this.night.boss] || this.night.boss, this.diff);
+    this.bosses = this._makeBossGroup(bossKinds(this.night.boss, this.night.count || 2), this.diff, this.night.lvl || 1);
   }
 
   // first living boss (HUD / legacy callers); falls back to the first one
   get boss() { return this.bosses.find((b) => b.alive) || this.bosses[0]; }
   bossesAlive() { return this.bosses.filter((b) => b.alive); }
 
-  _makeBossPair(k1, k2, diff) {
-    const a = this._makeBoss(k1, diff, DUO_HP, DUO_DMG), b = this._makeBoss(k2, diff, DUO_HP, DUO_DMG);
-    b.y += 3; b.wakeDelay = 3; // second boss sleeps further down the stairwell and comes out a moment later
-    a.partner = b; b.partner = a;
-    a.hunter = true; // the main boss hunts the player's room; the second one goes for the weakest doors
-    this.enemies.push(a, b);
-    return [a, b];
+  _makeBossGroup(kinds, diff, lvl) {
+    const n = kinds.length, OFF = [0, 3, -3, 5.5, -5.5];
+    const group = kinds.map((k, i) => {
+      const b = this._makeBoss(k, diff, GROUP_HP[n] || 0.3, GROUP_DMG[n] || 0.38, lvl);
+      b.y += OFF[i % OFF.length]; b.wakeDelay = i * 3; // they file out of the stairwell one after another
+      return b;
+    });
+    group[0].hunter = true; // the main boss hunts the player's room; the others go for the weakest doors
+    for (const b of group) b.group = group;
+    this.enemies.push(...group);
+    return group;
   }
 
   emit(type, data) { this.events.push(Object.assign({ type }, data)); }
@@ -392,13 +396,14 @@ export class Game {
     if (this.phase === 'night') this._spawnMinionFrom(s);
   }
 
-  _makeBoss(kind, diff, hpF = 1, dmgF = 1) {
+  _makeBoss(kind, diff, hpF = 1, dmgF = 1, lvl = 1) {
     const B = BOSSES[kind], base = bossBase(diff);
-    const hp = base.hp * B.hp * hpF;
+    const lm = Math.pow(BOSS_LVL_HP, lvl - 1), dm = Math.pow(BOSS_LVL_DMG, lvl - 1);
+    const hp = base.hp * B.hp * hpF * lm;
     return {
       id: NEXT_ID++, kind: 'boss', variant: kind, sprite: B.sprite, name: B.name,
-      x: this.map.lair.sx, y: this.map.lair.sy, hp, maxHp: hp, dmg: base.dmg * B.dmg * dmgF, baseSpeed: B.speed,
-      state: 'sleep', target: null, atkCd: 1, lvl: 1, xp: 0, r: 0.8, dir: 0, slow: 0, hitFlash: 0,
+      x: this.map.lair.sx, y: this.map.lair.sy, hp, maxHp: hp, dmg: base.dmg * B.dmg * dmgF * dm, baseSpeed: B.speed,
+      state: 'sleep', target: null, atkCd: 1, lvl, xp: 0, r: Math.min(1.25, 0.8 + 0.035 * (lvl - 1)), dir: 0, slow: 0, hitFlash: 0,
       recentDmg: 0, switchT: 4, abilityT: 8, howlT: 18, retreats: 0, chargeMul: 1, charging: false, walkT: 0,
       armor: !!B.armor, def: B, alive: true, pause: 0,
     };
@@ -470,7 +475,7 @@ export class Game {
       if (this.night.n === 2 && o.room.owner.isPlayer && this.stats.timeSurvived < 30) s += 2;
       // the hunter prefers the player's door (not during the tutorial's first minute)
       // split up: avoid the door the other boss is already working on
-      if (e.partner && e.partner.alive && e.partner.target && e.partner.target.room === o.room) s += 3;
+      if (e.group && e.group.some((q) => q !== e && q.alive && q.target && q.target.room === o.room)) s += 3;
       if (s < bs) { bs = s; best = o; }
     }
     return best;
@@ -821,7 +826,7 @@ export class Game {
     const kinds = Object.keys(BOSSES);
     const kind = kinds[Math.min(kinds.length - 1, Math.floor(this.bossWaves / 1.5)) % kinds.length];
     this.diff *= 1.55;
-    const pair = this._makeBossPair(kind, SECOND_BOSS[kind], this.diff);
+    const pair = this._makeBossGroup(bossKinds(kind, Math.min(5, 2 + Math.floor(this.bossWaves / 2))), this.diff, 1);
     this.bosses = pair;
     // short breather, then they wake
     this.waveT = 12;

@@ -43,6 +43,13 @@ img { -webkit-user-drag: none; }
 #boss-boxes { display: flex; gap: 6px; }
 .boss-info { min-width: 104px; }
 .boss-box.down { filter: grayscale(1) brightness(0.6); }
+/* 3+ bosses: compact cards (portrait + level + mini HP bar) */
+#boss-boxes.compact .boss-info { display: none; }
+#boss-boxes.compact .boss-box { flex-direction: column; gap: 3px; padding: 4px 4px 5px; }
+#boss-boxes.compact .boss-mini { display: block; }
+.boss-mini { display: none; width: 46px; height: 5px; background: #1d0b0f; border-radius: 3px; overflow: hidden; }
+.boss-mini div { height: 100%; background: linear-gradient(90deg, #ff4b3a, #ff8a50); }
+.boss-box.hunting { border-color: var(--gold); box-shadow: 0 0 10px rgba(255,216,74,0.55); }
 .boss-name { font-size: 14px; white-space: nowrap; }
 .bar { height: 10px; background: #1d0b0f; border-radius: 5px; overflow: hidden; margin: 3px 0; }
 .boss-hp { height: 100%; width: 100%; background: linear-gradient(90deg, #ff4b3a, #ff8a50); transition: width 0.15s; }
@@ -207,9 +214,11 @@ img { -webkit-user-drag: none; }
 .how-list { font-family: system-ui, sans-serif; font-size: 15px; line-height: 1.45; padding-left: 22px; }
 .how-list b { font-family: var(--font); font-weight: normal; color: var(--gold); font-size: 16px; }
 .intro-night { font-size: 22px; color: var(--muted); }
-.intro-bosses { display: flex; gap: 4px; justify-content: center; }
-#intro-boss2 { width: 120px; height: 120px; object-fit: contain; margin-top: 30px; animation: float 1.2s infinite alternate-reverse ease-in-out; }
-#intro-boss { width: 150px; height: 150px; object-fit: contain; animation: float 1s infinite alternate ease-in-out; }
+.intro-bosses { display: flex; gap: 2px; justify-content: center; align-items: flex-end; flex-wrap: wrap; }
+.intro-bosses img { width: 92px; height: 92px; object-fit: contain; animation: float 1.1s infinite alternate ease-in-out; }
+.intro-bosses img:first-child { width: 140px; height: 140px; }
+.intro-bosses img:nth-child(even) { animation-direction: alternate-reverse; }
+#intro-boss-unused { width: 150px; height: 150px; object-fit: contain; animation: float 1s infinite alternate ease-in-out; }
 @keyframes float { to { transform: translateY(-10px) scale(1.04); } }
 .intro-name { font-size: 36px; color: var(--red); text-shadow: 0 3px 0 #000; }
 .intro-desc { font-family: system-ui, sans-serif; color: var(--muted); font-size: 15px; }
@@ -244,6 +253,12 @@ img { -webkit-user-drag: none; }
   .hud-left, .hud-right { flex: 1 1 auto; }
   .boss-box .boss-info { display: none; }
   #dawn-moon { display: none; }
+  #boss-boxes { gap: 3px; }
+  #boss-boxes.compact .boss-box { padding: 2px 2px 3px; }
+  #boss-boxes.compact .boss-portrait { width: 30px; height: 30px; }
+  #boss-boxes.compact .boss-portrait img { width: 27px; height: 27px; }
+  #boss-boxes.compact .boss-mini { width: 30px; }
+  #boss-boxes.compact .boss-lvl { min-width: 16px; height: 16px; font-size: 10px; right: -4px; bottom: -4px; }
   #tutorial { max-width: 86vw; padding: 6px 12px; }
   .tut-text { font-size: 14px; }
   .pill small { display: none; }

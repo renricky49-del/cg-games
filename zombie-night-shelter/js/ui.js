@@ -27,8 +27,16 @@ export class HUD {
     $('tutorial').classList.add('hidden'); $('tut-arrow').classList.add('hidden');
     this.cache = {};
     this.lastScrap = 0;
-    g.bosses.forEach((b, i) => { $('boss-img' + i).src = `assets/img/${b.sprite}.png`; });
+    this.reset2Bosses(g);
     $('hud-bottom').classList.add('hidden');
+    this.layout();
+  }
+
+  reset2Bosses(g) {
+    const wrap = $('boss-boxes');
+    wrap.classList.toggle('compact', g.bosses.length > 2);
+    wrap.innerHTML = g.bosses.map((b, i) => `<div class="boss-box" id="boss-box${i}" title="${b.name}${b.hunter ? ' (hunting you)' : ''}"><div class="boss-portrait"><img class="boss-img" id="boss-img${i}" data-gid="${g.bosses[0].id}" src="assets/img/${b.sprite}.png" alt=""><span class="boss-lvl" id="boss-lvl${i}">${b.lvl}</span></div><div class="boss-mini"><div id="boss-mini${i}"></div></div><div class="boss-info"><div class="boss-name" id="boss-name${i}">${b.name}</div><div class="bar"><div class="boss-hp" id="boss-hp${i}"></div></div><div class="boss-state" id="boss-state${i}">Sleeping…</div></div></div>`).join('');
+    this.bossCount = g.bosses.length;
     this.layout();
   }
 
@@ -129,7 +137,14 @@ export class HUD {
     $('dawn-fill').style.width = (dawn * 100).toFixed(1) + '%';
     $('dawn-moon').style.left = (dawn * 100).toFixed(1) + '%';
     // bosses (two per night)
+    if (this.bossCount !== g.bosses.length || !$('boss-box0') || $('boss-img0').dataset.gid !== String(g.bosses[0].id)) {
+      // endless waves replace the boss group: rebuild the cards
+      this.cache = {}; this.reset2Bosses(g);
+    }
     g.bosses.forEach((b, i) => {
+      if (!$('boss-box' + i)) return;
+      $('boss-mini' + i).style.width = (100 * Math.max(0, b.hp) / b.maxHp).toFixed(1) + '%';
+      $('boss-box' + i).classList.toggle('hunting', b.alive && b.target && b.target.room === s.room && !!s.room);
       this.setText('boss-name' + i, b.name);
       this.setText('boss-lvl' + i, String(b.lvl));
       $('boss-hp' + i).style.width = (100 * Math.max(0, b.hp) / b.maxHp).toFixed(1) + '%';
@@ -422,14 +437,14 @@ export class HUD {
     switch (ev.type) {
       case 'phase':
         if (ev.phase === 'grace') {
-          this.banner('DOORS LOCKED!', `Two bosses wake in ${Math.round(GRACE_TIME / PACE)}s — get building!`, 2.4);
+          this.banner('DOORS LOCKED!', `${g.bosses.length} bosses wake in ${Math.round(GRACE_TIME / PACE)}s — get building!`, 2.4);
           if (g.player.room && this.R.vw < 900) this.R.focusRoom(g.player.room);
         }
         break;
-      case 'bossWake': this.banner('TWO BOSSES ARE AWAKE!', g.endless ? `Wave ${g.stats.wave}` : `${g.bosses.map((b) => b.name).join(' + ')} — survive until dawn`, 2.6); break;
-      case 'bossLevel': { const b = $('boss-box' + Math.max(0, g.bosses.indexOf(ev.e))); b.classList.remove('levelup'); void b.offsetWidth; b.classList.add('levelup'); this.toast(`${ev.e.name} reached level ${ev.lvl}!`, 'bad'); break; }
+      case 'bossWake': this.banner(`${g.bosses.length} BOSSES ARE AWAKE!`, g.endless ? `Wave ${g.stats.wave}` : `${g.bosses[0].name} is hunting you — survive until dawn`, 2.6); break;
+      case 'bossLevel': { const b = $('boss-box' + Math.max(0, g.bosses.indexOf(ev.e))); b.classList.remove('levelup'); void b.offsetWidth; b.classList.add('levelup'); const now = performance.now(); if (now - (this.lvlToastT || 0) > 4000) { this.lvlToastT = now; this.toast(g.bosses.length > 2 ? `The bosses are levelling up! (Lv${ev.lvl})` : `${ev.e.name} reached level ${ev.lvl}!`, 'bad'); } break; }
       case 'bossRetreat': this.toast(`${ev.e.name} is fleeing to heal — finish it!`, 'good'); break;
-      case 'bossDown': this.banner('ONE BOSS DOWN!', `${ev.left} to go — finish the other one for ★★★`, 2.2); break;
+      case 'bossDown': this.banner('BOSS DOWN!', `${ev.left} left — kill them all for ★★★`, 2.2); break;
       case 'doorBreak': if (!ev.player && ev.room.owner) this.toast(`${ev.room.owner.name}'s door was smashed!`, 'bad'); break;
       case 'death': if (!ev.s.isPlayer && ev.why === 'corridor') this.toast(`${ev.s.name} was caught in the hallway!`, 'bad'); break;
       case 'minionSpawn': break;
@@ -506,7 +521,7 @@ export class HUD {
       }
       case 4: text = 'Nice! Turrets also shoot zombies attacking your <b>neighbours</b> — teamwork keeps everyone alive.'; break;
       case 4.5: text = 'Keep upgrading your bed, turrets and door. <b>The boss wakes up soon!</b>'; break;
-      case 5: text = `Two bosses are attacking doors! When yours gets hurt, <b>Repair (R)</b> or <b>Upgrade the door (U)</b>.`; el = $('act-repair'); break;
+      case 5: text = `The bosses are attacking doors! When yours gets hurt, <b>Repair (R)</b> or <b>Upgrade the door (U)</b>.`; el = $('act-repair'); break;
       case 6: text = 'Survive until <b>dawn</b> — or help shoot the boss down for 3 stars!'; break;
       default: box.classList.add('hidden'); arrow.classList.add('hidden'); this.tut = null; return;
     }

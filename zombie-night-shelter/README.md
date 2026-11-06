@@ -72,11 +72,14 @@ turrets usually reach the boss even while it attacks a neighbour (in-range 40–
 `node tools/engagement.mjs` measures it) — rooms whose doors
 are close together (shown as "close neighbours" when hovering a room in the rush) are the strongest picks.
 
-**Two bosses every night:** the night's boss plus the previous tier's variant (Brute+Brute, Spitter+Brute, Charger+Spitter,
-Howler+Charger, Tank+Howler, Abomination+Tank). Each has 62 % HP / 70 % damage of a solo boss (`DUO_HP`, `DUO_DMG`).
-The main boss is a **hunter**: whenever it picks a target it goes for the player's door 60 % of the time (`HUNT_CHANCE`) and
-rarely backs off from it; the second boss goes for the weakest doors and avoids the door its partner is on. Result: a boss
-is on the player's door 23–34 % of the night (was 0–3 % with one boss). Win = dawn or both bosses dead; ★★★ = both dead.
+**Bosses per night (count / start level):** N1 2/Lv1, N2 2/Lv2, N3 3/Lv1, N4 3/Lv2, N5 3/Lv3, N6 4/Lv1, N7 4/Lv2,
+N8 4/Lv3, N9 4/Lv4, N10 5/Lv1, N11 5/Lv2, N12 5/Lv3 (`count`, `lvl` in `NIGHTS`). Boss 1 is the night's boss, the others
+walk down the chain of earlier variants. Each boss gets `GROUP_HP` / `GROUP_DMG` of a solo boss (2: 62/70 %, 3: 47/55 %,
+4: 38/46 %, 5: 32/40 %); per-night `diff` was auto-tuned with `node tools/tune.mjs` to keep the same difficulty curve.
+Boss 1 is a **hunter**: whenever it picks a target it goes for the player's door 60 % of the time (`HUNT_CHANCE`) and
+rarely backs off; the others go for the weakest doors and avoid doors another boss is already on. A boss is on the
+player's door 23–58 % of the night (was 0–3 % with one boss). Win = dawn or all bosses dead; ★★★ = all dead.
+Endless: waves start with 2 bosses and add one every second wave (max 5).
 
 **Each boss:** gains XP from door hits, broken doors, destroyed buildings and slowly over time; each level is ×1.38 HP,
 ×1.33 damage and a bigger sprite + level badge. It targets doors by a score (current HP, hits-to-break, turret DPS

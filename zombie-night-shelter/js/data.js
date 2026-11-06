@@ -127,26 +127,31 @@ export const BOSSES = {
 // ---- Nights ------------------------------------------------------------------
 // diff: multiplier on boss stats. len: seconds from boss release to dawn.
 export const NIGHTS = [
-  { n: 1,  boss: 'brute',   diff: 0.7, len: 170, map: 0, unlockText: 'Nail Gun turret' },
-  { n: 2,  boss: 'brute',   diff: 0.9, len: 190, map: 1, unlockText: 'Crossbow turret' },
-  { n: 3,  boss: 'spitter', diff: 1.05, len: 200, map: 2, unlockText: 'Generator & Chill Trap' },
-  { n: 4,  boss: 'spitter', diff: 1.2, len: 210, map: 0, unlockText: 'Vending Machine' },
-  { n: 5,  boss: 'charger', diff: 1.35, len: 220, map: 1, unlockText: 'Tesla Coil' },
-  { n: 6,  boss: 'charger', diff: 1.5, len: 230, map: 2, unlockText: 'Repair Bench' },
-  { n: 7,  boss: 'howler',  diff: 1.55, len: 240, map: 0, unlockText: 'Spike Trap' },
-  { n: 8,  boss: 'howler',  diff: 1.72, len: 250, map: 1, unlockText: 'Signal Tower' },
-  { n: 9,  boss: 'tank',    diff: 2.0, len: 260, map: 2, unlockText: 'The Riot Tank' },
-  { n: 10, boss: 'tank',    diff: 2.2, len: 270, map: 0, unlockText: 'Harder nights' },
-  { n: 11, boss: 'abom',    diff: 2.4, len: 280, map: 1, unlockText: 'The Abomination' },
-  { n: 12, boss: 'abom',    diff: 2.6, len: 300, map: 2, unlockText: 'Endless mode' },
+  { n: 1,  boss: 'brute',   count: 2, lvl: 1, diff: 0.7, len: 170, map: 0, unlockText: 'Nail Gun turret' },
+  { n: 2,  boss: 'brute',   count: 2, lvl: 2, diff: 0.81, len: 190, map: 1, unlockText: 'Crossbow turret' },
+  { n: 3,  boss: 'spitter', count: 3, lvl: 1, diff: 1.08, len: 200, map: 2, unlockText: 'Generator & Chill Trap' },
+  { n: 4,  boss: 'spitter', count: 3, lvl: 2, diff: 1.06, len: 210, map: 0, unlockText: 'Vending Machine' },
+  { n: 5,  boss: 'charger', count: 3, lvl: 3, diff: 0.92, len: 220, map: 1, unlockText: 'Tesla Coil' },
+  { n: 6,  boss: 'charger', count: 4, lvl: 1, diff: 1.49, len: 230, map: 2, unlockText: 'Repair Bench' },
+  { n: 7,  boss: 'howler',  count: 4, lvl: 2, diff: 1.31, len: 240, map: 0, unlockText: 'Spike Trap' },
+  { n: 8,  boss: 'howler',  count: 4, lvl: 3, diff: 1.27, len: 250, map: 1, unlockText: 'Signal Tower' },
+  { n: 9,  boss: 'tank',    count: 4, lvl: 4, diff: 1.26, len: 260, map: 2, unlockText: 'The Riot Tank' },
+  { n: 10, boss: 'tank',    count: 5, lvl: 1, diff: 2.05, len: 270, map: 0, unlockText: 'Harder nights' },
+  { n: 11, boss: 'abom',    count: 5, lvl: 2, diff: 1.72, len: 280, map: 1, unlockText: 'The Abomination' },
+  { n: 12, boss: 'abom',    count: 5, lvl: 3, diff: 1.4, len: 300, map: 2, unlockText: 'Endless mode' },
 ];
-// Every night has TWO bosses. The second one is the previous night-tier's variant. Each boss in the pair
-// has DUO_HP / DUO_DMG of a solo boss's stats (tuned with tools/balance.mjs).
-export const SECOND_BOSS = { brute: 'brute', spitter: 'brute', charger: 'spitter', howler: 'charger', tank: 'howler', abom: 'tank' };
-export const DUO_HP = 0.62;
-export const DUO_DMG = 0.7;
+// Several bosses every night: count = how many, lvl = the level they all start at.
+// Boss 1 is the night's boss (and the hunter); the others walk down the chain of earlier variants.
+export const BOSS_CHAIN = ['brute', 'spitter', 'charger', 'howler', 'tank', 'abom'];
+export function bossKinds(main, count) {
+  const i = BOSS_CHAIN.indexOf(main);
+  return Array.from({ length: count }, (_, k) => BOSS_CHAIN[Math.max(0, i - k)]);
+}
+// per-boss share of a solo boss's HP / damage, by group size (tuned with tools/balance.mjs)
+export const GROUP_HP = { 1: 1, 2: 0.62, 3: 0.47, 4: 0.38, 5: 0.32 };
+export const GROUP_DMG = { 1: 1, 2: 0.7, 3: 0.55, 4: 0.46, 5: 0.4 };
 export const HUNT_CHANCE = 0.6; // chance the main boss picks the player's door whenever it chooses a target
-export const ENDLESS = { n: 0, endless: true, boss: 'brute', diff: 1.6, len: 99999, map: 1 };
+export const ENDLESS = { n: 0, endless: true, boss: 'brute', count: 2, lvl: 1, diff: 1.6, len: 99999, map: 1 };
 
 export function bossBase(diff) {
   return { hp: 5400 * diff, dmg: 13 * diff };
