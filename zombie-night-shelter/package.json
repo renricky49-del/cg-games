@@ -1,0 +1,1 @@
+{ "private": true, "type": "module", "description": "Last Door Standing - no build step; package.json only marks js/ as ES modules for the Node test tools." }
