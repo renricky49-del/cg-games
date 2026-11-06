@@ -171,11 +171,11 @@ export class MatchView {
           if (me) A.play(kind === 'arrow' ? 'arrow' : kind === 'spark' ? 'spark' : 'gallop');
           break;
         }
-        case 'dmg': if (me && e.big && this.texts.length < 40) { const [x, y] = this.toScreen(0, e.x, e.y); this.text(x, y - g.ts * 0.4, fmt(e.v), '#ffe14d', g.ts * 0.32); } break;
+        case 'dmg': if (me && e.big) { const [x, y] = this.toScreen(0, e.x, e.y); this.text(x, y - g.ts * 0.4, fmt(e.v), '#ffe14d', g.ts * 0.32); } break;
         case 'kill': {
           const [x, y] = this.toScreen(sideIdx, e.x, e.y);
           this.burst(x, y, e.boss !== undefined ? 30 : 8, e.boss !== undefined ? '#ffcf3a' : '#d7f2ff', g.ts * (e.boss !== undefined ? 0.12 : 0.07));
-          if (me) { if (this.texts.length < 50) this.text(x, y - g.ts * 0.3, '+' + e.ink, '#7fd7ff', g.ts * 0.28); A.play(e.boss !== undefined ? 'bosskill' : 'kill'); if (e.boss !== undefined) this.shake = Math.max(this.shake, 10); }
+          if (me) { this.text(x, y - g.ts * 0.3, '+' + e.ink, '#7fd7ff', g.ts * 0.28); A.play(e.boss !== undefined ? 'bosskill' : 'kill'); if (e.boss !== undefined) this.shake = Math.max(this.shake, 10); }
           break;
         }
         case 'dodge': if (me) { const [x, y] = this.toScreen(0, e.x, e.y); this.text(x, y - 18, 'miss', '#fff', 13); } break;
@@ -250,6 +250,7 @@ export class MatchView {
     const slide = p < 0.18 ? 1 - easeOut(p / 0.18) : p > 0.82 ? -easeOut((p - 0.82) / 0.18) : 0;
     const x = cx - pw / 2 + slide * (this.W * 0.8);
     g.save(); g.globalAlpha = p > 0.85 ? 1 - (p - 0.85) / 0.15 : 1;
+    g.beginPath(); g.rect(geo.x - 8, geo.y - 8, geo.w + 16, geo.h + 16); g.clip();
     // dark band
     g.fillStyle = 'rgba(10,6,24,0.55)'; g.fillRect(geo.x - 8, cy - ph / 2 - 8, geo.w + 16, ph + 16);
     g.beginPath(); const sk = ph * 0.25;
@@ -264,14 +265,26 @@ export class MatchView {
     g.fillStyle = '#fff3b0'; g.fillText(c.label, x + pw - sk * 0.2, cy + ph / 2 - fs * 0.25);
     g.restore();
   }
-  text(x, y, s, col, size) { this.texts.push({ x, y, s, col, size: Math.max(11, size), t: 0, dur: 0.9 }); }
+  text(x, y, s, col, size) {
+    const g0 = this.geo[0];
+    // keep floaters off the board name label (top-left corner of each board)
+    for (const g of this.geo) { if (x < g.x + 190 && x > g.x - 20 && y < g.y + 26 && y > g.y - 30) y = g.y + 30; }
+    // merge rapid repeats of numeric floaters near the same spot into one counter
+    const m = /^([+-]?)(\d+)(.*)$/.exec(s);
+    if (m) {
+      const near = this.texts.find(t => t.num !== undefined && t.suffix === m[3] && t.col === col && t.t < 0.45 && Math.abs(t.x - x) < g0.ts * 0.9 && Math.abs(t.y - y) < g0.ts * 0.9);
+      if (near) { near.num += +m[2]; near.s = m[1] + fmt(near.num) + m[3]; near.t = Math.min(near.t, 0.1); near.size = Math.min(near.size * 1.04, size * 1.6); return; }
+    }
+    if (this.texts.length >= 24) this.texts.shift();
+    this.texts.push({ x, y, s, col, size: Math.max(11, size), t: 0, dur: 0.9, num: m ? +m[2] : undefined, suffix: m ? m[3] : undefined });
+  }
   burst(x, y, n, col, sz) {
     for (let i = 0; i < n && this.parts.length < 700; i++) {
       const a = Math.random() * TAU, sp = (0.4 + Math.random()) * sz * 40;
       this.parts.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - sz * 20, life: 0, max: 0.45 + Math.random() * 0.35, col, s: sz * (0.6 + Math.random() * 0.8) });
     }
   }
-  banner(text, col, dur = 1.5, delay = 0, hero = null) { this.banners.push({ text, col, t: -delay, dur, hero }); if (this.banners.length > 3) this.banners.shift(); }
+  banner(text, col, dur = 1.5, delay = 0, hero = null) { this.banners = this.banners.filter(b => b.t < 0 && b.hero); this.banners.push({ text, col, t: -delay, dur, hero }); }
 
   // ---------- frame ----------
   draw(dt) {
@@ -794,7 +807,7 @@ export class MatchView {
     for (const b of this.banners) {
       if (b.t < 0) continue;
       const p = b.t / b.dur;
-      const a = p < 0.12 ? p / 0.12 : p > 0.8 ? (1 - p) / 0.2 : 1;
+      const a = (p < 0.12 ? p / 0.12 : p > 0.8 ? (1 - p) / 0.2 : 1) * (b.t > 1 ? 0.55 : 1);
       const s = p < 0.12 ? 0.7 + 0.3 * easeOut(p / 0.12) : 1;
       let fs = clamp(this.geo[0].ts * 0.42, 16, 34) * (b.hero ? 1.2 : 1);
       g.font = `${fs}px ${FONT}`; let tw = g.measureText(b.text).width;

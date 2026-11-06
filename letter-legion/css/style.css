@@ -59,7 +59,7 @@ b { color: #fff; }
 .coins { font-size: 17px; background: rgba(0,0,0,0.3); padding: 5px 12px; border-radius: 16px; border: 1px solid rgba(255,210,74,0.4); }
 
 /* hub */
-.hub { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; padding: 18px; max-width: 1200px; margin: 0 auto; }
+.hub { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; padding: 18px 18px 110px; max-width: 1200px; margin: 0 auto; }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.35); }
 .card-h { font-family: 'Titan One', sans-serif; font-size: 19px; color: var(--gold); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .card-h .muted { font-family: 'Fredoka', sans-serif; }
