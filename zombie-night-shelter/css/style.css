@@ -257,7 +257,31 @@ img { -webkit-user-drag: none; }
   #build-menu { width: 220px; }
 }
 @media (max-height: 500px) {
-  .act { height: 60px; }
+  #hud-top { padding: 4px 6px; gap: 6px; }
+  .pill { font-size: 15px; padding: 2px 8px 2px 3px; }
+  .pill img { width: 20px; height: 20px; }
+  .pill small { display: none; }
+  #phase-box { min-width: 120px; padding: 2px 10px 4px; }
+  #phase-title { font-size: 11px; }
+  #phase-timer { font-size: 18px; }
+  #dawn-bar { height: 5px; margin-top: 3px; }
+  #dawn-moon { display: none; }
+  #boss-box { padding: 2px; }
+  #boss-box .boss-info { display: none; }
+  #boss-portrait { width: 34px; height: 34px; }
+  #boss-portrait img { width: 30px; height: 30px; }
+  #boss-lvl { min-width: 18px; height: 18px; font-size: 11px; }
+  .ibtn { width: 32px; height: 32px; font-size: 14px; border-radius: 9px; }
+  #hud-bottom { bottom: 4px; padding: 3px; gap: 4px; border-radius: 12px; }
+  .act { height: 46px; width: 76px; border-radius: 10px; padding-top: 2px; }
+  .act .key, .act .sub { display: none; }
+  .act .lbl { font-size: 12px; }
+  .act .cost { font-size: 12px; }
+  #tutorial { left: auto; right: 8px; transform: none; max-width: 42vw; padding: 5px 10px; }
+  .tut-text { font-size: 13px; }
+  .tut-step { display: none; }
+  #banner { font-size: 32px; top: 30%; }
+  #banner small { font-size: 16px; }
   .act > img { display: none; }
   #title-logo { max-height: 30vh; }
   .title-inner { gap: 6px; }

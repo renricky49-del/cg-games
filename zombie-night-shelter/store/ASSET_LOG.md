@@ -16,3 +16,8 @@ Style anchor = job `05a68226` (survivors sheet), passed as `image_references` to
 | 9 | music loop | ElevenLabs Music v2, 60s instrumental tense/playful loop; crossfaded to a seamless 57s loop with ffmpeg, 96 kbps | elevenlabs_music_v2 | 3.84 | assets/audio/night_loop.mp3 | 7.84 |
 | 10 | key art 16:9 | hallway at night, Brute smashing door, survivor + nail turret in cutaway room; refs #1 #2 | high 2k | 2.75 | store covers, assets/img/title_bg.jpg | 10.59 |
 | 11 | title logo | "LAST DOOR STANDING" chunky cartoon logo, door-shaped O, zombie hands | medium 1k, transparent, ref #1 | 0.50 | assets/img/logo.png | 11.09 |
+| 12 | cover art 2:3 | portrait re-composition of the key art; ref #10 | high 2k | 2.75 | store/cover_800x1200.jpg | 13.84 |
+| 13 | cover art 1:1 | square re-composition of the key art; ref #10 | high 2k | 2.75 | store/cover_800x800.jpg | 16.59 |
+
+**Total spent: 16.59 credits** (cap 95). Covers are composited locally by `tools/covers.py` (key art + logo + soft shadow).
+Post-processing: all PNG sprites quantized to 256 colours (PIL FASTOCTREE, no dither) — 2.0 MB → 0.45 MB with no visible loss.

@@ -32,7 +32,7 @@ const App = {
     CG.onMuteChange = (m) => { Audio.sdkMuted = m; Audio.applyMute(); };
     CG.onAdStart = () => { this.adPause = true; Audio.adMuted = true; Audio.applyMute(); CG.gameplayStop(); };
     CG.onAdEnd = () => { this.adPause = false; Audio.adMuted = false; Audio.applyMute(); if (this.screen === 'game' && !this.paused) CG.gameplayStart(); };
-    Audio.musicOn = this.save.music; Audio.sfxOn = this.save.sfx;
+    Audio.musicOn = this.save.music; Audio.sfxOn = this.save.sfx; this.renderer.noShake = !this.save.shake;
     CG.loadingStop();
     this.bindUI();
     this.bindInput();
@@ -162,7 +162,7 @@ const App = {
     this.renderer.setGame(this.game);
     this.hud.reset(this.game, tutorial);
     this.portraitCam();
-    this.resultsShown = false; this.endTimer = 0; this.speed = 1; $('btn-speed').textContent = 'x1';
+    this.resultsShown = false; this.endTimer = 0; this.speed = 1; this.userPanned = false; $('btn-speed').textContent = 'x1';
   },
 
   beginPlay() {
@@ -203,6 +203,12 @@ const App = {
       g.events.length = 0;
     }
     if (g) {
+      // zoomed-in camera follows the player while they run for a room (until the user pans manually)
+      const pl = g.player;
+      if (!this.userPanned && (pl.state === 'corridor' || pl.state === 'entering') && R.cam.z > R.cam.fit * 1.15 && R.cam.tz == null) {
+        const k = Math.min(1, dt * 3);
+        R.cam.x += (pl.x * TS - R.cam.x) * k; R.cam.y += (pl.y * TS - R.cam.y) * k; R.clampCam();
+      }
       R.update(this.paused || this.adPause ? 0 : dt); this.hud.update(dt);
       this.hoverT = (this.hoverT || 0) + dt;
       if (this.mouse && this.hoverT > 0.2 && this.pointers.size === 0) { this.hoverT = 0; this.onHover(this.mouse.x, this.mouse.y); }
@@ -342,7 +348,7 @@ const App = {
     const setSfx = (v) => { this.save.sfx = v; Audio.sfxOn = v; Audio.applyMute(); this.persist(); };
     $('set-music').onchange = (e) => setMusic(e.target.checked);
     $('set-sfx').onchange = (e) => setSfx(e.target.checked);
-    $('set-shake').onchange = (e) => { this.save.shake = e.target.checked; this.persist(); };
+    $('set-shake').onchange = (e) => { this.save.shake = e.target.checked; this.renderer.noShake = !e.target.checked; this.persist(); };
     $('pause-music').onchange = (e) => setMusic(e.target.checked);
     $('pause-sfx').onchange = (e) => setSfx(e.target.checked);
     click('btn-reset', () => {
@@ -370,8 +376,11 @@ const App = {
   portraitCam() {
     const R = this.renderer, g = this.game;
     requestAnimationFrame(() => {
-      if (!g || R.vw / R.vh > 1.25) return;
-      const z = Math.min(R.cam.fit * 2.3, (R.vh - R.insets.top - R.insets.bottom) / (TS * 11));
+      if (!g) return;
+      let z;
+      if (R.vw / R.vh <= 1.25) z = Math.min(R.cam.fit * 2.3, (R.vh - R.insets.top - R.insets.bottom) / (TS * 11));
+      else if (R.cam.fit * TS < 24) z = 26 / TS; // tiny tiles on short landscape screens
+      else return;
       R.cam.z = Math.max(R.cam.fit, z); R.cam.x = g.player.x * TS; R.cam.y = 8.5 * TS; R.cam.tz = null; R.clampCam();
     });
   },
@@ -407,7 +416,7 @@ const App = {
         return;
       }
       if (Math.hypot(e.clientX - p.sx, e.clientY - p.sy) > 8) p.moved = true;
-      if (p.moved && this.game) { this.renderer.pan(dx, dy); cv.classList.add('grab'); this.hud.closeMenus(); }
+      if (p.moved && this.game) { this.userPanned = true; this.renderer.pan(dx, dy); cv.classList.add('grab'); this.hud.closeMenus(); }
       else this.onHover(e.clientX, e.clientY);
     });
     const up = (e) => {

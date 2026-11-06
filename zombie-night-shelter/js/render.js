@@ -69,7 +69,7 @@ export class Renderer {
   }
   focus(wx, wy, z) { this.cam.tx = wx; this.cam.ty = wy; this.cam.tz = z; }
   focusRoom(room) {
-    const z = Math.max(this.cam.fit, Math.min(this.cam.fit * 2.4, (this.vh - this.insets.top - this.insets.bottom) / (TS * 10)));
+    const z = Math.max(this.cam.fit, Math.min(Math.max(this.cam.fit * 2.4, 30 / TS), (this.vh - this.insets.top - this.insets.bottom) / (TS * 10)));
     const d = room.doors[0];
     this.focus((room.x + room.w / 2) * TS, ((room.top ? room.y + 2.5 : room.y + 2.5) + (d.fy)) / 2 * TS, z);
   }
@@ -203,7 +203,7 @@ export class Renderer {
       case 'continue': this.ring(g.player.x, g.player.y, '#7dff8a', 4); break;
     }
   }
-  shake(a) { this.cam.shake = Math.min(18, Math.max(this.cam.shake, a)); }
+  shake(a) { if (this.noShake) return; this.cam.shake = Math.min(18, Math.max(this.cam.shake, a)); }
   burst(x, y, n, color, spd, life, kind) {
     if (this.particles.length > 600) return;
     for (let i = 0; i < n; i++) {
@@ -313,6 +313,7 @@ export class Renderer {
         ctx.strokeRect(r.x * TS + 3, r.y * TS + 3, r.w * TS - 6, r.h * TS - 6);
         if (this.hoverRoom === r) { ctx.fillStyle = 'rgba(125,255,138,0.18)'; ctx.fillRect(r.x * TS, r.y * TS, r.w * TS, r.h * TS); }
       }
+      if (!r.owner && g.phase !== 'rush') { ctx.fillStyle = 'rgba(8,10,25,0.38)'; ctx.fillRect(r.x * TS, r.y * TS, r.w * TS, r.h * TS); }
       if (g.player.room === r) {
         ctx.strokeStyle = 'rgba(255,216,74,0.55)'; ctx.lineWidth = 3;
         ctx.strokeRect(r.x * TS + 2, r.y * TS + 2, r.w * TS - 4, r.h * TS - 4);
@@ -539,6 +540,15 @@ export class Renderer {
       if (!g.endless && g.nightLeft < 25) { dark = 0.48 * (g.nightLeft / 25); tint = '40,20,10'; }
     } else if (g.phase === 'won') { dark = 0; }
     this.darkness += (dark - this.darkness) * 0.05;
+    if (g.phase === 'won' && !g.stats.bossKilled) {
+      // sunrise: warm light washing down from the top of the screen
+      this.dawnT = (this.dawnT || 0) + 1 / 60;
+      const a = Math.min(0.45, this.dawnT * 0.4);
+      const gr = ctx.createLinearGradient(0, 0, 0, this.vh);
+      gr.addColorStop(0, `rgba(255,190,90,${a})`); gr.addColorStop(0.6, `rgba(255,140,80,${a * 0.4})`); gr.addColorStop(1, 'rgba(255,120,80,0)');
+      ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+      ctx.fillStyle = gr; ctx.fillRect(0, 0, this.vw, this.vh);
+    } else this.dawnT = 0;
     if (this.darkness < 0.02) return;
     L.globalCompositeOperation = 'source-over';
     L.clearRect(0, 0, w, h);
