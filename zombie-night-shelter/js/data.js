@@ -140,6 +140,12 @@ export const NIGHTS = [
   { n: 11, boss: 'abom',    diff: 2.4, len: 280, map: 1, unlockText: 'The Abomination' },
   { n: 12, boss: 'abom',    diff: 2.6, len: 300, map: 2, unlockText: 'Endless mode' },
 ];
+// Every night has TWO bosses. The second one is the previous night-tier's variant. Each boss in the pair
+// has DUO_HP / DUO_DMG of a solo boss's stats (tuned with tools/balance.mjs).
+export const SECOND_BOSS = { brute: 'brute', spitter: 'brute', charger: 'spitter', howler: 'charger', tank: 'howler', abom: 'tank' };
+export const DUO_HP = 0.62;
+export const DUO_DMG = 0.7;
+export const HUNT_CHANCE = 0.6; // chance the main boss picks the player's door whenever it chooses a target
 export const ENDLESS = { n: 0, endless: true, boss: 'brute', diff: 1.6, len: 99999, map: 1 };
 
 export function bossBase(diff) {

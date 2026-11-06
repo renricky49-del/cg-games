@@ -25,9 +25,10 @@ function chooseGoal(g, s) {
   const r = s.room, P = s.pers;
   const inc = Math.max(1, g.income(s));
   const night = g.phase === 'night';
-  const boss = g.boss;
-  const threat = boss && boss.alive ? (boss.dmg * 25) / g.doorMax(r) : 0.5; // >1 means boss breaks door in <25 hits
-  const targeted = boss && boss.target && boss.target.room === r;
+  const alive = g.bossesAlive();
+  const dmgSum = alive.reduce((a, b) => a + b.dmg, 0);
+  const threat = alive.length ? (dmgSum * 25) / g.doorMax(r) : 0.5; // >1 means the bosses break this door in <25 hits
+  const targeted = alive.some((b) => b.target && b.target.room === r);
   const C = [];
   const val = (w, cost) => (w * (0.65 + g.rng() * 0.7)) / (1 + cost / (inc * 30));
 

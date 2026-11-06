@@ -23,9 +23,15 @@
       <div id="dawn-bar"><div id="dawn-fill"></div><img src="assets/img/i_moon.png" alt="" id="dawn-moon"></div>
     </div>
     <div class="hud-right">
-      <div id="boss-box">
-        <div id="boss-portrait"><img id="boss-img" src="assets/img/boss_brute.png" alt=""><span id="boss-lvl">1</span></div>
-        <div class="boss-info"><div id="boss-name">The Brute</div><div class="bar"><div id="boss-hp"></div></div><div id="boss-state">Sleeping</div></div>
+      <div id="boss-boxes">
+        <div class="boss-box" id="boss-box0">
+          <div class="boss-portrait"><img class="boss-img" id="boss-img0" src="assets/img/boss_brute.png" alt=""><span class="boss-lvl" id="boss-lvl0">1</span></div>
+          <div class="boss-info"><div class="boss-name" id="boss-name0">The Brute</div><div class="bar"><div class="boss-hp" id="boss-hp0"></div></div><div class="boss-state" id="boss-state0">Sleeping</div></div>
+        </div>
+        <div class="boss-box" id="boss-box1">
+          <div class="boss-portrait"><img class="boss-img" id="boss-img1" src="assets/img/boss_brute.png" alt=""><span class="boss-lvl" id="boss-lvl1">1</span></div>
+          <div class="boss-info"><div class="boss-name" id="boss-name1">The Brute</div><div class="bar"><div class="boss-hp" id="boss-hp1"></div></div><div class="boss-state" id="boss-state1">Sleeping</div></div>
+        </div>
       </div>
       <div id="top-btns">
         <button class="ibtn" id="btn-speed" title="Game speed">x1</button>
@@ -118,7 +124,7 @@
       <li><b>Rest on your bed</b> to earn scrap every second. <b>Upgrade the bed (B)</b> to double your income — but bigger beds need a stronger door.</li>
       <li><b>Click empty floor</b> in your room to build turrets and gadgets. Turret range grows with level, so turrets near the door can also protect your neighbours.</li>
       <li>The boss zombie attacks doors. <b>Repair (R)</b> for a quick patch or <b>Upgrade the door (U)</b> to refill it and raise its max HP.</li>
-      <li>The boss levels up when it smashes doors. Fallen survivors rise as zombies! <b>Survive until dawn</b> or <b>kill the boss</b> to win.</li>
+      <li>Every night <b>two bosses</b> hunt the floor. They level up when they smash doors, and fallen survivors rise as zombies! <b>Survive until dawn</b> or <b>kill both bosses</b> to win.</li>
     </ol>
     <p class="note">Hotkeys: B bed · R repair · U door · 1-9 build · P pause · Z zoom · Mouse wheel / pinch to zoom · drag to pan.</p>
   </div>
@@ -138,7 +144,7 @@
 <div id="intro" class="screen dim">
   <div class="panel narrow center intro-card">
     <div class="intro-night" id="intro-night">Night 1</div>
-    <img id="intro-boss" src="assets/img/boss_brute.png" alt="">
+    <div class="intro-bosses"><img id="intro-boss" src="assets/img/boss_brute.png" alt=""><img id="intro-boss2" src="assets/img/boss_brute.png" alt=""></div>
     <div class="intro-name" id="intro-name">The Brute</div>
     <div class="intro-desc" id="intro-desc"></div>
     <div class="intro-unlock" id="intro-unlock"></div>

@@ -72,7 +72,13 @@ turrets usually reach the boss even while it attacks a neighbour (in-range 40–
 `node tools/engagement.mjs` measures it) — rooms whose doors
 are close together (shown as "close neighbours" when hovering a room in the rush) are the strongest picks.
 
-**Boss:** gains XP from door hits, broken doors, destroyed buildings and slowly over time; each level is ×1.38 HP,
+**Two bosses every night:** the night's boss plus the previous tier's variant (Brute+Brute, Spitter+Brute, Charger+Spitter,
+Howler+Charger, Tank+Howler, Abomination+Tank). Each has 62 % HP / 70 % damage of a solo boss (`DUO_HP`, `DUO_DMG`).
+The main boss is a **hunter**: whenever it picks a target it goes for the player's door 60 % of the time (`HUNT_CHANCE`) and
+rarely backs off from it; the second boss goes for the weakest doors and avoids the door its partner is on. Result: a boss
+is on the player's door 23–34 % of the night (was 0–3 % with one boss). Win = dawn or both bosses dead; ★★★ = both dead.
+
+**Each boss:** gains XP from door hits, broken doors, destroyed buildings and slowly over time; each level is ×1.38 HP,
 ×1.33 damage and a bigger sprite + level badge. It targets doors by a score (current HP, hits-to-break, turret DPS
 covering that door, distance), switches doors when taking heavy fire, and retreats to the lair to heal at 28 % HP
 (1–2 times per night). Variants: Spitter (acid jams gadgets), Charger (dashes to another door, 3× hit), Howler

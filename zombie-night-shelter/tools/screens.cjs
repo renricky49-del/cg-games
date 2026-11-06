@@ -3,7 +3,7 @@ const { chromium } = require('playwright');
 const OUT = 'store/screenshots';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // frame the camera on the boss (or the player's room) at a readable zoom
-const frameBoss = (p) => p.evaluate(() => { const A = window.__app, R = A.renderer, g = A.game, b = g.boss; R.cam.tz = null; R.cam.z = 1.12; R.cam.x = (b.alive ? b.x : g.player.x) * 48; R.cam.y = 8.5 * 48; R.clampCam(); });
+const frameBoss = (p) => p.evaluate(() => { const A = window.__app, R = A.renderer, g = A.game, b = g.bosses.find((q) => q.alive) || g.boss; R.cam.tz = null; R.cam.z = 1.12; R.cam.x = (b.alive ? b.x : g.player.x) * 48; R.cam.y = 8.5 * 48; R.clampCam(); });
 async function until(p, fn, ms = 90000) { const t = Date.now(); while (Date.now() - t < ms) { if (await p.evaluate(fn)) return; await sleep(200); } throw new Error('timeout ' + fn); }
 (async () => {
   const b = await chromium.launch();

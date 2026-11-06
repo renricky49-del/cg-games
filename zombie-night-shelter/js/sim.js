@@ -2,7 +2,7 @@
 import {
   RUSH_TIME, GRACE_TIME, PACE, MAX_BED, MAX_DOOR, bedIncome, bedCost, bedDoorReq,
   doorMaxHp, doorCost, repairCost, REPAIR_FRAC, REPAIR_CD,
-  BUILDINGS, upgradeCost, totalSpent, turretStats, BOSSES, bossBase, BOSS_LVL_HP, BOSS_LVL_DMG, bossXpNeed,
+  BUILDINGS, upgradeCost, totalSpent, turretStats, BOSSES, bossBase, SECOND_BOSS, DUO_HP, DUO_DMG, HUNT_CHANCE, BOSS_LVL_HP, BOSS_LVL_DMG, bossXpNeed,
   PERSONALITIES, AI_NAMES,
 } from './data.js';
 import { buildMap } from './map.js';
@@ -74,11 +74,21 @@ export class Game {
       this.survivors.push(s);
     }
     this.player = this.survivors[0];
-    // boss
-    const B = BOSSES[this.night.boss];
-    this.boss = this._makeBoss(this.night.boss, this.diff);
-    this.enemies.push(this.boss);
-    this.bossDef = B;
+    // two bosses per night
+    this.bosses = this._makeBossPair(this.night.boss, SECOND_BOSS[this.night.boss] || this.night.boss, this.diff);
+  }
+
+  // first living boss (HUD / legacy callers); falls back to the first one
+  get boss() { return this.bosses.find((b) => b.alive) || this.bosses[0]; }
+  bossesAlive() { return this.bosses.filter((b) => b.alive); }
+
+  _makeBossPair(k1, k2, diff) {
+    const a = this._makeBoss(k1, diff, DUO_HP, DUO_DMG), b = this._makeBoss(k2, diff, DUO_HP, DUO_DMG);
+    b.y += 3; b.wakeDelay = 3; // second boss sleeps further down the stairwell and comes out a moment later
+    a.partner = b; b.partner = a;
+    a.hunter = true; // the main boss hunts the player's room; the second one goes for the weakest doors
+    this.enemies.push(a, b);
+    return [a, b];
   }
 
   emit(type, data) { this.events.push(Object.assign({ type }, data)); }
@@ -382,12 +392,12 @@ export class Game {
     if (this.phase === 'night') this._spawnMinionFrom(s);
   }
 
-  _makeBoss(kind, diff) {
+  _makeBoss(kind, diff, hpF = 1, dmgF = 1) {
     const B = BOSSES[kind], base = bossBase(diff);
-    const hp = base.hp * B.hp;
+    const hp = base.hp * B.hp * hpF;
     return {
       id: NEXT_ID++, kind: 'boss', variant: kind, sprite: B.sprite, name: B.name,
-      x: this.map.lair.sx, y: this.map.lair.sy, hp, maxHp: hp, dmg: base.dmg * B.dmg, baseSpeed: B.speed,
+      x: this.map.lair.sx, y: this.map.lair.sy, hp, maxHp: hp, dmg: base.dmg * B.dmg * dmgF, baseSpeed: B.speed,
       state: 'sleep', target: null, atkCd: 1, lvl: 1, xp: 0, r: 0.8, dir: 0, slow: 0, hitFlash: 0,
       recentDmg: 0, switchT: 4, abilityT: 8, howlT: 18, retreats: 0, chargeMul: 1, charging: false, walkT: 0,
       armor: !!B.armor, def: B, alive: true, pause: 0,
@@ -397,8 +407,8 @@ export class Game {
   _wakeBoss() {
     this.phase = 'night';
     this.emit('phase', { phase: 'night' });
-    this.boss.state = 'seek';
-    this.emit('bossWake', { boss: this.boss });
+    for (const b of this.bosses) { b.state = 'seek'; b.pause = b.wakeDelay || 0; }
+    this.emit('bossWake', { boss: this.bosses[0], bosses: this.bosses });
     for (const s of this.survivors) if (s.minionPending) this._spawnMinionFrom(s);
   }
 
@@ -444,6 +454,11 @@ export class Game {
   _pickBossTarget(e, exclude) {
     const opts = this._doorTargets().filter((o) => !exclude || o.room !== exclude);
     if (!opts.length) return null;
+    // the hunter goes straight for the player's door most of the time (not in the tutorial's first minute)
+    if (e.hunter && !(this.tutorial && this.stats.timeSurvived < 70) && this.rng() < HUNT_CHANCE) {
+      const mine = opts.filter((o) => o.room.owner.isPlayer);
+      if (mine.length) return mine.reduce((a, b) => (b.door.hp < a.door.hp ? b : a));
+    }
     let best = null, bs = 1e9;
     for (const o of opts) {
       const m = this.doorMax(o.room);
@@ -453,6 +468,9 @@ export class Game {
       let s = ttb * 0.06 + frac * 0.8 + def * 0.9 + dist(e.x, e.y, o.door.fx, o.door.fy) * 0.02 + this.rng() * 0.6;
       if (this.tutorial && o.room.owner.isPlayer && this.stats.timeSurvived < 70) s += 5;
       if (this.night.n === 2 && o.room.owner.isPlayer && this.stats.timeSurvived < 30) s += 2;
+      // the hunter prefers the player's door (not during the tutorial's first minute)
+      // split up: avoid the door the other boss is already working on
+      if (e.partner && e.partner.alive && e.partner.target && e.partner.target.room === o.room) s += 3;
       if (s < bs) { bs = s; best = o; }
     }
     return best;
@@ -576,7 +594,7 @@ export class Game {
       if (e.switchT <= 0) {
         e.switchT = 3;
         const frac = t.door.hp / this.doorMax(t.room);
-        if (e.recentDmg > e.maxHp * 0.16 && frac > 0.35 && this.rng() < 0.55) {
+        if (e.recentDmg > e.maxHp * 0.16 && frac > 0.35 && this.rng() < (e.hunter && t.room.owner && t.room.owner.isPlayer ? 0.15 : 0.55)) {
           const nt = this._pickBossTarget(e, t.room);
           if (nt) { e.target = nt; e.state = 'walk'; this.emit('bossSwitch', { e }); }
         }
@@ -636,7 +654,7 @@ export class Game {
       s.x = r.doors[0].fx; s.y = r.doors[0].fy;
       this._eliminate(s, 'door');
     }
-    const boss = this.boss;
+    const boss = e.kind === 'boss' ? e : this.boss;
     if (boss.alive) { boss.xp += 8 + nb; this._checkLevel(boss); }
     if (e.kind === 'boss') { e.pause = 1.2; e.state = 'seek'; e.target = null; }
   }
@@ -778,9 +796,12 @@ export class Game {
       e.alive = false; e.hp = 0;
       this.emit('kill', { e, x: e.x, y: e.y });
       if (e.kind === 'boss') {
-        this.stats.bossKilled = true;
-        if (this.endless) this._nextWave();
-        else this._win(true);
+        this.stats.bossesKilled = (this.stats.bossesKilled || 0) + 1;
+        if (this.bossesAlive().length === 0) {
+          this.stats.bossKilled = true;
+          if (this.endless) this._nextWave();
+          else this._win(true);
+        } else this.emit('bossDown', { e, left: this.bossesAlive().length });
       } else {
         this.stats.minionsKilled++;
         // bounty to the room that landed the kill
@@ -800,13 +821,11 @@ export class Game {
     const kinds = Object.keys(BOSSES);
     const kind = kinds[Math.min(kinds.length - 1, Math.floor(this.bossWaves / 1.5)) % kinds.length];
     this.diff *= 1.55;
-    const b = this._makeBoss(kind, this.diff);
-    b.state = 'sleep'; b.pause = 0;
-    this.boss = b; this.bossDef = BOSSES[kind];
-    this.enemies.push(b);
-    // short breather, then it wakes
+    const pair = this._makeBossPair(kind, SECOND_BOSS[kind], this.diff);
+    this.bosses = pair;
+    // short breather, then they wake
     this.waveT = 12;
-    const wake = () => { b.state = 'seek'; this.emit('bossWake', { boss: b }); };
+    const wake = () => { for (const b of pair) { b.state = 'seek'; b.pause = b.wakeDelay || 0; } this.emit('bossWake', { boss: pair[0], bosses: pair }); };
     this._pendingWake = { t: 12, fn: wake };
   }
 
@@ -839,7 +858,7 @@ export class Game {
     }
     return {
       won, stars, alive, killed: this.stats.bossKilled, earned: Math.floor(this.stats.earned),
-      time: this.stats.timeSurvived, bossLvl: this.boss.lvl, built: this.stats.built,
+      time: this.stats.timeSurvived, bossLvl: Math.max(...this.bosses.map((b) => b.lvl)), bossesKilled: this.stats.bossesKilled || 0, built: this.stats.built,
       wave: this.stats.wave, realTime: this.stats.realTime, minions: this.stats.minionsKilled, reason: this.lostReason,
     };
   }

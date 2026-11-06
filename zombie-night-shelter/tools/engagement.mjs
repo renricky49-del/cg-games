@@ -18,7 +18,7 @@ for (const n of [0, 2, 4, 7]) {
       g.events.length = 0;
       if (g.phase === 'night') {
         total++; if (fired) busy++;
-        const b = g.boss;
+        const b = g.bosses.find((q) => q.alive && q.state === 'attack' && q.target && q.target.room !== g.player.room) || g.boss;
         const r = g.player.room;
         const reach = r && r.buildings.some((q) => BUILDINGS[q.type].kind === 'turret' && Math.hypot(q.x - b.x, q.y - b.y) <= turretStats(q.type, q.lvl).range + b.r * 0.5);
         if (b.alive && b.state === 'attack' && b.target && b.target.room !== r) { totalElse++; if (reach) busyElse++; }

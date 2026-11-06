@@ -5,5 +5,5 @@ for (let i = 0; i < 6; i++) {
   let t = 0;
   while (g.phase !== 'lost' && t < 3000) { g.tick(1 / 30); g.events.length = 0; t += 1 / 30; }
   const r = g.results();
-  console.log(`endless seed ${i}: phase ${g.phase} waves ${r.wave - 1} time ${Math.round(r.time)}s boss ${g.boss.variant} lv${g.boss.lvl}`);
+  console.log(`endless seed ${i}: phase ${g.phase} waves ${r.wave - 1} time ${Math.round(r.time)}s bosses ${g.bosses.map((b) => b.variant + ' lv' + b.lvl).join(' + ')}`);
 }

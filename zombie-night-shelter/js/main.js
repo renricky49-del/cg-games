@@ -4,7 +4,7 @@ import { Audio } from './audio.js';
 import { loadImages, IMG } from './assets.js';
 import { Renderer, TS } from './render.js';
 import { Game, fmt } from './sim.js';
-import { NIGHTS, ENDLESS, BOSSES, PERKS, SKINS, BUILD_ORDER, BUILDINGS } from './data.js';
+import { NIGHTS, ENDLESS, BOSSES, SECOND_BOSS, PERKS, SKINS, BUILD_ORDER, BUILDINGS } from './data.js';
 import { roomAt } from './map.js';
 import { HUD } from './ui.js';
 
@@ -84,7 +84,7 @@ const App = {
       const el = document.createElement('button');
       const un = this.nightUnlocked(N.n), st = this.save.stars[N.n] || 0;
       el.className = 'night' + (un ? '' : ' locked') + (i === cur ? ' current' : '');
-      el.innerHTML = `<div>Night ${N.n}</div><img class="b" src="assets/img/${BOSSES[N.boss].sprite}.png" alt=""><div class="nm">${BOSSES[N.boss].name}</div><div class="st">${[1, 2, 3].map((k) => `<img src="assets/img/i_star.png" class="${st >= k ? '' : 'off'}" alt="">`).join('')}</div>`;
+      el.innerHTML = `<div>Night ${N.n}</div><img class="b" src="assets/img/${BOSSES[N.boss].sprite}.png" alt=""><div class="nm">${BOSSES[N.boss].name} + ${BOSSES[SECOND_BOSS[N.boss]].name.replace(/^The /, '')}</div><div class="st">${[1, 2, 3].map((k) => `<img src="assets/img/i_star.png" class="${st >= k ? '' : 'off'}" alt="">`).join('')}</div>`;
       el.onclick = () => { if (!un) { this.toast('Survive the previous night to unlock'); Audio.play('error'); return; } Audio.play('click'); this.startNight(i); };
       grid.appendChild(el);
     });
@@ -145,11 +145,12 @@ const App = {
     }
     this.nightIdx = idx;
     const night = idx < 0 ? ENDLESS : NIGHTS[idx];
-    const B = BOSSES[night.boss];
-    $('intro-night').textContent = idx < 0 ? 'Endless Mode' : `Night ${night.n}`;
+    const B = BOSSES[night.boss], B2 = BOSSES[SECOND_BOSS[night.boss] || night.boss];
+    $('intro-night').textContent = idx < 0 ? 'Endless Mode' : `Night ${night.n} · two bosses`;
     $('intro-boss').src = `assets/img/${B.sprite}.png`;
-    $('intro-name').textContent = idx < 0 ? 'The Endless Horde' : B.name;
-    $('intro-desc').textContent = idx < 0 ? 'Bosses keep coming, each one stronger. How many waves can you hold?' : B.desc;
+    $('intro-boss2').src = `assets/img/${B2.sprite}.png`;
+    $('intro-name').textContent = idx < 0 ? 'The Endless Horde' : B === B2 ? `Two ${B.name.replace(/^The /, '')}s` : `${B.name} + ${B2.name.replace(/^The /, '')}`;
+    $('intro-desc').textContent = idx < 0 ? 'Bosses keep coming in pairs, each pair stronger. How many waves can you hold?' : B === B2 ? B.desc : `${B.desc} ${B2.desc}`;
     const newB = idx < 0 ? null : BUILD_ORDER.filter((t) => BUILDINGS[t].unlock === night.n).map((t) => BUILDINGS[t].name);
     $('intro-unlock').textContent = newB && newB.length ? 'New: ' + newB.join(', ') + '!' : '';
     this.prepareGame(night);
@@ -285,9 +286,9 @@ const App = {
     this.save.medals += medals;
     this.persist();
     this.lastMedals = medals; this.doubled = false;
-    $('res-title').textContent = g.endless ? 'The horde got you!' : r.won ? (r.killed ? 'BOSS DOWN!' : 'You saw the dawn!') : 'Overrun!';
+    $('res-title').textContent = g.endless ? 'The horde got you!' : r.won ? (r.killed ? 'BOSSES DOWN!' : 'You saw the dawn!') : 'Overrun!';
     $('res-title').className = r.won || g.endless ? '' : 'red';
-    $('res-sub').textContent = g.endless ? `Waves survived: ${r.wave - 1}  ·  Best: ${this.save.bestEndless}` : r.won ? (r.stars < 3 ? (r.stars < 2 ? 'Tip: keep 4+ survivors alive for ★★, kill the boss for ★★★' : 'Kill the boss for ★★★') : 'Perfect night!') : (r.reason || 'Your door was broken.');
+    $('res-sub').textContent = g.endless ? `Waves survived: ${r.wave - 1}  ·  Best: ${this.save.bestEndless}` : r.won ? (r.stars < 3 ? (r.stars < 2 ? 'Tip: keep 4+ survivors alive for ★★, kill both bosses for ★★★' : 'Kill both bosses for ★★★') : 'Perfect night!') : (r.reason || 'Your door was broken.');
     const stars = $('res-stars').children;
     for (let i = 0; i < 3; i++) {
       stars[i].classList.remove('on');
@@ -300,7 +301,8 @@ const App = {
       ['Scrap earned', fmt(r.earned)],
       ['Survivors alive', `${r.alive}/${g.survivors.length}`],
       ['Boss level', r.bossLvl],
-      ['Zombies defeated', r.minions + (r.killed ? 1 : 0)],
+      ['Bosses defeated', g.endless ? String(r.bossesKilled || 0) : `${r.bossesKilled || 0}/2`],
+      ['Zombies defeated', r.minions],
     ].map(([a, b]) => `<span>${a}</span><span>${b}</span>`).join('');
     $('res-medal-n').textContent = '+' + medals;
     $('btn-double').classList.toggle('hidden', medals <= 0);

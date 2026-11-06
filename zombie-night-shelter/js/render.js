@@ -639,7 +639,7 @@ export class Renderer {
     }
     for (const b of g.buildings) if (b.flash > 0) light(b.x, b.y, 1.6, 0.8);
     for (const z2 of this.zaps) for (const p of z2.pts) light(p.x, p.y, 1.8, 0.9);
-    light(g.boss.x, g.boss.y, 2.2, 0.35);
+    for (const b of g.bosses) if (b.alive) light(b.x, b.y, 2.2, 0.35);
     L.globalCompositeOperation = 'source-over';
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     ctx.imageSmoothingEnabled = true;

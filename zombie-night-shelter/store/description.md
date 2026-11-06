@@ -18,12 +18,12 @@ Lie down on your bed to earn scrap every second, then spend it wisely:
 - **Power up** with Generators, slow zombies with Chill Traps, earn passive scrap with a Vending Machine, auto-fix your door with a Repair Bench and more.
 - **Repair or upgrade your door** before the boss smashes through.
 
-Turret range grows with every level, so neighbouring rooms protect each other. But beware: every door the boss breaks makes it stronger, and fallen survivors rise as zombies that join the hunt!
+Turret range grows with every level, so neighbouring rooms protect each other. But beware: two bosses prowl the floor every night, one of them hunting you, and every door they break makes them stronger, and fallen survivors rise as zombies that join the hunt!
 
-Survive until dawn for a star, keep your neighbours alive for two, and destroy the boss for three. Collect medals to buy permanent upgrades, unlock new survivors, and take on 12 handcrafted nights with six different bosses — the Brute, the acid-spitting Spitter, the door-slamming Charger, the Howler, the armored Riot Tank and the Abomination. Then see how many waves you can last in **Endless mode**.
+Survive until dawn for a star, keep your neighbours alive for two, and destroy both bosses for three. Collect medals to buy permanent upgrades, unlock new survivors, and take on 12 handcrafted nights with six different bosses — the Brute, the acid-spitting Spitter, the door-slamming Charger, the Howler, the armored Riot Tank and the Abomination. Then see how many waves you can last in **Endless mode**.
 
 ### Features
-- 12 nights + Endless mode, 6 boss types with unique abilities
+- 12 nights + Endless mode, two bosses every night, 6 boss types with unique abilities
 - 11 buildings (5 weapon types), all upgradeable, plus bed and door upgrades
 - Smart AI survivors with different personalities who earn, build and fight alongside you (or get overrun)
 - Boss levels up as it smashes doors — escalating tension every night

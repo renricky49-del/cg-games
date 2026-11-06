@@ -27,7 +27,7 @@ export class HUD {
     $('tutorial').classList.add('hidden'); $('tut-arrow').classList.add('hidden');
     this.cache = {};
     this.lastScrap = 0;
-    $('boss-img').src = `assets/img/${g.boss.sprite}.png`;
+    g.bosses.forEach((b, i) => { $('boss-img' + i).src = `assets/img/${b.sprite}.png`; });
     $('hud-bottom').classList.add('hidden');
     this.layout();
   }
@@ -118,7 +118,7 @@ export class HUD {
     // phase
     let title = '', timer = 0, urgent = false, dawn = 0;
     if (g.phase === 'rush') { title = s.state === 'corridor' ? 'Find a room!' : 'Others are still running…'; timer = g.phaseT; urgent = g.phaseT < 8 && s.state === 'corridor'; }
-    else if (g.phase === 'grace') { title = `${g.boss.name} wakes in`; timer = g.phaseT / PACE; urgent = g.phaseT / PACE < 5; }
+    else if (g.phase === 'grace') { title = 'Bosses wake in'; timer = g.phaseT / PACE; urgent = g.phaseT / PACE < 5; }
     else if (g.endless) { title = `Wave ${g.stats.wave}`; timer = g.stats.realTime; }
     else { title = 'Dawn in'; timer = g.nightLeft / PACE; dawn = 1 - g.nightLeft / g.nightLen; }
     if (g.phase === 'won') { title = 'Dawn!'; timer = 0; dawn = 1; }
@@ -128,14 +128,16 @@ export class HUD {
     if (urgent && (g.phase === 'rush' || g.phase === 'grace')) Audio.play('tick');
     $('dawn-fill').style.width = (dawn * 100).toFixed(1) + '%';
     $('dawn-moon').style.left = (dawn * 100).toFixed(1) + '%';
-    // boss
-    const b = g.boss;
-    this.setText('boss-name', b.name);
-    this.setText('boss-lvl', String(b.lvl));
-    $('boss-hp').style.width = (100 * Math.max(0, b.hp) / b.maxHp).toFixed(1) + '%';
-    const bst = { sleep: 'Sleeping…', seek: 'Hunting', walk: b.charging ? 'CHARGING!' : 'On the move', attack: b.target && b.target.room.owner ? `Smashing ${b.target.room.owner.isPlayer ? 'YOUR' : b.target.room.owner.name + "'s"} door` : 'Attacking', retreat: 'Fleeing to heal!', heal: 'Healing', idle: 'Prowling' };
-    this.setText('boss-state', b.alive ? (bst[b.state] || '') : 'Defeated');
-    if ($('boss-img').getAttribute('src').indexOf(b.sprite) < 0) $('boss-img').src = `assets/img/${b.sprite}.png`;
+    // bosses (two per night)
+    g.bosses.forEach((b, i) => {
+      this.setText('boss-name' + i, b.name);
+      this.setText('boss-lvl' + i, String(b.lvl));
+      $('boss-hp' + i).style.width = (100 * Math.max(0, b.hp) / b.maxHp).toFixed(1) + '%';
+      const bst = { sleep: 'Sleeping…', seek: 'Hunting', walk: b.charging ? 'CHARGING!' : 'On the move', attack: b.target && b.target.room.owner ? `Smashing ${b.target.room.owner.isPlayer ? 'YOUR' : b.target.room.owner.name + "'s"} door` : 'Attacking', retreat: 'Fleeing to heal!', heal: 'Healing', idle: 'Prowling' };
+      this.setText('boss-state' + i, b.alive ? (bst[b.state] || '') : 'Defeated');
+      $('boss-box' + i).classList.toggle('down', !b.alive);
+      if ($('boss-img' + i).getAttribute('src').indexOf(b.sprite) < 0) $('boss-img' + i).src = `assets/img/${b.sprite}.png`;
+    });
     // action bar
     const inRoom = s.state === 'inroom' && room && room.alive;
     const bottom = $('hud-bottom');
@@ -420,13 +422,14 @@ export class HUD {
     switch (ev.type) {
       case 'phase':
         if (ev.phase === 'grace') {
-          this.banner('DOORS LOCKED!', `${g.boss.name} wakes in ${Math.round(GRACE_TIME / PACE)}s — get building!`, 2.4);
+          this.banner('DOORS LOCKED!', `Two bosses wake in ${Math.round(GRACE_TIME / PACE)}s — get building!`, 2.4);
           if (g.player.room && this.R.vw < 900) this.R.focusRoom(g.player.room);
         }
         break;
-      case 'bossWake': this.banner(`${g.boss.name.toUpperCase()} IS AWAKE!`, g.endless ? `Wave ${g.stats.wave}` : 'Survive until dawn', 2.4); break;
-      case 'bossLevel': { const b = $('boss-box'); b.classList.remove('levelup'); void b.offsetWidth; b.classList.add('levelup'); this.toast(`${g.boss.name} reached level ${ev.lvl}!`, 'bad'); break; }
-      case 'bossRetreat': this.toast(`${g.boss.name} is fleeing to heal — finish it!`, 'good'); break;
+      case 'bossWake': this.banner('TWO BOSSES ARE AWAKE!', g.endless ? `Wave ${g.stats.wave}` : `${g.bosses.map((b) => b.name).join(' + ')} — survive until dawn`, 2.6); break;
+      case 'bossLevel': { const b = $('boss-box' + Math.max(0, g.bosses.indexOf(ev.e))); b.classList.remove('levelup'); void b.offsetWidth; b.classList.add('levelup'); this.toast(`${ev.e.name} reached level ${ev.lvl}!`, 'bad'); break; }
+      case 'bossRetreat': this.toast(`${ev.e.name} is fleeing to heal — finish it!`, 'good'); break;
+      case 'bossDown': this.banner('ONE BOSS DOWN!', `${ev.left} to go — finish the other one for ★★★`, 2.2); break;
       case 'doorBreak': if (!ev.player && ev.room.owner) this.toast(`${ev.room.owner.name}'s door was smashed!`, 'bad'); break;
       case 'death': if (!ev.s.isPlayer && ev.why === 'corridor') this.toast(`${ev.s.name} was caught in the hallway!`, 'bad'); break;
       case 'minionSpawn': break;
@@ -503,7 +506,7 @@ export class HUD {
       }
       case 4: text = 'Nice! Turrets also shoot zombies attacking your <b>neighbours</b> — teamwork keeps everyone alive.'; break;
       case 4.5: text = 'Keep upgrading your bed, turrets and door. <b>The boss wakes up soon!</b>'; break;
-      case 5: text = `${g.boss.name} is attacking doors! When yours gets hurt, <b>Repair (R)</b> or <b>Upgrade the door (U)</b>.`; el = $('act-repair'); break;
+      case 5: text = `Two bosses are attacking doors! When yours gets hurt, <b>Repair (R)</b> or <b>Upgrade the door (U)</b>.`; el = $('act-repair'); break;
       case 6: text = 'Survive until <b>dawn</b> — or help shoot the boss down for 3 stars!'; break;
       default: box.classList.add('hidden'); arrow.classList.add('hidden'); this.tut = null; return;
     }
