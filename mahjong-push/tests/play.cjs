@@ -97,7 +97,7 @@ async function solveAndPlay(p) {
   // Hint, undo, shuffle
   await p.click('[data-act=hint]'); await p.waitForTimeout(600);
   await p.screenshot({ path: `${OUT}/07_hint.png` });
-  await p.keyboard.press('Escape'); await p.waitForTimeout(400);
+  await p.keyboard.press('p'); await p.waitForTimeout(400);
   await p.screenshot({ path: `${OUT}/08_pause.png` });
   await p.click('#p-resume');
 

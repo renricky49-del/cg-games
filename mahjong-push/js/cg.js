@@ -1,10 +1,12 @@
 // CrazyGames SDK v3 adapter with a standalone fallback (simulated ads, localStorage saves).
 const MIDGAME_MIN_GAP = 180000; // never more often than every ~3 minutes
+const REWARDED_COOLDOWN = 90000; // rewarded offers are hidden for a while after one was watched
 
 let sdk = null;
 let env = 'none';
 let lastMidgame = Date.now(); // counts from session start so no ad right at the beginning
 let gameplayOn = false;
+let adblock = false, lastRewarded = 0, adBusy = false;
 const hooks = { pause: () => {}, resume: () => {}, muteChange: () => {} };
 
 export const CG = {
@@ -19,6 +21,7 @@ export const CG = {
         await sdk.init();
         env = sdk.environment || 'crazygames';
         if (env === 'disabled') sdk = null;
+        try { if (sdk && sdk.ad && sdk.ad.hasAdblock) adblock = !!(await sdk.ad.hasAdblock()); } catch (e) { /* */ }
         try {
           if (sdk && sdk.game && sdk.game.addSettingsChangeListener) {
             sdk.game.addSettingsChangeListener((s) => hooks.muteChange(!!(s && s.muteAudio)));
@@ -56,20 +59,38 @@ export const CG = {
     return this._ad('midgame').then((ok) => ok, () => false);
   },
 
-  // Rewarded ad; resolves true if the reward should be granted.
-  rewarded() { return this._ad('rewarded'); },
+  // Rewarded offers are shown only when an ad can actually play: never with an adblocker
+  // (CrazyGames rule: no rewarded buttons that do nothing) and not again right after one was watched.
+  rewardedAvailable() { return !adblock && !adBusy && Date.now() - lastRewarded >= REWARDED_COOLDOWN; },
+
+  // Rewarded ad; resolves true only if the ad finished (never reward on adError).
+  rewarded() {
+    if (!this.rewardedAvailable()) return Promise.resolve(false);
+    return this._ad('rewarded').then((ok) => { if (ok) lastRewarded = Date.now(); return ok; });
+  },
 
   _ad(type) {
     return new Promise((resolve) => {
       const wasPlaying = gameplayOn;
-      const start = () => { this.gameplayStop(); hooks.pause(); };
-      const end = (ok) => { hooks.resume(); if (wasPlaying) this.gameplayStart(); resolve(ok); };
+      adBusy = true;
+      // block all UI from the request until the ad finishes or fails
+      const blocker = document.createElement('div');
+      blocker.style.cssText = 'position:fixed;inset:0;z-index:99;background:transparent';
+      document.body.appendChild(blocker);
+      let started = false;
+      // pause + mute only once the ad actually starts (adStarted), per CrazyGames rules
+      const start = () => { started = true; this.gameplayStop(); hooks.pause(); };
+      const end = (ok) => { blocker.remove(); adBusy = false; if (started) hooks.resume(); if (wasPlaying) this.gameplayStart(); resolve(ok); };
       if (sdk) {
         try {
           sdk.ad.requestAd(type, {
             adStarted: start,
             adFinished: () => end(true),
-            adError: (err) => { console.warn('ad error', err && (err.code || err.message || err)); end(false); },
+            adError: (err) => {
+              const code = err && (err.code || err.message || err);
+              if (code === 'adblock') adblock = true;
+              console.warn('ad error', code); end(false);
+            },
           });
         } catch (e) { end(false); }
       } else {
@@ -84,18 +105,18 @@ export const CG = {
     });
   },
 
+  // Progress save: on CrazyGames rely fully on the SDK Data Module (it handles guests and logged-in
+  // users); localStorage is only the standalone fallback.
   async getItem(key) {
-    try {
-      if (sdk && sdk.data) { const v = sdk.data.getItem(key); if (v != null) return v; }
-    } catch (e) { /* */ }
+    if (sdk && sdk.data) { try { return sdk.data.getItem(key); } catch (e) { return null; } }
     try { return window.localStorage.getItem(key); } catch (e) { return null; }
   },
   setItem(key, val) {
-    try { sdk && sdk.data && sdk.data.setItem(key, val); } catch (e) { /* */ }
+    if (sdk && sdk.data) { try { sdk.data.setItem(key, val); } catch (e) { /* */ } return; }
     try { window.localStorage.setItem(key, val); } catch (e) { /* */ }
   },
   removeItem(key) {
-    try { sdk && sdk.data && sdk.data.removeItem(key); } catch (e) { /* */ }
+    if (sdk && sdk.data) { try { sdk.data.removeItem(key); } catch (e) { /* */ } return; }
     try { window.localStorage.removeItem(key); } catch (e) { /* */ }
   },
 };

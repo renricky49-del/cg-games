@@ -104,4 +104,28 @@ Results from the last run are in `REPORT.md`.
 - Tiles are drawn in code at the exact pixel size (DPR aware), so they stay crisp. Characters, winds and flowers always carry a small corner index.
 - **High-contrast mode** (Settings or Pause) tints each suit's tile background and adds a large corner number/letter to every tile.
 - On portrait screens the board is shown transposed (rows↔columns, a symmetry of the rules), so tiles stay as large as possible.
-- Desktop: hover lift + pointer cursor on tiles, grab cursor while dragging, large click targets, keyboard shortcuts.
+- Desktop: hover lift + pointer cursor on tiles, grab cursor while dragging, large click targets, keyboard shortcuts (H/Z/S/P; Esc is deliberately unused because it exits CrazyGames fullscreen).
+
+## CrazyGames compliance checklist (checked against docs.crazygames.com on 2026-11-06)
+
+| Requirement | Status |
+|---|---|
+| Size: initial download ≤ 50 MB (≤ 20 MB for mobile homepage), total ≤ 250 MB, ≤ 1500 files | 6.6 MB total, 74 files; about 1 MB loads before the title |
+| Relative paths only; works in an iframe; Chrome/Edge/Safari; touch | Yes; only absolute URL is the SDK script |
+| English; PEGI 12; original content; no external links or cross-promotion | Yes |
+| No custom fullscreen button; avoid Escape (closes fullscreen) | No fullscreen button; pause is P/button, Esc unused |
+| Legible at small 16:9 iframes at DPR 1 (e.g. 800×450) | Checked: 10×8 boards keep about 35 px tiles at 800×450 |
+| Frame-rate independent animation | Everything is dt-based |
+| New users reach gameplay in ≤ 1 click | Title → Play → tutorial level 1 |
+| user-select none, iOS AudioContext resumed in click/touchend | Yes |
+| SDK v3: init, loadingStart/Stop, gameplayStart/Stop on play/pause/level end, none on focus change | Yes (`tests/sdk.cjs`) |
+| muteAudio respected (priority over in-game toggles) | Yes |
+| Ads only via SDK; midgame only at the level-to-level break (Next/Retry/Again), never on navigation buttons | Yes (`tests/sdk.cjs`) |
+| Game paused + audio muted on adStarted, UI blocked until adFinished/adError, game continues on adError | Yes |
+| Rewarded: optional extras with coin alternatives, no reward on error, hidden with adblock, 90 s cooldown | Yes |
+| Adblock never blocks play | Yes, only rewarded buttons are hidden |
+| Progress via Data Module (1 MB limit) | Save is under 2 KB; only SDK data is used when the SDK is present |
+| 3 covers (1920×1080, 800×1200, 800×800), title text only, no borders/icons | `store/cover_*.jpg` |
+| Preview videos: landscape 1080p 16:9 + portrait 1080p 2:3, 15–20 s, no sound, opens on the cover, no cursor, ≤ 50 MB | `store/preview_*.mp4` (`tools/preview.cjs`) |
+
+Paste-ready portal values: `store/SUBMISSION.md`.

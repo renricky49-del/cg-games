@@ -204,24 +204,25 @@ function onWin() {
       ${gained ? `<div class="pill star"><b>+${gained}</b></div>` : ''}
     </div>
     ${stars < 3 ? `<p class="sub">${G.t > G.par ? `Finish under ${fmt(G.par)}` : ''}${G.t > G.par && G.used ? ' and ' : ''}${G.used ? 'clear it without Hint/Shuffle' : ''} for 3 stars.</p>` : ''}
-    <div class="btns">
+    ${CG.rewardedAvailable() ? `<div class="btns">
       <button class="btn gold" id="w-double">${icon('film')} Double coins</button>
-    </div>
+    </div>` : ''}
     <div class="btns">
       <button class="btn" id="w-map">${icon('map')} Map</button>
       ${isChapterEnd || nextLocked ? `<button class="btn primary" id="w-house">${icon('house')} Teahouse</button>` : n < NUM_LEVELS ? `<button class="btn primary big" id="w-next">Next ${icon('play')}</button>` : ''}
     </div>`);
   setTimeout(() => [0, 1, 2].forEach((i) => i < stars && setTimeout(() => Audio.play('star', i), 250 + i * 300)), 0);
-  card.querySelector('#w-double').onclick = async (e) => {
+  const dbl = card.querySelector('#w-double');
+  if (dbl) dbl.onclick = async (e) => {
     e.currentTarget.disabled = true;
     const ok = await CG.rewarded();
     if (ok) { S.coins += coins; save(); refreshWallet(); Audio.play('coin'); toast(`+${coins} coins!`); e.target.closest('.btn').innerHTML = `${icon('check')} Doubled`; }
     else { toast('Ad not available right now'); e.target.closest('.btn').disabled = false; }
   };
-  const after = async (fn) => { closeModal(); if (n >= 3) await CG.midgame(); fn(); };
-  card.querySelector('#w-map').onclick = () => after(() => openMap(chapterOf(Math.min(n + 1, NUM_LEVELS))));
-  const nx = card.querySelector('#w-next'); if (nx) nx.onclick = () => after(() => startLevel(n + 1));
-  const wh = card.querySelector('#w-house'); if (wh) wh.onclick = () => after(() => openHouse(Math.min(chapterOf(n), AREAS.length - 1)));
+  // midgame ads only at the level-to-level break (Next), never on navigation buttons (Map / Teahouse)
+  card.querySelector('#w-map').onclick = () => { closeModal(); openMap(chapterOf(Math.min(n + 1, NUM_LEVELS))); };
+  const nx = card.querySelector('#w-next'); if (nx) nx.onclick = async () => { closeModal(); if (n >= 3) await CG.midgame(); startLevel(n + 1); };
+  const wh = card.querySelector('#w-house'); if (wh) wh.onclick = () => { closeModal(); openHouse(Math.min(chapterOf(n), AREAS.length - 1)); };
 }
 
 function onStuck() {
@@ -240,7 +241,7 @@ function onStuck() {
     <div class="col">
       <button class="btn primary" id="st-shuffle">${icon('shuffle')} Shuffle ${S.boosters.shuffle > 0 ? `(${S.boosters.shuffle} left)` : `· ${PRICES.shuffle} coins`}</button>
       ${board.canUndo() ? `<button class="btn" id="st-undo">${icon('undo')} Undo last move</button>` : ''}
-      <button class="btn gold" id="st-ad">${icon('film')} Watch ad: free shuffle</button>
+      ${CG.rewardedAvailable() ? `<button class="btn gold" id="st-ad">${icon('film')} Watch ad: free shuffle</button>` : ''}
       <button class="btn red" id="st-quit">Give up</button>
     </div>`);
   const resume = () => { closeModal(); G.paused = false; board.paused = false; CG.gameplayStart(); };
@@ -251,7 +252,8 @@ function onStuck() {
     G.used++; save(); refreshWallet(); resume(); board.shuffle(Math.random);
   };
   const u = card.querySelector('#st-undo'); if (u) u.onclick = () => { useUndo(true); resume(); };
-  card.querySelector('#st-ad').onclick = async () => {
+  const stAd = card.querySelector('#st-ad');
+  if (stAd) stAd.onclick = async () => {
     const ok = await CG.rewarded();
     if (ok) { G.used++; resume(); board.shuffle(Math.random); } else toast('Ad not available right now');
   };
@@ -268,8 +270,8 @@ function levelFailed() {
       <button class="btn" id="f-map">${icon('map')} ${mode === 'daily' ? 'Home' : 'Map'}</button>
       <button class="btn primary big" id="f-retry">${icon('restart')} Retry</button>
     </div>`);
-  card.querySelector('#f-retry').onclick = () => { closeModal(); mode === 'daily' ? startDaily() : startLevel(n); };
-  card.querySelector('#f-map').onclick = async () => { closeModal(); await CG.midgame(); mode === 'daily' ? openTitle() : openMap(chapterOf(n)); };
+  card.querySelector('#f-retry').onclick = async () => { closeModal(); await CG.midgame(); mode === 'daily' ? startDaily() : startLevel(n); };
+  card.querySelector('#f-map').onclick = () => { closeModal(); mode === 'daily' ? openTitle() : openMap(chapterOf(n)); };
 }
 
 // ---------------- boosters ----------------
@@ -315,7 +317,7 @@ function buyBooster(kind) {
     <p>${desc[kind]}</p>
     <div class="col">
       <button class="btn primary" id="bb-coins">Buy 3 for ${PRICES[kind] * 2} coins</button>
-      <button class="btn gold" id="bb-ad">${icon('film')} Watch ad: +2 ${names[kind]}s</button>
+      ${CG.rewardedAvailable() ? `<button class="btn gold" id="bb-ad">${icon('film')} Watch ad: +2 ${names[kind]}s</button>` : ''}
       <button class="btn" id="bb-close">Not now</button>
     </div>
     <p class="sub">You have ${S.coins} coins.</p>`, () => { if (G) { G.paused = wasPaused; board.paused = wasPaused; } });
@@ -323,7 +325,8 @@ function buyBooster(kind) {
     if (S.coins < PRICES[kind] * 2) return toast('Not enough coins — clear levels to earn more');
     S.coins -= PRICES[kind] * 2; S.boosters[kind] += 3; save(); refreshWallet(); Audio.play('coin'); closeModal();
   };
-  card.querySelector('#bb-ad').onclick = async () => {
+  const bbAd = card.querySelector('#bb-ad');
+  if (bbAd) bbAd.onclick = async () => {
     const ok = await CG.rewarded();
     if (ok) { S.boosters[kind] += 2; save(); refreshWallet(); Audio.play('coin'); closeModal(); toast(`+2 ${names[kind]}s`); }
     else toast('Ad not available right now');
@@ -332,9 +335,10 @@ function buyBooster(kind) {
 }
 
 // ---------------- pause / settings ----------------
-function pauseGame() {
+function pauseGame(fromFocus = false) {
   if (!G || G.done || modalOpen()) return;
-  G.paused = true; board.paused = true; board.cancelInput(); CG.gameplayStop();
+  G.paused = true; board.paused = true; board.cancelInput();
+  if (!fromFocus) CG.gameplayStop(); // CrazyGames: don't send gameplayStop for focus/visibility changes
   const card = modal(`
     <h2>Paused</h2>
     ${settingsHtml()}
@@ -426,7 +430,7 @@ function howTo(after) {
       <div><b class="n">4</b><span>Mossy stones never move. Clear every tile to win. Fast clears and no boosters earn 3 stars.</span></div>
       <div><b class="n">★</b><span>Spend stars to restore the teahouse and unlock new chapters.</span></div>
     </div>
-    <p class="sub">Keys: H hint · Z undo · S shuffle · Esc pause</p>
+    <p class="sub">Keys: H hint · Z undo · S shuffle · P pause</p>
     <div class="btns"><button class="btn primary" id="h-ok">Got it</button></div>`, after);
   card.querySelector('#h-ok').onclick = closeModal;
 }
@@ -565,7 +569,7 @@ function dailyWin() {
   const card = modal(`${mascot(1)}<h2>Daily cleared!</h2><p>Time ${fmt(G.t)}</p>
     ${first ? `<div class="rewards"><div class="pill coin"><b>+50</b></div><div class="pill star"><b>+2</b></div></div>` : ''}
     <p>${msg}</p><div class="btns"><button class="btn primary big" id="dw-ok">Continue</button></div>`);
-  card.querySelector('#dw-ok').onclick = async () => { closeModal(); await CG.midgame(); G = null; board.stop(); openTitle(); };
+  card.querySelector('#dw-ok').onclick = () => { closeModal(); G = null; board.stop(); openTitle(); };
 }
 
 // ---------------- endless ----------------
@@ -608,7 +612,7 @@ function endlessOver() {
     <div class="rewards"><div class="pill coin"><b>+${coins}</b></div></div>
     <div class="btns"><button class="btn" id="e-home">${icon('back')} Home</button><button class="btn primary big" id="e-again">${icon('restart')} Again</button></div>`);
   card.querySelector('#e-again').onclick = async () => { closeModal(); await CG.midgame(); startEndless(); };
-  card.querySelector('#e-home').onclick = async () => { closeModal(); await CG.midgame(); G = null; board.stop(); openTitle(); };
+  card.querySelector('#e-home').onclick = () => { closeModal(); G = null; board.stop(); openTitle(); };
 }
 
 // ---------------- title ----------------
@@ -811,13 +815,14 @@ function bindUi() {
   $('#modal').addEventListener('pointerdown', (e) => { if (e.target.id === 'modal' && $('#modal-card').querySelector('#p-resume')) closeModal(); });
   window.addEventListener('keydown', (e) => {
     if (current !== 's-game') return;
-    if (e.key === 'Escape') { if (modalOpen() && $('#modal-card').querySelector('#p-resume')) closeModal(); else pauseGame(); }
+    if (e.key === 'p' || e.key === 'P') { if (modalOpen() && $('#modal-card').querySelector('#p-resume')) closeModal(); else pauseGame(); return; }
     if (modalOpen()) return;
     const k = e.key.toLowerCase();
     if (k === 'h') booster('hint'); else if (k === 'z') booster('undo'); else if (k === 's') booster('shuffle');
   });
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && G && !G.done && current === 's-game') pauseGame(); });
-  window.addEventListener('pointerdown', () => Audio.unlock(), { once: false, passive: true });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && G && !G.done && current === 's-game') pauseGame(true); });
+  // iOS only resumes an AudioContext inside click/touchend handlers
+  for (const ev of ['pointerdown', 'touchend', 'click']) window.addEventListener(ev, () => Audio.unlock(), { passive: true });
   window.addEventListener('resize', () => { if (tut.kind) setTimeout(tutPoint, 50); });
 }
 

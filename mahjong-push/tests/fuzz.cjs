@@ -58,10 +58,10 @@ const URL = process.env.URL || 'http://localhost:8123/index.html';
           const dx = (R() - 0.5) * 300, dy = (R() - 0.5) * 300;
           await p.mouse.move(x + dx / 2, y + dy / 2, { steps: 3 });
           if (R() < 0.2) await p.mouse.move(x - dx / 3, y - dy / 3, { steps: 2 });
-          if (R() < 0.1) await p.keyboard.press(['z', 'h', 's', 'Escape'][Math.floor(R() * 4)]); // booster mid-drag
+          if (R() < 0.1) await p.keyboard.press(['z', 'h', 's', 'p'][Math.floor(R() * 4)]); // booster mid-drag
           await p.mouse.move(x + dx, y + dy, { steps: 3 }); await p.mouse.up();
         } else if (r < 0.8) await p.keyboard.press(['z', 'h', 's', 'z'][Math.floor(R() * 4)]);
-        else if (r < 0.84) { await p.keyboard.press('Escape'); await p.waitForTimeout(50); await p.keyboard.press('Escape'); }
+        else if (r < 0.84) { await p.keyboard.press('p'); await p.waitForTimeout(50); await p.keyboard.press('p'); }
         else if (r < 0.87) await p.setViewportSize(R() < 0.5 ? { width: 1280, height: 720 } : { width: 700 + Math.floor(R() * 600), height: 500 + Math.floor(R() * 400) });
         else await p.mouse.click(R() * 1280, R() * 720); // anywhere (HUD, empty space)
         // dismiss modals the fuzzer opened (stuck / buy / pause) and count outcomes

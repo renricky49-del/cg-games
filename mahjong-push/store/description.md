@@ -30,7 +30,7 @@ Earn up to three stars per level by playing fast and without boosters, then spen
 ## Controls
 - **Mouse / touch:** click a tile, then click its matching twin. Glowing tiles show valid partners.
 - **Drag** a tile up, down, left or right to slide it, along with the tiles in front of it.
-- **Keyboard:** H = Hint, Z = Undo, S = Shuffle, Esc = Pause.
+- **Keyboard:** H = Hint, Z = Undo, S = Shuffle, P = Pause.
 
 ## Rules note (the design decision behind slides)
 A slide is only kept if the dragged tile ends up with a clear line to an identical tile. That pair is then removed automatically. Any other slide snaps back with no penalty except the time it took.
