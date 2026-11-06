@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Last Door Standing</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<!-- ============ HUD ============ -->
+<div id="hud" class="hidden">
+  <div id="hud-top">
+    <div class="hud-left">
+      <div class="pill" id="scrap-pill" title="Scrap: your currency. Earned while resting on your bed."><img src="assets/img/i_scrap.png" alt=""><span id="scrap">0</span><small id="income">+0/s</small></div>
+      <div class="pill" id="power-pill" title="Power: produced by Generators, used by advanced gadgets."><img src="assets/img/i_power.png" alt=""><span id="power">0/0</span></div>
+    </div>
+    <div id="phase-box">
+      <div id="phase-title">Find a room!</div>
+      <div id="phase-timer">0:30</div>
+      <div id="dawn-bar"><div id="dawn-fill"></div><img src="assets/img/i_moon.png" alt="" id="dawn-moon"></div>
+    </div>
+    <div class="hud-right">
+      <div id="boss-box">
+        <div id="boss-portrait"><img id="boss-img" src="assets/img/boss_brute.png" alt=""><span id="boss-lvl">1</span></div>
+        <div class="boss-info"><div id="boss-name">The Brute</div><div class="bar"><div id="boss-hp"></div></div><div id="boss-state">Sleeping</div></div>
+      </div>
+      <div id="top-btns">
+        <button class="ibtn" id="btn-speed" title="Game speed">x1</button>
+        <button class="ibtn" id="btn-zoom" title="Zoom to my room / whole floor (Z)">&#9906;</button>
+        <button class="ibtn" id="btn-pause" title="Pause (P / Esc)">&#10074;&#10074;</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="hud-bottom" class="hidden">
+    <button class="act" id="act-bed"><span class="key">B</span><img src="assets/img/bed3.png" alt=""><span class="lbl">Bed <b class="lv">Lv1</b></span><span class="sub">Upgrade</span><span class="cost"><img src="assets/img/i_scrap.png" alt=""><span>20</span></span></button>
+    <button class="act" id="act-repair"><span class="key">R</span><img src="assets/img/i_repair.png" alt=""><span class="lbl">Repair</span><span class="sub">+35% door</span><span class="cost"><img src="assets/img/i_scrap.png" alt=""><span>6</span></span><div class="cd"></div></button>
+    <button class="act" id="act-door"><span class="key">U</span><img src="assets/img/i_door.png" alt=""><span class="lbl">Door <b class="lv">Lv1</b></span><span class="sub">Upgrade</span><span class="cost"><img src="assets/img/i_scrap.png" alt=""><span>40</span></span></button>
+    <button class="act ad" id="act-adscrap"><img src="assets/img/i_ad.png" alt=""><span class="lbl">Free scrap</span><span class="sub">+150</span><span class="cost adtag">AD</span></button>
+    <button class="act ad hidden" id="act-adrepair"><img src="assets/img/i_ad.png" alt=""><span class="lbl">Full repair</span><span class="sub">once/night</span><span class="cost adtag">AD</span></button>
+  </div>
+
+  <div id="build-menu" class="hidden"><div class="bm-title">Build</div><div class="bm-list"></div></div>
+  <div id="info-panel" class="hidden"></div>
+  <div id="tooltip" class="hidden"></div>
+  <div id="tutorial" class="hidden"><div class="tut-step"></div><div class="tut-text"></div><button class="tut-skip">Skip tutorial</button></div>
+  <div id="tut-arrow" class="hidden"></div>
+  <div id="banner"></div>
+</div>
+<div id="toasts"></div>
+
+<!-- ============ SCREENS ============ -->
+<div id="loading" class="screen show">
+  <div class="logo small">Last Door<br><span>Standing</span></div>
+  <div class="loadbar"><div id="load-fill"></div></div>
+  <div class="hint">Loading the apartment…</div>
+</div>
+
+<div id="title" class="screen">
+  <div class="title-bg"></div>
+  <div class="title-inner">
+    <img id="title-logo" src="assets/img/logo.png" alt="Last Door Standing">
+    <div class="tagline">The horde is coming. Grab a room, lock the door, survive till dawn!</div>
+    <button class="btn big" id="btn-play">PLAY</button>
+    <div class="row">
+      <button class="btn" id="btn-nights">Nights</button>
+      <button class="btn" id="btn-perks">Upgrades <span class="badge" id="medal-badge">0</span></button>
+      <button class="btn" id="btn-skins">Survivors</button>
+    </div>
+    <div class="row small-row">
+      <button class="btn ghost" id="btn-settings">Settings</button>
+      <button class="btn ghost" id="btn-how">How to play</button>
+    </div>
+  </div>
+</div>
+
+<div id="nights" class="screen">
+  <div class="panel wide">
+    <div class="panel-head"><h2>Choose a Night</h2><div class="stars-total"><img src="assets/img/i_star.png" alt=""><span id="stars-total">0</span></div><button class="close" data-back>&times;</button></div>
+    <div id="night-grid"></div>
+  </div>
+</div>
+
+<div id="perks" class="screen">
+  <div class="panel">
+    <div class="panel-head"><h2>Upgrades</h2><div class="stars-total"><img src="assets/img/i_medal.png" alt=""><span id="medals-total">0</span></div><button class="close" data-back>&times;</button></div>
+    <p class="note">Earn medals by surviving nights. Upgrades are permanent.</p>
+    <div id="perk-list"></div>
+  </div>
+</div>
+
+<div id="skins" class="screen">
+  <div class="panel">
+    <div class="panel-head"><h2>Survivors</h2><button class="close" data-back>&times;</button></div>
+    <p class="note">Collect stars to unlock new survivors.</p>
+    <div id="skin-grid"></div>
+  </div>
+</div>
+
+<div id="settings" class="screen">
+  <div class="panel narrow">
+    <div class="panel-head"><h2>Settings</h2><button class="close" data-back>&times;</button></div>
+    <label class="toggle"><input type="checkbox" id="set-music"><span>Music</span></label>
+    <label class="toggle"><input type="checkbox" id="set-sfx"><span>Sound effects</span></label>
+    <label class="toggle"><input type="checkbox" id="set-shake"><span>Screen shake</span></label>
+    <button class="btn ghost danger" id="btn-reset">Reset progress</button>
+  </div>
+</div>
+
+<div id="how" class="screen">
+  <div class="panel">
+    <div class="panel-head"><h2>How to Play</h2><button class="close" data-back>&times;</button></div>
+    <ol class="how-list">
+      <li><b>Grab a room</b> before the timer runs out. Click a free apartment (or walk with WASD). Rooms with a neighbour's door close by help each other.</li>
+      <li><b>Rest on your bed</b> to earn scrap every second. <b>Upgrade the bed (B)</b> to double your income — but bigger beds need a stronger door.</li>
+      <li><b>Click empty floor</b> in your room to build turrets and gadgets. Turret range grows with level, so turrets near the door can also protect your neighbours.</li>
+      <li>The boss zombie attacks doors. <b>Repair (R)</b> for a quick patch or <b>Upgrade the door (U)</b> to refill it and raise its max HP.</li>
+      <li>The boss levels up when it smashes doors. Fallen survivors rise as zombies! <b>Survive until dawn</b> or <b>kill the boss</b> to win.</li>
+    </ol>
+    <p class="note">Hotkeys: B bed · R repair · U door · 1-9 build · P pause · Z zoom · Mouse wheel / pinch to zoom · drag to pan.</p>
+  </div>
+</div>
+
+<div id="pause" class="screen dim">
+  <div class="panel narrow center">
+    <h2>Paused</h2>
+    <button class="btn big" id="btn-resume">Resume</button>
+    <label class="toggle"><input type="checkbox" id="pause-music"><span>Music</span></label>
+    <label class="toggle"><input type="checkbox" id="pause-sfx"><span>Sound effects</span></label>
+    <button class="btn" id="btn-restart">Restart night</button>
+    <button class="btn ghost" id="btn-quit">Quit to menu</button>
+  </div>
+</div>
+
+<div id="intro" class="screen dim">
+  <div class="panel narrow center intro-card">
+    <div class="intro-night" id="intro-night">Night 1</div>
+    <img id="intro-boss" src="assets/img/boss_brute.png" alt="">
+    <div class="intro-name" id="intro-name">The Brute</div>
+    <div class="intro-desc" id="intro-desc"></div>
+    <div class="intro-unlock" id="intro-unlock"></div>
+    <button class="btn big" id="btn-start">I'm ready!</button>
+  </div>
+</div>
+
+<div id="continue" class="screen dim">
+  <div class="panel narrow center">
+    <h2 class="red">Your door broke!</h2>
+    <p>Rebuild your door and push the boss back?</p>
+    <button class="btn big ad" id="btn-continue"><img src="assets/img/i_ad.png" alt=""> Continue</button>
+    <button class="btn ghost" id="btn-giveup">No thanks</button>
+  </div>
+</div>
+
+<div id="results" class="screen dim">
+  <div class="panel narrow center">
+    <h2 id="res-title">Dawn!</h2>
+    <div id="res-stars"><img src="assets/img/i_star.png" alt=""><img src="assets/img/i_star.png" alt=""><img src="assets/img/i_star.png" alt=""></div>
+    <div id="res-sub"></div>
+    <div id="res-stats"></div>
+    <div id="res-medals"><img src="assets/img/i_medal.png" alt=""><span id="res-medal-n">+0</span></div>
+    <button class="btn ad" id="btn-double"><img src="assets/img/i_ad.png" alt=""> Double medals</button>
+    <div class="row">
+      <button class="btn ghost" id="btn-res-menu">Menu</button>
+      <button class="btn" id="btn-retry">Retry</button>
+      <button class="btn big" id="btn-next">Next night</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

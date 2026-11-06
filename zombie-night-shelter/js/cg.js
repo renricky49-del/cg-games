@@ -24,7 +24,8 @@ export const CG = {
         await S.init();
         this.sdk = S;
         this.env = S.environment || 'crazygames';
-        if (this.env === 'disabled') this.sdk = null;
+        // 'local' (localhost) and 'disabled' (not on CrazyGames) run in standalone mode with simulated ads
+        if (this.env === 'disabled' || this.env === 'local') this.sdk = null;
         if (this.sdk && this.sdk.game && this.sdk.game.addSettingsChangeListener) {
           try {
             this.sdk.game.addSettingsChangeListener((s) => {

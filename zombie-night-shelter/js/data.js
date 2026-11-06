@@ -112,23 +112,23 @@ export const BOSSES = {
 // ---- Nights ------------------------------------------------------------------
 // diff: multiplier on boss stats. len: seconds from boss release to dawn.
 export const NIGHTS = [
-  { n: 1,  boss: 'brute',   diff: 1.0, len: 170, map: 0, unlockText: 'Nail Gun turret' },
-  { n: 2,  boss: 'brute',   diff: 1.15, len: 190, map: 1, unlockText: 'Crossbow turret' },
-  { n: 3,  boss: 'spitter', diff: 1.3, len: 200, map: 2, unlockText: 'Generator & Chill Trap' },
-  { n: 4,  boss: 'spitter', diff: 1.45, len: 210, map: 0, unlockText: 'Vending Machine' },
-  { n: 5,  boss: 'charger', diff: 1.6, len: 220, map: 1, unlockText: 'Tesla Coil' },
-  { n: 6,  boss: 'charger', diff: 1.8, len: 230, map: 2, unlockText: 'Repair Bench' },
-  { n: 7,  boss: 'howler',  diff: 2.0, len: 240, map: 0, unlockText: 'Spike Trap' },
-  { n: 8,  boss: 'howler',  diff: 2.2, len: 250, map: 1, unlockText: 'Signal Tower' },
-  { n: 9,  boss: 'tank',    diff: 2.45, len: 260, map: 2, unlockText: 'The Riot Tank' },
-  { n: 10, boss: 'tank',    diff: 2.7, len: 270, map: 0, unlockText: 'Harder nights' },
-  { n: 11, boss: 'abom',    diff: 3.0, len: 280, map: 1, unlockText: 'The Abomination' },
-  { n: 12, boss: 'abom',    diff: 3.3, len: 300, map: 2, unlockText: 'Endless mode' },
+  { n: 1,  boss: 'brute',   diff: 0.7, len: 170, map: 0, unlockText: 'Nail Gun turret' },
+  { n: 2,  boss: 'brute',   diff: 0.9, len: 190, map: 1, unlockText: 'Crossbow turret' },
+  { n: 3,  boss: 'spitter', diff: 1.05, len: 200, map: 2, unlockText: 'Generator & Chill Trap' },
+  { n: 4,  boss: 'spitter', diff: 1.2, len: 210, map: 0, unlockText: 'Vending Machine' },
+  { n: 5,  boss: 'charger', diff: 1.35, len: 220, map: 1, unlockText: 'Tesla Coil' },
+  { n: 6,  boss: 'charger', diff: 1.5, len: 230, map: 2, unlockText: 'Repair Bench' },
+  { n: 7,  boss: 'howler',  diff: 1.55, len: 240, map: 0, unlockText: 'Spike Trap' },
+  { n: 8,  boss: 'howler',  diff: 1.72, len: 250, map: 1, unlockText: 'Signal Tower' },
+  { n: 9,  boss: 'tank',    diff: 2.0, len: 260, map: 2, unlockText: 'The Riot Tank' },
+  { n: 10, boss: 'tank',    diff: 2.2, len: 270, map: 0, unlockText: 'Harder nights' },
+  { n: 11, boss: 'abom',    diff: 2.4, len: 280, map: 1, unlockText: 'The Abomination' },
+  { n: 12, boss: 'abom',    diff: 2.6, len: 300, map: 2, unlockText: 'Endless mode' },
 ];
 export const ENDLESS = { n: 0, endless: true, boss: 'brute', diff: 1.6, len: 99999, map: 1 };
 
 export function bossBase(diff) {
-  return { hp: 2600 * diff, dmg: 13 * diff };
+  return { hp: 4800 * diff, dmg: 13 * diff };
 }
 export const BOSS_LVL_HP = 1.38;   // per boss level
 export const BOSS_LVL_DMG = 1.33;
