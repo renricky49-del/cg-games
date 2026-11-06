@@ -64,6 +64,7 @@ const totalStars = () => Object.values(S.stars).reduce((a, b) => a + b, 0);
 // ---------------- ui helpers ----------------
 let current = 'loading';
 function show(id) {
+  if (!$('#modal').classList.contains('hidden')) { modalClose = null; $('#modal').classList.add('hidden'); }
   $$('.screen').forEach((s) => s.classList.toggle('show', s.id === id));
   current = id;
   document.body.classList.toggle('ingame', id === 's-game');
@@ -106,11 +107,16 @@ let G = null; // current session
 const tut = { el: null, step: 0, kind: null };
 
 function insets() {
-  const top = $('#s-game .topbar').getBoundingClientRect().bottom + 8;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const top = $('#s-game .topbar').getBoundingClientRect().bottom + 6;
   const bt = $('#s-game .boosters').getBoundingClientRect();
-  const bottom = window.innerHeight - bt.top + 10;
-  const side = Math.max(8, window.innerWidth * 0.015);
-  return { top, bottom, left: side, right: side };
+  const side = bt.top > vh * 0.5; // boosters below the board (portrait) or at the side (landscape)
+  let bottom = side ? vh - bt.top + 10 : 12;
+  let lr = side ? Math.max(8, vw * 0.015) : vw - bt.left + 12;
+  const msgb = side ? vh - bt.top + 12 : 14;
+  document.documentElement.style.setProperty('--msgb', msgb + 'px');
+  if (G && G.reserve) bottom += Math.min(90, vh * 0.13);
+  return { top, bottom, left: lr, right: lr };
 }
 
 function parFor(pairs) { return Math.round(20 + pairs * 4.2); }
@@ -119,7 +125,7 @@ function startLevel(n) {
   const def = LEVELS[n - 1];
   const b = L.decode(def.s);
   const pairs = L.tileCount(b.cells) / 2;
-  G = { mode: 'level', level: n, t: 0, used: 0, paused: false, adPaused: false, par: def.tut ? 9999 : parFor(pairs), pairs, tut: def.tut || null, done: false };
+  G = { mode: 'level', level: n, t: 0, used: 0, paused: false, adPaused: false, par: def.tut ? 9999 : parFor(pairs), pairs, tut: def.tut || null, done: false, reserve: !!(def.tut || TIPS[n]) };
   hideTutorial();
   $('#g-label').textContent = `Level ${n}`;
   $('#g-target').innerHTML = def.tut ? 'Tutorial' : `${icon('star')}${icon('star')}${icon('star')} under ${fmt(G.par)}`;
@@ -456,7 +462,7 @@ function showLevelTip(n) {
   const t = TIPS[n];
   if (!t) { el.classList.add('hidden'); return; }
   el.textContent = t; el.classList.remove('hidden');
-  clearTimeout(el._t); el._t = setTimeout(() => el.classList.add('hidden'), 7000);
+  clearTimeout(el._t);
 }
 
 // ---------------- daily ----------------
@@ -519,11 +525,10 @@ function endlessBoard() {
   return genBoard({ w: P[0], h: P[1], pairs: P[2], types: P[3], stones: P[4] }, (Math.random() * 1e9) | 0, 30);
 }
 function startEndless() {
-  G = { mode: 'endless', t: 0, used: 0, paused: false, done: false, score: 0, timeLeft: 75, boards: 0 };
+  G = { mode: 'endless', t: 0, used: 0, paused: false, done: false, score: 0, timeLeft: 75, boards: 0, reserve: false };
   $('#g-label').textContent = 'Endless';
-  $('#g-tip').textContent = 'Clear boards before time runs out. Fast matches build combos!';
-  $('#g-tip').classList.remove('hidden');
-  setTimeout(() => $('#g-tip').classList.add('hidden'), 5000);
+  $('#g-tip').classList.add('hidden');
+  toast('Clear boards before time runs out — fast matches build combos!', 3500);
   beginBoard(endlessBoard(), 2);
   updateEndlessHud();
 }
@@ -562,7 +567,7 @@ function openTitle() {
   show('s-title'); setBg('keyart');
   const n = nextLevel();
   $('#title-lvl').textContent = S.played || cleared(1) ? `· Level ${n}` : '';
-  $('#title-streak').textContent = S.daily.streak && S.daily.last >= todayStr(new Date(Date.now() - 864e5)) ? `· ${S.daily.streak}🔥`.replace('🔥', 'd') : '';
+  $('#title-streak').textContent = S.daily.streak && S.daily.last >= todayStr(new Date(Date.now() - 864e5)) ? `· ${S.daily.streak} day${S.daily.streak > 1 ? 's' : ''}` : '';
 }
 
 // ---------------- map ----------------

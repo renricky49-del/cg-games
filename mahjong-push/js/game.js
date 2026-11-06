@@ -3,7 +3,7 @@ import * as L from './logic.js';
 import { tileCanvas, stoneCanvas, clearTileCache } from './tiles.js';
 import { Audio } from './audio.js';
 
-const ASPECT = 1.3;          // tile height / width
+const ASPECT = 1.25;         // tile height / width
 const COMBO_WINDOW = 3.0;    // seconds between matches to keep a combo
 const DRAG_THRESHOLD = 7;    // px before a press becomes a drag
 

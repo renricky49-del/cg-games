@@ -19,3 +19,7 @@ Raw downloads live in `store/raw/` (git-ignored, large PNGs); shipped assets are
 | 12 | Level map bg | Top-down tea garden terraces, open centre, no paths | medium, 2k, 16:9, ref #1 | 1.00 | `assets/img/bg/mapbg.webp` | 11.25 |
 | 13 | Gameplay bg | Top-down wooden tea table, bamboo mat edges, petals, teacup corner | medium, 2k, 16:9, ref #1 | 1.00 | `assets/img/bg/tablebg.webp` | 12.25 |
 | 14 | Music loop | Calm tea-garden puzzle music: guzheng, bamboo flute, soft pad, light wood percussion, pentatonic, 75 bpm, instrumental | elevenlabs_music_v2_5, 30 s | 4.36 | `assets/audio/music.mp3` | 16.61 |
+| 15 | Cover art portrait | Portrait variant of key art, calm upper third for the title | high, 2k, 2:3, ref #1 | 2.75 | `store/cover_800x1200.png` | 19.36 |
+| 16 | Cover art square | Square variant of key art, tilted sliding tile, calm upper third | high, 2k, 1:1, ref #1 | 2.75 | `store/cover_800x800.png` | 22.11 |
+
+The 1920x1080 cover reuses the key art (#1). Titles/logos are composited locally (`tools/covers.cjs`), never AI-rendered.

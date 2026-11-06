@@ -128,7 +128,7 @@ svg.i { width: 1.15em; height: 1.15em; vertical-align: -0.2em; fill: currentColo
 .badge.plus { background: var(--jade); }
 .combo { position: absolute; right: 4%; top: 22%; font-family: var(--display); font-weight: 900; font-size: 2.4em; color: #ffe27a; -webkit-text-stroke: 2px #7a2e12; paint-order: stroke fill; text-shadow: 0 4px 8px rgba(0,0,0,.4); opacity: 0; transform: scale(.6); transition: opacity .2s, transform .2s; pointer-events: none !important; }
 .combo.show { opacity: 1; transform: scale(1); }
-.tip { position: absolute; left: 50%; top: calc(var(--u) * 7 + 2.6em); transform: translateX(-50%); background: rgba(255, 248, 232, .96); padding: .5em 1.2em; border-radius: 1em; box-shadow: var(--shadow); max-width: min(90vw, 40em); text-align: center; font-weight: 600; pointer-events: none !important; }
+.tip { position: absolute; left: 50%; bottom: var(--msgb, 110px); transform: translateX(-50%); background: rgba(255, 248, 232, .96); padding: .5em 1.2em; border-radius: 1em; box-shadow: var(--shadow); max-width: min(90vw, 40em); text-align: center; font-weight: 600; pointer-events: none !important; }
 
 /* modal */
 .modal { position: fixed; inset: 0; z-index: 20; background: rgba(25, 14, 5, .55); display: flex; align-items: center; justify-content: center; padding: 1em; animation: fadeIn .2s; }
@@ -161,7 +161,7 @@ svg.i { width: 1.15em; height: 1.15em; vertical-align: -0.2em; fill: currentColo
 #tutorial { position: fixed; inset: 0; z-index: 15; pointer-events: none; }
 #hand { position: absolute; width: 64px; height: 64px; filter: drop-shadow(0 4px 6px rgba(0,0,0,.4)); transform: translate(-30%, -8%); }
 #hand svg { width: 100%; height: 100%; }
-#tut-bubble { position: absolute; left: 50%; bottom: calc(var(--u) * 15); transform: translateX(-50%); background: #fffaf0; border-radius: 1em; padding: .8em 1.4em; box-shadow: 0 0 0 3px #8a5a2b, var(--shadow); font-weight: 700; text-align: center; max-width: min(92vw, 34em); font-size: 1.1em; }
+#tut-bubble { position: absolute; left: 50%; bottom: var(--msgb, 110px); transform: translateX(-50%); background: #fffaf0; border-radius: 1em; padding: .8em 1.4em; box-shadow: 0 0 0 3px #8a5a2b, var(--shadow); font-weight: 700; text-align: center; max-width: min(92vw, 34em); font-size: 1.1em; }
 
 #toast { position: fixed; left: 50%; bottom: 18%; transform: translateX(-50%) translateY(20px); background: rgba(40, 24, 10, .9); color: #fff; padding: .6em 1.3em; border-radius: 1em; font-weight: 700; opacity: 0; transition: opacity .25s, transform .25s; z-index: 30; pointer-events: none; text-align: center; max-width: 90vw; }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
@@ -186,3 +186,7 @@ svg.i { width: 1.15em; height: 1.15em; vertical-align: -0.2em; fill: currentColo
 
 body.blurbg #bg { filter: blur(8px) brightness(.7); transform: scale(1.05); }
 #s-title::before { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse 45% 60% at 50% 52%, rgba(30,15,5,.45), rgba(30,15,5,0) 70%); pointer-events: none; }
+
+@media (min-aspect-ratio: 13/10) {
+  .boosters { left: auto; right: max(1.2em, env(safe-area-inset-right)); top: 50%; bottom: auto; transform: translateY(-50%); flex-direction: column; gap: 1.3em; }
+}
