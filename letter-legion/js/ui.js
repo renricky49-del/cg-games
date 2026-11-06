@@ -67,6 +67,8 @@ function title() {
 }
 
 // ---------------- hub ----------------
+// difficulty shown as stars by ladder position (the exact CPU damage multiplier is in the tooltip)
+function difficultyStars(i) { const n = Math.min(5, 1 + Math.floor(i * 5 / RIVALS.length)); return '★'.repeat(n) + '☆'.repeat(5 - n); }
 function rivalAvatar(r, px = 64) { return `<div class="avatar" style="${stripCss('rivals', r.portrait, px)}"></div>`; }
 function hub() {
   const next = RIVALS[Math.min(P.ladder, RIVALS.length - 1)];
@@ -132,7 +134,7 @@ function ladder() {
       const st = i < P.ladder ? 'beaten' : i === P.ladder ? 'next' : 'locked';
       return `<div class="list-item ${st}">${rivalAvatar(r, 64)}
         <div class="li-main"><div class="rname">${i + 1}. ${r.name} <span class="tier t-${r.tier.toLowerCase()}">${r.tier}</span></div>
-        <div class="muted">CPU · ${MAP_BY_ID[r.map].name} · strength ${Math.round(r.power * 100)}% · spells ${r.spell ? 'up to ' + r.spell + ' letters' : 'nothing'}</div>
+        <div class="muted">CPU · ${MAP_BY_ID[r.map].name} · <span class="stars" title="CPU damage ×${r.power.toFixed(2)} (shown openly; tuned per map)">${difficultyStars(i)}</span> · spells ${r.spell ? 'up to ' + r.spell + ' letters' : 'nothing'}</div>
         <div class="quote">“${r.quote}”</div></div>
         <div>${st === 'locked' ? '<span class="lock">🔒</span>' : `<button class="btn ${st === 'next' ? 'gold' : ''} small" data-fight="${i}">${st === 'next' ? 'Fight' : 'Rematch'}</button>`}</div></div>`;
     }).join('')}</div>`);
@@ -202,7 +204,7 @@ function prematch(arg) {
       <div class="vs">
         <div class="vs-side you"><div class="avatar big" style="${stripCss('wards', 0, 150)}"></div><div class="rname">You</div><div class="muted">guarding Prince Pip</div></div>
         <div class="vs-mid">VS</div>
-        <div class="vs-side"><div class="avatar big round" style="${stripCss('rivals', rival.portrait, 150)}"></div><div class="rname">${rival.name}</div><div class="muted">CPU · ${rival.tier} · strength ${Math.round(rival.power * 100)}%</div><div class="quote">“${rival.quote}”</div></div>
+        <div class="vs-side"><div class="avatar big round" style="${stripCss('rivals', rival.portrait, 150)}"></div><div class="rname">${rival.name}</div><div class="muted">CPU · ${rival.tier} · <span class="stars" title="CPU damage ×${rival.power.toFixed(2)}">${difficultyStars(Math.max(0, RIVALS.indexOf(rival)))}</span></div><div class="quote">“${rival.quote}”</div></div>
       </div>
       <div class="pm-info">
         <div class="map-thumb" style="background-image:url(assets/img/map_${map.id}.webp)"><span>${map.name}</span></div>

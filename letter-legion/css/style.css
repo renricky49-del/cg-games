@@ -243,3 +243,5 @@ button.slot { cursor: pointer; } button.slot:hover { background: rgba(255,80,80,
 .statgrid b { font-family: 'Titan One', sans-serif; font-size: 20px; } .statgrid span { font-size: 11px; color: #b9b2dc; }
 .feat { display: flex; align-items: center; gap: 10px; margin-top: 10px; background: rgba(255,210,74,0.08); border-radius: 12px; padding: 6px 10px; }
 @media (max-width: 900px) { .card.roster { grid-column: auto; } .unlocks { grid-template-columns: repeat(4, 1fr); } }
+
+.stars { color: var(--gold); letter-spacing: 1px; cursor: help; }
