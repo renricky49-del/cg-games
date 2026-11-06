@@ -156,9 +156,9 @@ export const RIVALS = [
     quote: 'Elegance, darling. Every letter in its place.', ward: 'Princess Pom' },
   { id: 'inkwell', power: 1.24, name: 'Lord Inkwell', tier: 'Master', map: 'iron', portrait: 6, think: 0.8, skill: 0.82, spell: 5, mistakes: 0.05,
     quote: 'I invented half of these letters. Hmph.', ward: 'Princess Pom' },
-  { id: 'hoot', power: 1.38, name: 'Professor Hoot', tier: 'Master', map: 'iron', portrait: 7, think: 0.65, skill: 0.9, spell: 5, mistakes: 0.03,
+  { id: 'hoot', power: 1.45, name: 'Professor Hoot', tier: 'Master', map: 'iron', portrait: 7, think: 0.65, skill: 0.9, spell: 5, mistakes: 0.03,
     quote: 'Whooo will win? Statistically... me.', ward: 'Princess Pom' },
-  { id: 'frost', power: 1.6, name: 'Queen Frostquill', tier: 'Grandmaster', map: 'iron', portrait: 8, think: 0.5, skill: 1.0, spell: 5, mistakes: 0.0,
+  { id: 'frost', power: 1.85, name: 'Queen Frostquill', tier: 'Grandmaster', map: 'iron', portrait: 8, think: 0.5, skill: 1.0, spell: 5, mistakes: 0.0,
     quote: 'Your words will freeze on your tongue.', ward: 'Princess Pom' },
 ];
 export const RIVAL_BY_ID = Object.fromEntries(RIVALS.map(r => [r.id, r]));
