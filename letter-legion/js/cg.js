@@ -23,9 +23,9 @@ export const CG = {
     try {
       if (window.CrazyGames && window.CrazyGames.SDK) {
         sdk = window.CrazyGames.SDK;
-        await sdk.init();
+        await Promise.race([sdk.init(), new Promise((_, rej) => setTimeout(() => rej(new Error('SDK init timeout')), 6000))]);
         env = sdk.environment || 'crazygames';
-        if (env === 'disabled') sdk = null;
+        if (env === 'disabled' || env === 'local') sdk = null; // standalone fallback outside CrazyGames
       }
     } catch (e) { console.warn('CrazyGames SDK init failed, running standalone', e); sdk = null; }
     initDone = true;

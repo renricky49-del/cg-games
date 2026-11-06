@@ -113,7 +113,7 @@ export const MAPS = [
       '.#xxoooox.',
       '.W........',
     ] },
-  { id: 'bay', name: 'Crimson Bay', lives: 9, waves: 22, hpMult: 1.12, bg: 'map_bay', theme: '#e0b56d', road: '#f3dcae', roadEdge: '#c0925a',
+  { id: 'bay', name: 'Crimson Bay', lives: 9, waves: 20, hpMult: 1.12, bg: 'map_bay', theme: '#e0b56d', road: '#f3dcae', roadEdge: '#c0925a',
     blurb: 'A long coastal spiral. Many lives, but the tide brings tough foes.',
     rows: [
       'E#########.',

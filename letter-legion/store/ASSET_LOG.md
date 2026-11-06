@@ -20,3 +20,7 @@ Model: `gpt_image_2_6`. Style anchor = job `d8193f3e-5ba1-4ac5-8dcc-3ad2f1f998ab
 
 Post-processing: sliced into uniform strips with PIL (`alpha bbox trim`, LANCZOS resize), saved as WebP q86.
 | 14 | Background music loop (60s) | whimsical medieval battle loop: lute, recorder, pizzicato, light percussion, 120 bpm, instrumental | `elevenlabs_music_v2`, 60s, instrumental | 3.84 | `assets/audio/music.mp3` (head/tail crossfaded in Python for a seamless loop, 96 kbps) | 12.59 |
+| 15 | Store cover portrait 2:3 | letter squad charging, baby king behind, open sky for logo | high, 2k, 2:3, ref #1 | 2.75 | `store/cover_800x1200.jpg` (logo composited locally with Titan One) | 15.34 |
+| 16 | Store cover square 1:1 | baby king in crib flanked by S/B/L/K, gold tiles confetti | high, 2k, 1:1, ref #1 | 2.75 | `store/cover_800x800.jpg` (logo composited locally) | 18.09 |
+
+Cover 1920x1080 reuses the key art (#1) with the locally composited logo. **Total spent: 18.09 credits** (cap 80).

@@ -28,7 +28,12 @@ if (mode === 'ladder') {
   const human = { think: 1.0, skill: 0.7, spell: 5, mistakes: 0.08 };
   for (const r of RIVALS) {
     let w = 0, waves = 0, t = 0;
-    for (let i = 0; i < runs; i++) { const res = duel(r.map, human, r, 100 + i, {}, { cpuBonus: r.power }); if (res.winner === 0) w++; waves += res.wave; t += res.time; }
+    const ri = RIVALS.indexOf(r);
+    // expected gear at this point of the ladder (from shop purchases & drops)
+    const gear = ri < 2 ? {} : ri < 5 ? { passives: [{ id: 'quills', r: 1 }, { id: 'ring', r: 1 }], weapons: { KING: { rarity: 'green' }, MAGE: { rarity: 'green' } } }
+      : { passives: [{ id: 'quills', r: 2 }, { id: 'ring', r: 2 }, { id: 'goldink', r: 2 }], weapons: { KING: { rarity: 'blue' }, MAGE: { rarity: 'blue' }, MONK: { rarity: 'green' }, HAWK: { rarity: 'blue' } } };
+    const rivalHeroes = HEROES.filter((h, i) => i < 3 + Math.floor(ri * 0.7)).map(h => h.id);
+    for (let i = 0; i < runs; i++) { const res = duel(r.map, human, r, 100 + i, process.argv[4] === 'nogear' ? {} : gear, { cpuBonus: r.power, unlockedHeroes: rivalHeroes }); if (res.winner === 0) w++; waves += res.wave; t += res.time; }
     console.log(r.name.padEnd(18), r.map.padEnd(6), `human win ${w}/${runs}`, 'avg wave', (waves / runs).toFixed(1), 'avg time', (t / runs / 60).toFixed(1) + 'm');
   }
 } else if (mode === 'solo') {

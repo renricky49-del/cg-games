@@ -696,7 +696,7 @@ export class MatchView {
     const g = this.g;
     for (const b of this.banners) b.t += dt;
     this.banners = this.banners.filter(b => b.t < b.dur);
-    let y = this.land ? this.geo[0].y + this.geo[0].h * 0.42 : this.H * 0.45;
+    let y = this.geo[0].y + this.geo[0].ts * 0.55;
     const cx = this.land ? (this.L.hud.x) / 2 : this.W / 2;
     for (const b of this.banners) {
       if (b.t < 0) continue;
