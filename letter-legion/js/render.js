@@ -751,7 +751,7 @@ export class MatchView {
       g.fillText('SUMMON ODDS', r.x + 10, r.y + 7);
       const rows = [['Letter S·L·B·K', 1 - gold - sh, '#e8e8f0'], ['Golden hero letter', gold, '#ffd24a'], ['Shovel', sh, '#ffd88a']];
       rows.forEach(([n, v, c], i) => { const yy = r.y + 24 + i * 17; if (yy + 14 > r.y + r.h) return; g.fillStyle = c; g.fillText(n, r.x + 10, yy); g.textAlign = 'right'; g.fillText(Math.round(v * 100) + '%', r.x + r.w - 10, yy); g.textAlign = 'left'; });
-      if (r.h > 86) { g.fillStyle = '#9aa3d8'; g.fillText(`Summoned ${me.stats.summons} · heroes ${me.stats.heroes} · best Lv ${me.stats.maxLevel}`, r.x + 10, r.y + r.h - 18); }
+      if (r.h > 86) { const left = Math.max(1, 6 - (me.sinceGold || 0)); g.fillStyle = '#ffe9a8'; g.fillText(left <= 1 ? 'Next summon: golden letter guaranteed!' : `Golden letter guaranteed within ${left} summons`, r.x + 10, r.y + r.h - 18); }
     }
     // tray
     this.trayAnim = this.trayAnim.map(v => Math.max(0, v - dt * 1.6));

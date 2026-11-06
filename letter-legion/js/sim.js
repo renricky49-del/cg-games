@@ -87,7 +87,7 @@ export function makeWave(w, rng, mapDef, overtime = 0) {
 
 // ---------- modifiers from loadout / daily buff / weapons ----------
 export function buildMods(cfg = {}) {
-  const mods = { dmg: 1, letterDmg: { S: 1, L: 1, B: 1, K: 1 }, letterRate: { S: 1, L: 1, B: 1, K: 1 }, ink: 1, gold: 0.2, lives: 0,
+  const mods = { dmg: 1, letterDmg: { S: 1, L: 1, B: 1, K: 1 }, letterRate: { S: 1, L: 1, B: 1, K: 1 }, ink: 1, gold: 0.22, lives: 0,
     heroCd: 1, startInk: START_INK, weapons: {}, actives: [], coins: 1, unlockedHeroes: cfg.unlockedHeroes || HEROES.map(h => h.id) };
   for (const it of (cfg.passives || [])) {
     const def = ITEM_BY_ID[it.id]; if (!def) continue; const v = def.vals[it.r];
@@ -134,7 +134,8 @@ export class Side {
     this.shovels = 0;
     this.rng = new RNG(match.seed * 31 + 7 + idx * 1013);
     this.events = [];
-    this.stats = { kills: 0, dmg: 0, leaks: 0, heroes: 0, merges: 0, maxLevel: 1, summons: 0, spelled: [] };
+    this.stats = { kills: 0, dmg: 0, leaks: 0, heroes: 0, merges: 0, maxLevel: 1, summons: 0, spelled: [], dmgBy: {} };
+    this.dmgKey = 'other';
     this.script = cfg.script ? cfg.script.slice() : null;
     this.cloverLeft = 0;
     this.hornT = 0;
@@ -173,7 +174,7 @@ export class Side {
     // bias toward the missing letters of the word you're closest to completing
     let best = [], bp = -1;
     for (const h of heroes) { const p = this.heroProgress(h); if (p >= 1) continue; if (p > bp + 1e-6) { bp = p; best = [h]; } else if (Math.abs(p - bp) < 1e-6) best.push(h); }
-    if (best.length && bp > 0 && this.rng.next() < 0.6) {
+    if (best.length && bp > 0 && this.rng.next() < 0.65) {
       const h = best[this.rng.int(best.length)];
       const held = this.heldGold().slice(); const missing = [];
       for (const ch of h.word) { const i = held.indexOf(ch); if (i >= 0) held.splice(i, 1); else missing.push(ch); }
@@ -206,9 +207,10 @@ export class Side {
       const r = this.rng.next();
       const shovelChance = this.lockedCells().length > this.shovels ? 0.05 : 0;
       if (r < shovelChance) item = { kind: 'shovel' };
-      else if (r < shovelChance + this.mods.gold) item = this.makeGold(this.rollGoldLetter());
+      else if (r < shovelChance + this.mods.gold || this.sinceGold >= 5) item = this.makeGold(this.rollGoldLetter());
       else item = this.makeBasic(BASIC_LETTERS[this.rng.int(4)]);
     }
+    this.sinceGold = item.kind === 'gold' ? 0 : (this.sinceGold || 0) + 1;
     if (item.kind === 'shovel') { this.shovels++; this.emit({ t: 'summon', item, slot: -1 }); return item; }
     this.tray[slot] = item;
     this.emit({ t: 'summon', item, slot });
@@ -261,7 +263,8 @@ export class Side {
       if (t.kind === 'gold') this.checkSpell(src.cell);
       return 'swap';
     }
-    if (src.tray !== undefined) { // tray onto occupied: swap occupant into tray slot
+    if (src.tray !== undefined) { // tray onto occupied: swap occupant into tray slot (heroes never go back to the tray)
+      if (t.kind === 'hero') return null;
       this.tray[src.tray] = t; dst.unit = u; this.dirty = true; this.lastPlacedCell = dstId;
       this.emit({ t: 'place', cell: dstId, unit: u });
       if (u.kind === 'gold') this.checkSpell(dstId);
@@ -297,7 +300,7 @@ export class Side {
   useItem(i) {
     const it = this.mods.actives[i]; if (!it || it.used || this.match.state !== 'running') return false;
     const def = ITEM_BY_ID[it.id]; const v = def.vals[it.r];
-    it.used = true;
+    it.used = true; this.dmgKey = 'item';
     if (it.id === 'flask') this.ink += v;
     if (it.id === 'frost') { this.freezeT = Math.max(this.freezeT, v); }
     if (it.id === 'bomb') { const d = waveHp(Math.max(1, this.match.wave)) * 0.35 * v; for (const e of this.enemies) this.damage(e, d, true, null); }
@@ -393,7 +396,7 @@ export class Side {
     if (e.hp <= 0) return 0;
     if (!pierce && e.armor) amt *= 1 - e.armor;
     if (e.type === 'imp' && !pierce && this.rng.next() < 0.2) { this.emit({ t: 'dodge', x: e.x, y: e.y }); return 0; }
-    e.hp -= amt; e.hitT = 0.12; this.stats.dmg += amt;
+    const real = Math.min(amt, e.hp); e.hp -= amt; e.hitT = 0.12; this.stats.dmg += amt; this.stats.dmgBy[this.dmgKey] = (this.stats.dmgBy[this.dmgKey] || 0) + real;
     if (amt > 0 && this.match.fx) this.emit({ t: 'dmg', x: e.x, y: e.y, v: amt, big: src === 'skill' });
     if (e.hp <= 0) this.kill(e);
     return amt;
@@ -417,6 +420,7 @@ export class Side {
     return best;
   }
   attack(c, u) {
+    this.dmgKey = u.kind === 'basic' ? u.letter : u.kind === 'gold' ? 'gold' : u.heroId;
     const range = this.unitRange(u);
     const tgt = this.leadingEnemyInRange(c.x, c.y, range);
     if (!tgt) return false;
@@ -447,6 +451,7 @@ export class Side {
     return true;
   }
   castSkill(c, u) {
+    this.dmgKey = u.heroId + '*';
     const h = HERO_BY_ID[u.heroId]; const w = this.mods.weapons[u.heroId]; const up = w && w.upgrade;
     const base = this.unitDamage(u);
     const alive = this.enemies.filter(e => e.hp > 0);
@@ -463,18 +468,18 @@ export class Side {
           for (const e of alive) { if (e.hp <= 0) continue; let n = 0; for (const o of alive) if (o.hp > 0 && Math.hypot(o.x - e.x, o.y - e.y) < 1.3) n++; if (n > bc) { bc = n; best = e; } }
           if (!best) break;
           const bx = best.x, by = best.y;
-          for (const e of alive) if (e.hp > 0 && Math.hypot(e.x - bx, e.y - by) < 1.3) this.damage(e, base * 4, false, 'skill');
+          for (const e of alive) if (e.hp > 0 && Math.hypot(e.x - bx, e.y - by) < 1.3) this.damage(e, base * 3, false, 'skill');
           ev.targets.push({ x: bx, y: by });
         }
         break;
       }
       case 'MONK': {
-        for (const e of alive) if (Math.hypot(e.x - c.x, e.y - c.y) <= 3.2) { e.slowT = 3; e.slowF = 0.5; if (up) this.damage(e, base * 4, false, 'skill'); ev.targets.push({ x: e.x, y: e.y }); }
+        for (const e of alive) if (Math.hypot(e.x - c.x, e.y - c.y) <= 3.2) { e.slowT = 3; e.slowF = 0.5; this.damage(e, base * (up ? 5 : 1.5), false, 'skill'); ev.targets.push({ x: e.x, y: e.y }); }
         break;
       }
       case 'HAWK': {
         const n = up ? 2 : 1;
-        for (let k = 0; k < n; k++) for (const e of alive) if (e.hp > 0) { this.damage(e, base * 1.4, false, 'skill'); if (k === 0) ev.targets.push({ x: e.x, y: e.y }); }
+        for (let k = 0; k < n; k++) for (const e of alive) if (e.hp > 0) { this.damage(e, base * 1.1, false, 'skill'); if (k === 0) ev.targets.push({ x: e.x, y: e.y }); }
         break;
       }
       case 'NINJA': {
@@ -551,7 +556,7 @@ export class Side {
     for (const e of this.enemies) {
       if (e.hp <= 0) continue;
       if (e.hitT > 0) e.hitT -= dt;
-      if (e.dotT > 0) { e.dotT -= dt; this.damage(e, e.dot * dt, true, null); if (e.hp <= 0) continue; }
+      if (e.dotT > 0) { e.dotT -= dt; this.dmgKey = 'DRUID*'; this.damage(e, e.dot * dt, true, null); if (e.hp <= 0) continue; }
       if (e.type === 'wisp') e.hp = Math.min(e.maxHp, e.hp + e.maxHp * ENEMIES.wisp.regen * dt);
       if (e.type === 'boss') { if (e.castT > 0) e.castT -= dt; e.abilityT -= dt; if (e.abilityT <= 0) { e.abilityT = BOSSES[e.boss].abilityCd; e.castT = 0.8; this.bossAbility(e); } }
       let sp = e.speed;
@@ -636,7 +641,7 @@ export class Match {
             const [a, b] = this.sides;
             if (a.lives !== b.lives) this.finish(a.lives > b.lives ? 0 : 1, 'Survived the final wave with more lives');
             else this.startWave(); // overtime
-          } else if (this.waveT >= this.curWave.dur + 40) {
+          } else if (this.waveT >= this.curWave.dur + 200) {
             // enemies stuck too long (shouldn't happen) — compare lives / damage
             const [a, b] = this.sides; this.finish(a.lives > b.lives || (a.lives === b.lives && a.stats.dmg >= b.stats.dmg) ? 0 : 1, 'Time');
           }

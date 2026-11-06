@@ -4,13 +4,13 @@ export const TILE = 64; // board units per tile when rendered at scale 1
 
 // ---------- Basic letter units ----------
 export const UNITS = {
-  S: { letter: 'S', name: 'Swordsman', role: 'Melee splash', color: '#e8453c', dark: '#8f1d17', dmg: 20, rate: 1.0, range: 1.45, kind: 'splash', splash: 0.8,
+  S: { letter: 'S', name: 'Swordsman', role: 'Melee splash', color: '#e8453c', dark: '#8f1d17', dmg: 23, rate: 1.0, range: 1.45, kind: 'splash', splash: 0.8,
        desc: 'Swings a blade that splashes nearby foes. Short range — place next to the road.' },
   L: { letter: 'L', name: 'Lancer', role: 'Piercing line', color: '#3d7fe6', dark: '#173f86', dmg: 15, rate: 0.85, range: 2.4, kind: 'pierce', width: 0.42,
        desc: 'Thrusts a lance through every enemy in a line. Ignores armor.' },
-  B: { letter: 'B', name: 'Bowman', role: 'Long range', color: '#43b04a', dark: '#1c6122', dmg: 30, rate: 0.75, range: 4.4, kind: 'single',
+  B: { letter: 'B', name: 'Bowman', role: 'Long range', color: '#43b04a', dark: '#1c6122', dmg: 28, rate: 0.75, range: 3.8, kind: 'single',
        desc: 'Bends into a bow and looses arrows at the leading enemy from far away.' },
-  K: { letter: 'K', name: 'Knight', role: 'Rapid strikes', color: '#f08a24', dark: '#8a4508', dmg: 8.5, rate: 2.7, range: 1.75, kind: 'single',
+  K: { letter: 'K', name: 'Knight', role: 'Rapid strikes', color: '#f08a24', dark: '#8a4508', dmg: 10.5, rate: 2.7, range: 1.75, kind: 'single',
        desc: 'Gallops in place, striking very fast. Great against swarms of weak foes.' },
 };
 export const BASIC_LETTERS = ['S', 'L', 'B', 'K'];
@@ -27,14 +27,14 @@ export const GOLD_TILE = { dmg: 7, rate: 1.0, range: 2.6 };
 // skill: periodic special; dmg values are base at hero level 1.
 export const HEROES = [
   { id: 'KING', word: 'KING', title: 'The Boy King', unlock: 1, portrait: 0, color: '#ffcf3a',
-    dmg: 60, rate: 1.0, range: 2.6, kind: 'single', cd: 14,
+    dmg: 75, rate: 1.0, range: 2.6, kind: 'single', cd: 14,
     skill: 'Royal Decree', skillDesc: 'Aura: nearby letters attack 35% faster. Every 14s grants bonus Ink.' },
   { id: 'MAGE', word: 'MAGE', title: 'Archmage Lumi', unlock: 1, portrait: 1, color: '#58a8ff',
-    dmg: 90, rate: 0.8, range: 3.6, kind: 'single', cd: 7,
-    skill: 'Meteor', skillDesc: 'Every 7s drops a meteor on the thickest crowd of enemies.' },
+    dmg: 90, rate: 0.8, range: 3.6, kind: 'single', cd: 8,
+    skill: 'Meteor', skillDesc: 'Every 8s drops a meteor on the thickest crowd of enemies.' },
   { id: 'MONK', word: 'MONK', title: 'Brother Tam', unlock: 1, portrait: 2, color: '#ff9a3a',
-    dmg: 34, rate: 3.0, range: 1.8, kind: 'single', cd: 9,
-    skill: 'Still Mind', skillDesc: 'Very fast palm strikes. Every 9s slows all nearby enemies by 50%.' },
+    dmg: 48, rate: 3.0, range: 1.8, kind: 'single', cd: 9,
+    skill: 'Still Mind', skillDesc: 'Very fast palm strikes. Every 9s a shockwave hits and slows all nearby enemies by 50%.' },
   { id: 'HAWK', word: 'HAWK', title: 'Ranger Wyn', unlock: 2, portrait: 6, color: '#7bd35a',
     dmg: 110, rate: 0.9, range: 5.5, kind: 'single', cd: 12,
     skill: 'Skyfall Volley', skillDesc: 'Every 12s rains arrows on EVERY enemy on your board.' },
@@ -146,19 +146,19 @@ export const RIVALS = [
     quote: 'I polished my sword! ...Which end is the pointy one?' , ward: 'Princess Pom' },
   { id: 'wren', power: 0.72, name: 'Wren the Scribe', tier: 'Rookie', map: 'ember', portrait: 1, think: 2.0, skill: 0.4, spell: 4, mistakes: 0.25,
     quote: 'I have read every book on tactics. Twice.', ward: 'Princess Pom' },
-  { id: 'grizelda', power: 0.82, name: 'Grizelda', tier: 'Adept', map: 'marsh', portrait: 2, think: 1.6, skill: 0.5, spell: 4, mistakes: 0.18,
+  { id: 'grizelda', power: 0.78, name: 'Grizelda', tier: 'Adept', map: 'marsh', portrait: 2, think: 1.6, skill: 0.5, spell: 4, mistakes: 0.18,
     quote: 'Hee hee! My bog creatures adore fresh letters.', ward: 'Princess Pom' },
-  { id: 'baron', power: 0.92, name: 'Baron Fizzlewick', tier: 'Adept', map: 'marsh', portrait: 3, think: 1.35, skill: 0.6, spell: 4, mistakes: 0.14,
+  { id: 'baron', power: 0.85, name: 'Baron Fizzlewick', tier: 'Adept', map: 'marsh', portrait: 3, think: 1.35, skill: 0.6, spell: 4, mistakes: 0.14,
     quote: 'A gentleman never loses. He merely postpones winning.', ward: 'Princess Pom' },
-  { id: 'barnacle', power: 1.0, name: 'Captain Barnacle', tier: 'Veteran', map: 'bay', portrait: 4, think: 1.1, skill: 0.68, spell: 5, mistakes: 0.1,
+  { id: 'barnacle', power: 1.06, name: 'Captain Barnacle', tier: 'Veteran', map: 'bay', portrait: 4, think: 1.1, skill: 0.68, spell: 5, mistakes: 0.1,
     quote: 'Arr! Me parrot can spell better than ye!', ward: 'Princess Pom' },
-  { id: 'plume', power: 1.1, name: 'Madame Plume', tier: 'Veteran', map: 'bay', portrait: 5, think: 0.95, skill: 0.75, spell: 5, mistakes: 0.08,
+  { id: 'plume', power: 1.16, name: 'Madame Plume', tier: 'Veteran', map: 'bay', portrait: 5, think: 0.95, skill: 0.75, spell: 5, mistakes: 0.08,
     quote: 'Elegance, darling. Every letter in its place.', ward: 'Princess Pom' },
-  { id: 'inkwell', power: 1.2, name: 'Lord Inkwell', tier: 'Master', map: 'iron', portrait: 6, think: 0.8, skill: 0.82, spell: 5, mistakes: 0.05,
+  { id: 'inkwell', power: 1.24, name: 'Lord Inkwell', tier: 'Master', map: 'iron', portrait: 6, think: 0.8, skill: 0.82, spell: 5, mistakes: 0.05,
     quote: 'I invented half of these letters. Hmph.', ward: 'Princess Pom' },
-  { id: 'hoot', power: 1.32, name: 'Professor Hoot', tier: 'Master', map: 'iron', portrait: 7, think: 0.65, skill: 0.9, spell: 5, mistakes: 0.03,
+  { id: 'hoot', power: 1.38, name: 'Professor Hoot', tier: 'Master', map: 'iron', portrait: 7, think: 0.65, skill: 0.9, spell: 5, mistakes: 0.03,
     quote: 'Whooo will win? Statistically... me.', ward: 'Princess Pom' },
-  { id: 'frost', power: 1.45, name: 'Queen Frostquill', tier: 'Grandmaster', map: 'iron', portrait: 8, think: 0.5, skill: 1.0, spell: 5, mistakes: 0.0,
+  { id: 'frost', power: 1.6, name: 'Queen Frostquill', tier: 'Grandmaster', map: 'iron', portrait: 8, think: 0.5, skill: 1.0, spell: 5, mistakes: 0.0,
     quote: 'Your words will freeze on your tongue.', ward: 'Princess Pom' },
 ];
 export const RIVAL_BY_ID = Object.fromEntries(RIVALS.map(r => [r.id, r]));

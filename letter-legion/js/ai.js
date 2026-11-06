@@ -1,5 +1,6 @@
 // CPU rival brain — plays one Side using exactly the same actions a human has.
 import { UNITS, MAX_LEVEL } from './data.js';
+import { posAt } from './sim.js';
 
 export class CpuBrain {
   constructor(side, profile) {
@@ -13,6 +14,21 @@ export class CpuBrain {
       for (const k of map.roadTiles) { const [x, y] = k.split(',').map(Number); best = Math.min(best, Math.hypot(x + 0.5 - c.x, y + 0.5 - c.y)); }
       return best;
     });
+    // road samples, for "how much road does this cell cover at range r"
+    this.samples = []; for (let d = 0.5; d < map.len - 0.3; d += 0.25) this.samples.push(posAt(map, d));
+    this.covCache = new Map();
+  }
+  coverage(cellId, range) {
+    const key = cellId + ':' + range; if (this.covCache.has(key)) return this.covCache.get(key);
+    const c = this.side.cells[cellId]; let n = 0;
+    for (const p of this.samples) if (Math.hypot(p.x - c.x, p.y - c.y) <= range) n++;
+    this.covCache.set(key, n); return n;
+  }
+  placeScore(cellId, u) {
+    if (u.kind !== 'basic') return this.coverage(cellId, 2.6);
+    const r = UNITS[u.letter].range;
+    // ranged letters should not hog the few road-hugging cells that melee letters need
+    return this.coverage(cellId, r) - (r >= 2.5 ? 0.6 * this.coverage(cellId, 1.6) : 0);
   }
   update(dt) {
     const s = this.side;
@@ -72,9 +88,8 @@ export class CpuBrain {
     let free = s.freeCells().filter(c => !reserved.has(c.id));
     if (!free.length) free = s.freeCells();
     if (!free.length) return -1;
-    const melee = u.kind === 'basic' && UNITS[u.letter].range < 2.5;
-    // smart CPUs put short-range letters near the road
-    if (this.p.skill > 0.35) free.sort((a, b) => melee ? this.roadDist[a.id] - this.roadDist[b.id] : this.roadDist[b.id] - this.roadDist[a.id]);
+    // smart CPUs put each letter where it covers the most road for its range
+    if (this.p.skill > 0.35) free.sort((a, b) => this.placeScore(b.id, u) - this.placeScore(a.id, u));
     else free.sort(() => s.rng.next() - 0.5);
     return free[0].id;
   }

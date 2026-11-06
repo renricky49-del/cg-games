@@ -304,7 +304,7 @@ function weaponModal(uid) {
 export function spellbookHtml() {
   const un = unlockedHeroIds(); const eq = equippedWeapons();
   return `<div class="spellbook">
-    <div class="sb-intro">Place <b>golden letters</b> in neighbouring cells of one row, <b>left → right</b>, to spell a hero's name. The letters fuse into the hero and free the other cells. Spell a hero again to level it up (★3 max).</div>
+    <div class="sb-intro">Place <b>golden letters</b> in neighbouring cells of one row, <b>left → right</b>, to spell a hero's name. The letters fuse into the hero and free the other cells. Spell a hero again to level it up (★3 max). Golden letters lean toward the word you're closest to finishing, and you're guaranteed one at least every 6 summons.</div>
     <div class="sb-grid">${HEROES.map(hh => { const ok = un.includes(hh.id); const w = eq[hh.id];
       return `<div class="sb-card ${ok ? '' : 'locked'}" style="--hc:${hh.color}">
         <div class="sb-por" style="${stripCss('heroes', hh.portrait, 92)}"></div>
