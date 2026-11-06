@@ -12,7 +12,7 @@ python3 -m http.server 8123     # any static server works
 # open http://localhost:8123/
 ```
 
-There is no build step and no runtime dependency except the CrazyGames SDK script, which is optional: without it the game runs standalone with simulated 1-second ads and localStorage saves. To upload to CrazyGames, zip the **contents** of this folder, excluding `store/`, `tools/`, `tests/`, `*.md` and `.gitignore`. The shipped game is about 3 MB.
+There is no build step and no runtime dependency except the CrazyGames SDK script, which is optional: without it the game runs standalone with simulated 1-second ads and localStorage saves. To upload to CrazyGames, zip the **contents** of this folder, excluding `store/`, `tools/`, `tests/`, `*.md` and `.gitignore`. The shipped game is about 6.3 MB; about 1 MB loads before the title screen, and music and teahouse art stream in afterwards.
 
 ## Structure
 

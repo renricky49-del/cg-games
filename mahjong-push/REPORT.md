@@ -14,6 +14,6 @@
   - `tests/play.cjs`: levels 1–3 won by real mouse input, failed push reverts, a loss reached, save survives reload, mobile portrait and landscape; 0 console errors.
   - `tests/perf.cjs`: ~60 fps (p95 16.7 ms); +0.4 MB heap over 80 levels.
   - `tools/balance.mjs`: casual-bot win rate per chapter 99 / 74 / 56 / 47 / 26 / 46 / 29 % (chapter 6 is a deliberate breather).
-- **Size:** upload zip 4.4 MB (`tools/package.sh`). `store/raw/`, `dist/` and `tests/shots/` are git-ignored, and the store art is JPG.
+- **Size:** upload zip 6.3 MB (`tools/package.sh`): 3.1 MB backgrounds, 2 MB music, 1.1 MB sprites. About 1 MB loads before the title screen; music and teahouse art stream in afterwards. `store/raw/`, `dist/` and `tests/shots/` are git-ignored, and the store art is JPG.
 - **Credits:** 47.94 of the 80 cap (logged in `store/ASSET_LOG.md`).
 - **TODO_CREDITS:** only the trailer video remains.
