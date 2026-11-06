@@ -1,0 +1,11 @@
+<!doctype html><html><body style="margin:0;background:#3a6b50"><canvas id=c width=1100 height=560></canvas>
+<script type=module>
+import {loadGlyphs,tileCanvas,stoneCanvas} from '../js/tiles.js';
+await loadGlyphs('../assets/img/glyphs.png');
+const g=document.getElementById('c').getContext('2d');
+for(let f=0;f<39;f++){const hc=false;const x=(f%13)*82+10,y=Math.floor(f/13)*96+10;
+ g.drawImage(f<38?tileCanvas(f,70,90,false):stoneCanvas(70,90),x,y);}
+for(let f=0;f<26;f++){const x=(f%13)*82+10,y=300+Math.floor(f/13)*96;g.drawImage(tileCanvas(f*3%38,44,56,true),x,y);}
+for(let f=0;f<13;f++){g.drawImage(tileCanvas(f*3%38,36,46,false),10+f*50,500);}
+document.title='done';
+</script></body></html>
