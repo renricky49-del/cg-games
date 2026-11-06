@@ -54,7 +54,7 @@ const ROUNDS = +process.argv[2] || 3;
         // resume if paused
         const resume = await p.$('#modals #resume'); if (resume) { await resume.click(); }
       } else {
-        const id = ['adSummon', 'adShovel', 'book', 'item0', 'item1', 'train0', 'train1', 'train2', 'train3', 'speed'][Math.floor(rnd() * 10)];
+        const id = ['callWave', 'book', 'item0', 'item1', 'train0', 'train1', 'train2', 'train3', 'speed', 'callWave'][Math.floor(rnd() * 10)];
         const c = await p.evaluate(id => __LL.ctl && __LL.view.btnCenter(id), id);
         if (c) await p.mouse.click(c[0], c[1]);
         await p.waitForTimeout(1200); // fake ads take 1 s

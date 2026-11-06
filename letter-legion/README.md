@@ -11,7 +11,7 @@ python3 -m http.server 8123
 # open http://127.0.0.1:8123/
 ```
 
-To publish: zip the **contents** of this folder (with `index.html` at the root) and upload it to the CrazyGames developer portal. The `tests/` folder can be left out of the zip.
+To publish, run `./build_release.sh 1.0`. It writes `release/letter-legion-v1.0.zip`, containing only `index.html`, `css/`, `js/` and `assets/`, with `index.html` at the zip root. Upload that zip to the CrazyGames developer portal. The field-by-field submission sheet and the requirements checklist are in `store/SUBMISSION_CN.md`. The covers and the two required preview videos are in `store/` and `store/video/`.
 
 Total size: about 2.6 MB for the game files (store/ and tests/ are not needed in the upload) (images are WebP, music is a 96 kbps MP3, fonts are woff2).
 
@@ -51,7 +51,13 @@ tests/              Playwright + Node test scripts (see below)
 - `gameplayStart` when a match runs; `gameplayStop` on pause, menus, the results screen and while an ad plays.
 - `happytime()` on a victory.
 - **Midgame ads** play only when you leave a results screen. The adapter limits them to one every 3 minutes and blocks them right after the session starts.
-- **Rewarded ads** play only from explicit buttons: Free Summon and Free Shovel (once per match each), Free shop refresh, and Double coins after a match. If the ad fails or is blocked, the player sees a toast and gets no reward.
+- **Rewarded ads** play only from explicit buttons, and never on the active battle screen:
+  - **Head start** on the pre-battle screen: +60 Ink and +1 Shovel. It also costs 50 coins as a non-ad alternative.
+  - **Free shop refresh**: once per shop rotation. The coin refresh is the alternative.
+  - **Double coins** on the results screen.
+  - If the ad fails, the player gets no reward.
+  - After a rewarded ad on the results screen, the following midgame ad is skipped, so a break never has both.
+- **Basic Launch and adblock.** During Basic Launch the SDK disables ads. `prefetchAd` throws `adsDisabledBasicLaunch`, which the adapter detects at boot, then hides every ad button so none would do nothing. With an ad blocker the buttons are hidden as well, a short notice is shown, and the coin alternatives stay available.
 - When an ad starts, audio is muted and the match is paused. Both resume when it finishes or errors. The `muteAudio` SDK setting is respected.
 - Saves go through `SDK.data`, with `localStorage` as a fallback. Every storage call is wrapped in try/catch.
 - Without the SDK (offline, adblock or local), the game runs standalone and ads become a 1-second placeholder overlay.

@@ -21,6 +21,7 @@ export class MatchController {
       rival: { unlockedHeroes: rivalHeroes, cpuBonus: this.rival.power, dailyBuff: opts.dailyBuff },
     });
     if (this.tutorial) { this.match.mapDef = { ...this.match.mapDef, waves: 4 }; this.match.tutorialHold = true; }
+    else if (opts.headStart) { const me = this.match.sides[0]; me.ink += 60; me.shovels += 1; }
     this.brain = new CpuBrain(this.match.sides[1], this.tutorial ? { think: 3.0, skill: 0.2, spell: 0, mistakes: 0.4 } : this.rival);
     view.setMatch(this.match, this);
     this.highlightCells = null;
@@ -125,20 +126,7 @@ export class MatchController {
     if (id === 'callWave') { this.match.callWave(0); return; }
     if (id.startsWith('train')) { const L = ['S', 'L', 'B', 'K'][+id.slice(5)]; if (!me.doTrain(L)) { Audio.play('error'); this.toast(me.trainCost(L) === Infinity ? 'Fully trained' : 'Not enough ink to train'); } else this.view.banner(`${UNITS[L].name}s trained! (+${me.train[L]})`, UNITS[L].color, 1.2, 0); return; }
     if (id.startsWith('item')) { const i = +id.slice(4); if (!me.useItem(i)) Audio.play('error'); return; }
-    if (id === 'adSummon') {
-      if (!this.adSummonOk()) { Audio.play('error'); return; }
-      this.hold('adbtn');
-      CG.rewarded().then(ok => { this.release('adbtn'); if (this.ended) return; if (ok && this.adSummonOk()) { me.adSummonUsed = true; me.summon(true); } else if (!ok) this.toast('Ad unavailable right now'); });
-      return;
-    }
-    if (id === 'adShovel') {
-      if (!this.adShovelOk()) { Audio.play('error'); return; }
-      this.hold('adbtn');
-      CG.rewarded().then(ok => { this.release('adbtn'); if (this.ended) return; if (ok && this.adShovelOk()) { me.adShovelUsed = true; me.shovels++; this.view.banner('Shovel ready! Click a locked cell', '#ffd88a', 1.6); Audio.play('shovel'); } else if (!ok) this.toast('Ad unavailable right now'); });
-    }
   }
-  adSummonOk() { const me = this.me; return !this.tutorial && !me.adSummonUsed && me.freeTraySlot() >= 0 && !this.pauseReasons.has('adbtn'); }
-  adShovelOk() { const me = this.me; return !this.tutorial && !me.adShovelUsed && me.lockedCells().length > me.shovels && !this.pauseReasons.has('adbtn'); }
   toast(t) { this.hooks.toast(t); }
 
   // ---------------- input ----------------
@@ -232,7 +220,6 @@ export class MatchController {
       summon: ['Summon (Space)', 'Random letter, golden hero letter or shovel', 'Each summon costs more than the last'],
       callWave: this.match.canCallWave(0) ? ['Call the next wave now (N)', 'Your board is clear — skip the wait', this.match.curWave ? `+${this.match.callWaveBonus()} bonus ink` : 'Start the first wave right away'] : ['Next wave timer', 'Clear your board to call the next wave early for bonus ink'],
       pause: ['Pause (Esc)'], speed: ['Game speed (F)'], book: ['Spellbook — all heroes & skills'],
-      adSummon: ['Watch an ad: free summon', 'Once per match'], adShovel: ['Watch an ad: free shovel', 'Once per match'],
     };
     if (b.id.startsWith('train')) { const L = ['S', 'L', 'B', 'K'][+b.id.slice(5)]; return { x, y, lines: [`Train ${UNITS[L].name}s`, `+18% damage for every ${L} on your board`, `Rank ${me.train[L]}/5`], col: UNITS[L].color }; }
     if (b.id.startsWith('item')) { const it = me.mods.actives[+b.id.slice(4)]; if (!it) return { x, y, lines: ['Empty item slot', 'Buy active items in the Shop'] }; const d = ITEM_BY_ID[it.id]; return { x, y, lines: [`${d.name} (${RARITIES[it.r].name}) — ${b.id === 'item0' ? 'Q' : 'W'}`, d.desc(d.vals[it.r]), it.used ? 'Already used this match' : 'Once per match'], col: RARITIES[it.r].color }; }

@@ -192,6 +192,7 @@ function daily() {
 }
 
 // ---------------- prematch ----------------
+const HEADSTART_COST = 50;
 function prematch(arg) {
   let rival, map, buff = null, seed;
   const d = dailyInfo();
@@ -215,11 +216,23 @@ function prematch(arg) {
           <div class="loadout"><span class="muted">Weapons:</span> ${Object.values(eq).map(w => `<span class="wtag" style="color:${rarityOf(w.rarity).color}">${w.hero}: ${w.name}</span>`).join(' ') || '<span class="muted">none — win battles for drops</span>'}</div>
         </div>
       </div>
-      <div class="row center"><button class="btn gold big" id="go">To battle!</button></div>
+      <div class="headstart" id="hs">
+        <span class="hs-label">⚡ <b>Head start</b>: +60 Ink & +1 Shovel this battle</span>
+        <button class="btn small" id="hsCoins" ${P.coins < HEADSTART_COST ? 'disabled' : ''}>🪙 ${HEADSTART_COST}</button>
+        ${CG.rewardedAvailable() ? '<button class="btn small green" id="hsAd">▶ Free (watch ad)</button>' : (CG.adblocked ? '<span class="muted small">Ad bonus unavailable (ad blocker)</span>' : '')}
+      </div>
       <div class="muted center small">Tip: win by keeping your ward alive longer than the rival, or by having more lives after the final wave.</div>
+      <div class="go-row"><button class="btn gold big" id="go">To battle!</button></div>
     </div>`);
   wireGo();
-  $('#go').onclick = () => api.startMatch({ mode: arg.mode, rival, rivalIndex: arg.rivalIndex, mapId: map.id, seed, dailyBuff: buff.id });
+  let headStart = null; // 'coins' | 'ad'
+  const hsDone = how => { headStart = how; $('#hs').innerHTML = `<span class="hs-label">⚡ <b>Head start ready!</b> +60 Ink & +1 Shovel ${how === 'coins' ? `(🪙 ${HEADSTART_COST} on start)` : ''}</span>`; Audio.play('coin'); };
+  $('#hsCoins').onclick = () => { if (P.coins >= HEADSTART_COST) hsDone('coins'); };
+  if ($('#hsAd')) $('#hsAd').onclick = async () => { $('#hsAd').disabled = true; const ok = await api.rewarded(); if (ok) hsDone('ad'); else { toast('Ad unavailable right now'); if ($('#hsAd')) $('#hsAd').disabled = false; } };
+  $('#go').onclick = () => {
+    if (headStart === 'coins') { if (P.coins >= HEADSTART_COST) { P.coins -= HEADSTART_COST; saveProfile(); } else headStart = null; }
+    api.startMatch({ mode: arg.mode, rival, rivalIndex: arg.rivalIndex, mapId: map.id, seed, dailyBuff: buff.id, headStart: !!headStart, rewardedUsed: headStart === 'ad' });
+  };
 }
 
 // ---------------- shop ----------------
@@ -240,7 +253,7 @@ function shop() {
           <div class="oname">${def.name}</div><div class="otype">${def.type === 'active' ? 'ACTIVE · once per match' : 'PASSIVE · always on'}</div>
           <div class="odesc">${def.desc(def.vals[o.r])}</div>
           <button class="btn ${o.sold ? '' : 'gold'} small" data-buy="${i}" ${o.sold || P.coins < o.price ? 'disabled' : ''}>${o.sold ? 'Sold' : '🪙 ' + o.price}</button></div>`; }).join('')}</div>
-      <div class="row center"><button class="btn small" id="reroll" ${P.coins < REROLL_COST ? 'disabled' : ''}>↻ Refresh (🪙 ${REROLL_COST})</button><button class="btn small green" id="rerollAd">▶ Free refresh (ad)</button></div>
+      <div class="row center"><button class="btn small" id="reroll" ${P.coins < REROLL_COST ? 'disabled' : ''}>↻ Refresh (🪙 ${REROLL_COST})</button>${CG.rewardedAvailable() && !P.shop.adUsed ? '<button class="btn small green" id="rerollAd">▶ Free refresh (ad)</button>' : ''}</div>
       <div class="loadout-box">
         <div class="section-h">Your loadout — ${LOADOUT.active} active, ${LOADOUT.passive} passive slots</div>
         <div class="slots">${[0, 1].map(i => slot(lo.active[i], 'Active', i)).join('')}<div class="sep"></div>${[0, 1, 2].map(i => slot(lo.passive[i], 'Passive', i)).join('')}</div>
@@ -250,7 +263,7 @@ function shop() {
   wireGo();
   root().querySelectorAll('[data-buy]').forEach(b => b.onclick = () => buy(+b.dataset.buy));
   $('#reroll').onclick = () => { if (P.coins < REROLL_COST) return; P.coins -= REROLL_COST; refreshShop(true); saveProfile(); shop(); };
-  $('#rerollAd').onclick = async () => { const ok = await api.rewarded(); if (ok) { refreshShop(true); saveProfile(); shop(); toast('Shop refreshed!'); } else toast('Ad unavailable — try again later'); };
+  if ($('#rerollAd')) $('#rerollAd').onclick = async () => { $('#rerollAd').disabled = true; const ok = await api.rewarded(); if (ok) { refreshShop(true); P.shop.adUsed = true; saveProfile(); shop(); toast('Shop refreshed!'); } else { toast('Ad unavailable — try again later'); shop(); } };
 }
 function buy(i) {
   const o = P.shop.offers[i]; if (o.sold || P.coins < o.price) return;
@@ -398,15 +411,16 @@ export function resultsScreen(res, rewards, onContinue) {
       ${rewards.levelUps.length ? `<div class="levelup">LEVEL UP! You are now level ${P.level}${rewards.unlocks.length ? ' — new hero: <b>' + rewards.unlocks.join(', ') + '</b>' : ''}</div>` : ''}
       ${rewards.ladderUp ? `<div class="levelup">Next rival unlocked: <b>${rewards.ladderUp}</b></div>` : ''}
       <div class="row center">
-        ${rewards.coins > 0 ? '<button class="btn green" id="dbl">▶ Double coins (ad)</button>' : ''}
+        ${rewards.coins > 0 && CG.rewardedAvailable() ? '<button class="btn green" id="dbl">▶ Double coins (ad)</button>' : ''}
         <button class="btn gold" id="cont">Continue</button>
       </div></div>`, 'res');
   const q = x => m.el.querySelector(x);
+  let usedRewarded = false; // a rewarded ad watched on THIS results screen (head-start ads belong to the previous break)
   if (q('#dbl')) q('#dbl').onclick = async () => {
-    q('#dbl').disabled = true;
+    q('#dbl').disabled = true; usedRewarded = true;
     const ok = await api.rewarded();
     if (ok) { P.coins += rewards.coins; saveProfile(); q('#coinsAmt').textContent = rewards.coins * 2; Audio.play('coin'); toast(`+${rewards.coins} bonus coins!`); q('#dbl').remove(); }
     else { toast('Ad unavailable right now'); q('#dbl').disabled = false; }
   };
-  q('#cont').onclick = () => { m.close(); onContinue(); };
+  q('#cont').onclick = () => { m.close(); onContinue(usedRewarded); };
 }

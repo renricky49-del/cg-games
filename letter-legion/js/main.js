@@ -15,7 +15,8 @@ const view = new MatchView(canvas);
 let ctl = null;
 let pauseModal = null;
 let adActive = false;
-window.__LL = { get ctl() { return ctl; }, get P() { return P; }, show, startMatch: o => startMatch(o), RIVALS, view }; // test hook
+// automated-test hook: only exposed when running locally (never on the live site)
+if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) || /[?&]test=1/.test(location.search)) window.__LL = { get ctl() { return ctl; }, get P() { return P; }, show, startMatch: o => startMatch(o), RIVALS, view };
 
 function resize() {
   const W = window.innerWidth, H = window.innerHeight;
@@ -127,11 +128,12 @@ function endMatch(res) {
   if (res.won) CG.happytime();
   if (rewards.levelUps.length) Audio.play('levelup'); else if (rewards.weapon) Audio.play('drop');
   setHint(null);
-  resultsScreen(res, rewards, async () => {
+  resultsScreen(res, rewards, async (usedRewarded) => {
     const wasTutorial = res.opts.tutorial;
     ctl = null; canvas.style.display = 'none'; Audio.setTrack('menu');
     // natural break → midgame ad (rate-limited inside the adapter; never right after session start)
-    if (!wasTutorial) await CG.midgame();
+    // ...but never a midgame ad in the same break as a rewarded ad (CrazyGames ad rules)
+    if (!wasTutorial && !usedRewarded) await CG.midgame();
     if (wasTutorial && P.ladder === 0) { show('prematch', { mode: 'ladder', rivalIndex: 0 }); toast('Tutorial complete! Your first duel awaits ⚔', 2600); }
     else show('hub');
   });
@@ -151,7 +153,8 @@ window.addEventListener('keydown', e => {
   else if (e.key === 'Escape' && pauseModal) { /* resume via button */ }
 });
 document.addEventListener('visibilitychange', () => { if (document.hidden) { if (ctl && !ctl.ended) openPause(); Audio.suspend(); } else Audio.resume(); });
-window.addEventListener('pointerdown', () => Audio.unlock(), { capture: true });
+// iOS only unlocks WebAudio on touchend/click gestures
+for (const ev of ['pointerdown', 'touchend', 'click', 'keydown']) window.addEventListener(ev, () => Audio.unlock(), { capture: true });
 
 // ---------------- ads ----------------
 CG.onAdStart(() => { adActive = true; Audio.setAdMuted(true); if (ctl) ctl.hold('ad'); CG.gameplayStop(); });

@@ -5,6 +5,8 @@ let env = 'standalone';
 let initDone = false;
 let lastMidgame = 0;
 let gameplayOn = false;
+let adsDisabled = false; // CrazyGames Basic Launch: the SDK refuses every ad request
+let adblocked = false;
 
 function fakeAd(kind) {
   return new Promise(resolve => {
@@ -27,10 +29,19 @@ export const CG = {
         env = sdk.environment || 'crazygames';
         if (env === 'disabled' || env === 'local') sdk = null; // standalone fallback outside CrazyGames
       }
+      if (sdk) {
+        // During Basic Launch ads are disabled: prefetchAd throws 'adsDisabledBasicLaunch'. Detect it up front so no
+        // rewarded button is ever shown that would do nothing.
+        try { if (sdk.ad && sdk.ad.prefetchAd) sdk.ad.prefetchAd('rewarded'); } catch (e) { if (e && e.code === 'adsDisabledBasicLaunch') adsDisabled = true; }
+        try { if (sdk.ad && sdk.ad.hasAdblock) sdk.ad.hasAdblock().then(b => { adblocked = !!b; }).catch(() => {}); } catch (e) { /* ignore */ }
+      }
     } catch (e) { console.warn('CrazyGames SDK init failed, running standalone', e); sdk = null; }
     initDone = true;
     return env;
   },
+  // rewarded-ad buttons are only shown when an ad can actually play
+  rewardedAvailable() { return !adsDisabled && !adblocked; },
+  get adblocked() { return adblocked; },
   onAdStart(fn) { listeners.adStart.push(fn); },
   onAdEnd(fn) { listeners.adEnd.push(fn); },
   muteAudioSetting() {
@@ -69,7 +80,7 @@ export const CG = {
         sdk.ad.requestAd(kind, {
           adStarted: () => { started = true; start(); },
           adFinished: () => { if (started) end(); resolve(true); },
-          adError: (err) => { if (started) end(); console.warn('ad error', err); resolve(false); },
+          adError: (err) => { if (started) end(); if (err && err.code === 'adsDisabledBasicLaunch') adsDisabled = true; resolve(false); },
         });
       } catch (e) { if (started) end(); resolve(false); }
     });

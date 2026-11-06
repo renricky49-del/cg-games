@@ -2,7 +2,7 @@
 @font-face { font-family: 'Fredoka'; src: url(../assets/fonts/fredoka.woff2) format('woff2'); font-weight: 300 700; font-display: swap; }
 :root { --gold: #ffd24a; --gold2: #f0a91c; --ink: #7fd7ff; --bg: #191433; --panel: rgba(28, 22, 58, 0.92); --line: rgba(255, 255, 255, 0.14); --red: #e0483c; --green: #2e9b58; }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: #f4f0ff; font-family: 'Fredoka', 'Trebuchet MS', sans-serif; user-select: none; -webkit-user-select: none; touch-action: none; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: #f4f0ff; font-family: 'Fredoka', 'Trebuchet MS', sans-serif; user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; touch-action: none; }
 canvas#game { position: fixed; inset: 0; display: none; touch-action: none; }
 #ui { position: fixed; inset: 0; overflow-y: auto; overflow-x: hidden; touch-action: pan-y;
   background: radial-gradient(ellipse at 50% 0%, #3b2d7a 0%, #221a4a 45%, #150f2e 100%); }
@@ -245,3 +245,24 @@ button.slot { cursor: pointer; } button.slot:hover { background: rgba(255,80,80,
 @media (max-width: 900px) { .card.roster { grid-column: auto; } .unlocks { grid-template-columns: repeat(4, 1fr); } }
 
 .stars { color: var(--gold); letter-spacing: 1px; cursor: help; }
+
+.headstart { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; background: rgba(255,210,74,0.1); border: 1px dashed rgba(255,210,74,0.45); border-radius: 14px; padding: 8px 12px; }
+.hs-label { font-size: 15px; }
+
+/* the start button always stays visible, even in short iframes (e.g. 800x450) */
+.go-row { position: sticky !important; bottom: 0; z-index: 4; display: flex; justify-content: center; padding: 10px 0 12px; margin-top: 8px; background: linear-gradient(transparent, rgba(16,12,36,0.95) 45%); }
+@media (max-height: 560px) {
+  .topbar { padding: 5px 10px; } .tb-title { font-size: 18px; }
+  .prematch { padding: 8px 16px 0; }
+  .vs-side .avatar.big { transform: scale(0.62); margin: -28px; }
+  .vs-mid { font-size: 38px; } .rname { font-size: 17px; } .quote { font-size: 12.5px; margin-top: 2px; }
+  .pm-info { grid-template-columns: 150px 1fr; padding: 8px 12px; margin-top: 6px; font-size: 14px; }
+  .pm-info .map-thumb { height: 80px; }
+  .buff, .loadout { margin: 3px 0; font-size: 13px; }
+  .headstart { margin-top: 6px; padding: 5px 10px; } .hs-label { font-size: 13.5px; }
+  .btn.big { font-size: 20px; padding: 10px 28px; }
+  .modal { padding: 12px 18px; }
+  .res-title { font-size: 34px; } .res-grid { margin: 8px 0; gap: 6px; } .res-grid b { font-size: 16px; }
+  .rewards { font-size: 17px; margin: 4px 0; } .drop { margin: 6px auto; padding: 6px 14px; }
+  .hub { gap: 10px; padding: 10px 12px 110px; } .card { padding: 12px; } .map-thumb { height: 86px; }
+}

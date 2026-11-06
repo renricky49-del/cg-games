@@ -49,9 +49,13 @@ export class MatchView {
       return { x: Math.round(rect.x + (rect.w - w) / 2), y: Math.round(rect.y + padTop + extra + (rect.h - padTop - padBot - extra - h) / 2), ts, w, h, cols: map.cols, rows: map.rows, mirror };
     };
     if (land) {
-      // HUD design space needs ~610 px of height; shrink further on very short screens so nothing overlaps
-      const k = Math.min(clamp(Math.min(H / 720, W / 1280), 0.5, 1.5), H / 610);
-      const hudW = clamp(W * 0.22, 150, 310 * Math.max(1, k));
+      // Full HUD needs ~610 design px of height. Short screens (CrazyGames' small iframes such as 800x450) get a compact
+      // HUD with fewer panels, so its text stays readable instead of shrinking.
+      const compact = H < 600;
+      let k, hudW;
+      if (compact) { const DW = 270, DH = 470; k = clamp(Math.min(H / DH, (W * 0.3) / DW), 0.5, 1.5); hudW = Math.round(DW * k); }
+      else { k = Math.min(clamp(Math.min(H / 720, W / 1280), 0.5, 1.5), H / 610); hudW = clamp(W * 0.22, 150, 310 * Math.max(1, k)); }
+      this.compact = compact;
       const areaW = W - hudW;
       const stripH = clamp(H * 0.07, 34, 50);
       const A = { x: 6, y: 4, w: areaW - 12, h: H - stripH - 14 };
@@ -114,21 +118,36 @@ export class MatchView {
       add('pause', hud.x + hud.w - 50, 8, 40, 40);
       add('speed', hud.x + hud.w - 96, 8, 40, 40);
       add('book', hud.x + hud.w - 142, 8, 40, 40);
-      this.rivalCard = { x: px, y: 54, w: pw, h: 62 };
-      this.wavePanel = { x: px, y: 122, w: pw, h: 46 };
-      add('callWave', px, 122, pw, 46);
-      this.playerCard = { x: px, y: 174, w: pw, h: 62 };
-      const tw = (pw - 18) / 4;
-      for (let i = 0; i < 4; i++) add('train' + i, px + i * (tw + 6), 244, tw, 46);
-      const iw = (pw - 12) / 3;
-      add('item0', px, 298, iw, 50); add('item1', px + iw + 6, 298, iw, 50); this.shovelBox = { x: px + 2 * (iw + 6), y: 298, w: iw, h: 50 };
-      add('adSummon', px, 356, (pw - 6) / 2, 34); add('adShovel', px + (pw - 6) / 2 + 6, 356, (pw - 6) / 2, 34);
-      const ty = Math.max(400, hud.h - 196);
-      this.oddsPanel = ty - 424 > 46 ? { x: px, y: 398, w: pw, h: Math.min(110, ty - 424) } : null;
-      const sw = Math.min(70, (pw - 3 * 8) / 4);
-      this.trayRects = [0, 1, 2].map(i => ({ x: px + i * (sw + 8), y: ty, w: sw, h: sw }));
-      this.trash = { x: px + 3 * (sw + 8), y: ty, w: sw, h: sw };
-      add('summon', px, hud.h - 110, pw, 96);
+      if (this.compact) {
+        // compact: rival details live on the rival board label / duel panel; no odds panel
+        this.rivalCard = null;
+        this.wavePanel = { x: px, y: 54, w: pw, h: 44 }; add('callWave', px, 54, pw, 44);
+        this.playerCard = { x: px, y: 104, w: pw, h: 50 };
+        const tw = (pw - 18) / 4;
+        for (let i = 0; i < 4; i++) add('train' + i, px + i * (tw + 6), 160, tw, 42);
+        const iw = (pw - 12) / 3;
+        add('item0', px, 208, iw, 46); add('item1', px + iw + 6, 208, iw, 46); this.shovelBox = { x: px + 2 * (iw + 6), y: 208, w: iw, h: 46 };
+        this.oddsPanel = null;
+        const ty = 274, sw = Math.min(64, (pw - 3 * 8) / 4);
+        this.trayRects = [0, 1, 2].map(i => ({ x: px + i * (sw + 8), y: ty, w: sw, h: sw }));
+        this.trash = { x: px + 3 * (sw + 8), y: ty, w: sw, h: sw };
+        add('summon', px, Math.max(ty + sw + 10, hud.h - 98), pw, 86);
+      } else {
+        this.rivalCard = { x: px, y: 54, w: pw, h: 62 };
+        this.wavePanel = { x: px, y: 122, w: pw, h: 46 };
+        add('callWave', px, 122, pw, 46);
+        this.playerCard = { x: px, y: 174, w: pw, h: 62 };
+        const tw = (pw - 18) / 4;
+        for (let i = 0; i < 4; i++) add('train' + i, px + i * (tw + 6), 244, tw, 46);
+        const iw = (pw - 12) / 3;
+        add('item0', px, 298, iw, 50); add('item1', px + iw + 6, 298, iw, 50); this.shovelBox = { x: px + 2 * (iw + 6), y: 298, w: iw, h: 50 };
+        const ty = Math.max(400, hud.h - 196);
+        this.oddsPanel = ty - 380 > 46 ? { x: px, y: 356, w: pw, h: Math.min(120, ty - 380) } : null;
+        const sw = Math.min(70, (pw - 3 * 8) / 4);
+        this.trayRects = [0, 1, 2].map(i => ({ x: px + i * (sw + 8), y: ty, w: sw, h: sw }));
+        this.trash = { x: px + 3 * (sw + 8), y: ty, w: sw, h: sw };
+        add('summon', px, hud.h - 110, pw, 96);
+      }
     } else {
       const T = L.top;
       add('pause', T.w - 44, 4, 38, 36); add('speed', T.w - 86, 4, 38, 36); add('book', T.w - 128, 4, 38, 36);
@@ -142,10 +161,9 @@ export class MatchView {
       const sx = px + 4 * (sw + 6) + 4;
       add('summon', sx, y0 + 6, pw - (sx - px), sw + 16);
       const row2 = y0 + sw + 30; const bh = clamp(hud.h - (row2 - hud.y) - 8, 36, 56);
-      const n = 8, bw = (pw - (n - 1) * 5) / n;
+      const n = 6, bw = (pw - (n - 1) * 5) / n;
       for (let i = 0; i < 4; i++) add('train' + i, px + i * (bw + 5), row2, bw, bh);
       add('item0', px + 4 * (bw + 5), row2, bw, bh); add('item1', px + 5 * (bw + 5), row2, bw, bh);
-      add('adSummon', px + 6 * (bw + 5), row2, bw, bh); add('adShovel', px + 7 * (bw + 5), row2, bw, bh);
       this.shovelBox = null; this.oddsPanel = null;
       this.playerInfo = { x: px, y: y0 - 2, w: pw, h: 20 };
     }
@@ -721,11 +739,11 @@ export class MatchView {
     // player card / info
     if (this.playerCard) {
       const r = this.playerCard; this.panel(r, 'rgba(20,50,110,0.75)');
-      drawStrip(g, 'wards', 0, r.x + 31, r.y + r.h / 2, 54);
+      drawStrip(g, 'wards', 0, r.x + 31, r.y + r.h / 2, Math.min(54, r.h + 4));
       g.textAlign = 'left'; g.textBaseline = 'alphabetic';
-      g.font = `26px ${FONT}`; g.fillStyle = '#7fd7ff'; g.fillText(fmt(me.ink), r.x + 64, r.y + 30);
-      const iw = g.measureText(fmt(me.ink)).width; g.font = `bold 12px ${FONT2}`; g.fillText(' INK', r.x + 64 + iw, r.y + 30);
-      g.font = `bold 14px ${FONT2}`; g.fillStyle = me.lives <= 1 ? '#ff4d5e' : '#ff9aa6'; g.fillText(`♥ ${me.lives}/${me.maxLives}  lives`, r.x + 64, r.y + 51);
+      g.font = `${Math.round(r.h * 0.42)}px ${FONT}`; g.fillStyle = '#7fd7ff'; g.fillText(fmt(me.ink), r.x + 64, r.y + r.h * 0.5);
+      const iw = g.measureText(fmt(me.ink)).width; g.font = `bold 12px ${FONT2}`; g.fillText(' INK', r.x + 64 + iw, r.y + r.h * 0.5);
+      g.font = `bold 14px ${FONT2}`; g.fillStyle = me.lives <= 1 ? '#ff4d5e' : '#ff9aa6'; g.fillText(`♥ ${me.lives}/${me.maxLives}  lives`, r.x + 64, r.y + r.h * 0.84);
     } else if (this.playerInfo) {
       const r = this.playerInfo; g.textAlign = 'left'; g.textBaseline = 'middle';
       g.font = `16px ${FONT}`; g.fillStyle = '#7fd7ff'; g.fillText(`${fmt(me.ink)} ink`, r.x, r.y + 10);
@@ -750,10 +768,6 @@ export class MatchView {
       drawStrip(g, 'items', 4, r.x + r.w * 0.35, r.y + r.h / 2, r.h * 0.8, { alpha: me.shovels ? 1 : 0.35 });
       g.font = `18px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = me.shovels ? '#ffd88a' : '#888'; g.fillText('×' + me.shovels, r.x + r.w * 0.72, r.y + r.h / 2);
     }
-    // ad buttons
-    const adOk = !ctl.tutorial;
-    this.btn(B('adSummon'), { col: '#2e9b58', enabled: ctl.adSummonOk(), label: this.land ? '▶ Free Summon' : '▶', sub: this.land ? '' : 'Summon' });
-    this.btn(B('adShovel'), { col: '#2e9b58', enabled: ctl.adShovelOk(), label: this.land ? '▶ Free Shovel' : '▶', sub: this.land ? '' : 'Shovel' });
     if (this.oddsPanel) {
       const r = this.oddsPanel; this.panel(r);
       const locked = me.lockedCells().length > me.shovels; const useful = me.goldUseful(); const gold = useful ? Math.min(1, me.mods.gold) : 0; const sh = locked ? 0.05 : 0;
