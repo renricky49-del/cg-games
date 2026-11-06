@@ -292,7 +292,7 @@ const App = {
       if (i < r.stars) setTimeout(() => { stars[i].classList.add('on'); Audio.play('star'); }, 400 + i * 350);
     }
     $('res-stars').style.display = g.endless ? 'none' : 'flex';
-    const t = Math.floor(r.time);
+    const t = Math.floor(r.realTime != null ? r.realTime : r.time);
     $('res-stats').innerHTML = [
       ['Time survived', `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`],
       ['Scrap earned', fmt(r.earned)],

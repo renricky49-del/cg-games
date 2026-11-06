@@ -387,7 +387,7 @@ export class Renderer {
       drawSprite(ctx, im, cx, cy, s, rot);
       if (b.flash > 0) {
         ctx.fillStyle = '#fff6b0';
-        ctx.beginPath(); ctx.arc(cx + Math.cos(b.angle) * TS * 0.48, cy + Math.sin(b.angle) * TS * 0.48, TS * 0.13, 0, TAU); ctx.fill();
+        ctx.beginPath(); ctx.arc(cx + Math.cos(b.angle) * TS * 0.5, cy + Math.sin(b.angle) * TS * 0.5, TS * (0.12 + b.flash * 1.2), 0, TAU); ctx.fill();
       }
       if (b.disabledT > 0) {
         ctx.fillStyle = 'rgba(150,220,40,0.45)'; ctx.beginPath(); ctx.arc(cx, cy, TS * 0.42, 0, TAU); ctx.fill();
@@ -487,7 +487,8 @@ export class Renderer {
         if (IMG[e.sprite + (f ? '_b' : '_a')]) fname = e.sprite + (f ? '_b' : '_a');
       }
       const im = IMG[fname]; if (!im) continue;
-      const size = (e.kind === 'boss' ? TS * 2.0 * (e.r / 0.8) : TS * 0.9);
+      // hit squash: enemies punch out a little on every hit
+      const size = (e.kind === 'boss' ? TS * 2.0 * (e.r / 0.8) : TS * 0.9) * (1 + Math.max(0, e.hitFlash) * 1.6);
       let cx = e.x * TS, cy = e.y * TS;
       if (e.lunge > 0) { e.lunge -= 1 / 60; cx += Math.cos(e.dir) * 6; cy += Math.sin(e.dir) * 6; }
       const wob = walking ? Math.sin(e.walkT * 5) * 0.04 : Math.sin(t * 2 + e.id) * 0.02;

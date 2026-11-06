@@ -1,6 +1,6 @@
 // Pure game simulation (no DOM). Runs in the browser and headless in Node for balance tests.
 import {
-  RUSH_TIME, GRACE_TIME, MAX_BED, MAX_DOOR, bedIncome, bedCost, bedDoorReq,
+  RUSH_TIME, GRACE_TIME, PACE, MAX_BED, MAX_DOOR, bedIncome, bedCost, bedDoorReq,
   doorMaxHp, doorCost, repairCost, REPAIR_FRAC, REPAIR_CD,
   BUILDINGS, upgradeCost, totalSpent, turretStats, BOSSES, bossBase, BOSS_LVL_HP, BOSS_LVL_DMG, bossXpNeed,
   PERSONALITIES, AI_NAMES,
@@ -40,7 +40,7 @@ export class Game {
     this.projectiles = [];
     this.buildings = [];
     this.survivors = [];
-    this.stats = { earned: 0, built: 0, repairs: 0, bossKilled: false, timeSurvived: 0, wave: 1, minionsKilled: 0 };
+    this.stats = { earned: 0, built: 0, repairs: 0, bossKilled: false, timeSurvived: 0, realTime: 0, wave: 1, minionsKilled: 0 };
     this.continueUsed = false;
     this.adRepairUsed = false;
     this.adScrapUses = 0;
@@ -792,7 +792,9 @@ export class Game {
     this.emit('win', { killed });
   }
 
-  tick(dt) { // wrapper handling endless wake timer
+  tick(dt) { // wrapper: applies the game pace (not during the rush) and the endless wake timer
+    if (this.phase === 'night') this.stats.realTime += dt;
+    if (this.phase !== 'rush') dt *= PACE;
     if (this._pendingWake) {
       this._pendingWake.t -= dt;
       if (this._pendingWake.t <= 0) { const f = this._pendingWake.fn; this._pendingWake = null; f(); }
@@ -814,7 +816,7 @@ export class Game {
     return {
       won, stars, alive, killed: this.stats.bossKilled, earned: Math.floor(this.stats.earned),
       time: this.stats.timeSurvived, bossLvl: this.boss.lvl, built: this.stats.built,
-      wave: this.stats.wave, minions: this.stats.minionsKilled, reason: this.lostReason,
+      wave: this.stats.wave, realTime: this.stats.realTime, minions: this.stats.minionsKilled, reason: this.lostReason,
     };
   }
 }

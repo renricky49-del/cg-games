@@ -11,7 +11,7 @@ for (const night of NIGHTS) {
     const g = new Game({ night, seed: 1000 + i * 77 + night.n, autoPlayer: true, perks });
     g.player.pers = PERSONALITIES.find((p) => p.id === persId);
     let t = 0;
-    while (g.phase !== 'won' && g.phase !== 'lost' && t < 2000) { g.tick(1 / 30); g.events.length = 0; t += 1 / 30; }
+    while (g.phase !== 'won' && g.phase !== 'lost' && t < 2000) { g.tick(1 / 60); g.events.length = 0; t += 1 / 30; }
     const r = g.results();
     if (r.won) wins++; else lostAt.push(Math.round(r.time));
     if (r.killed) { kills++; tKill.push(Math.round(r.time)); }

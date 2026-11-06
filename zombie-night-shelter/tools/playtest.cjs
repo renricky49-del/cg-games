@@ -36,7 +36,8 @@ async function waitFor(page, fn, ms = 60000) {
   // pick the room with best neighbour support
   const room = await page.evaluate(() => { const g = window.__app.game, p = g.player; const r = g.map.rooms.filter((r) => !r.owner && !g.survivors.some((o) => o.targetRoom === r)).sort((a, b) => Math.abs(a.doors[0].fx - p.x) - Math.abs(b.doors[0].fx - p.x))[0]; return { x: r.doors[0].ix, y: r.doors[0].iy, id: r.id }; });
   await worldClick(page, room.x, room.y);
-  await waitFor(page, () => window.__app.game.player.state === 'inroom');
+  await waitFor(page, () => window.__app.game.player.state === 'inroom' && !document.getElementById('hud-bottom').classList.contains('hidden'));
+  await sleep(700);
   const bed = await page.evaluate(() => { const r = window.__app.game.player.room; return { x: r.bed.x, y: r.bed.y }; });
   await worldClick(page, bed.x, bed.y);
   await waitFor(page, () => window.__app.game.player.lying);

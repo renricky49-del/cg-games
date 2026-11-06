@@ -3,7 +3,7 @@ import { Audio } from './audio.js';
 import { fmt } from './sim.js';
 import {
   BUILDINGS, BUILD_ORDER, bedIncome, bedCost, bedDoorReq, doorMaxHp, upgradeCost, turretStats, spriteFor,
-  REPAIR_FRAC, MAX_BED, GRACE_TIME,
+  REPAIR_FRAC, MAX_BED, GRACE_TIME, PACE,
 } from './data.js';
 import { roomAt } from './map.js';
 
@@ -118,9 +118,9 @@ export class HUD {
     // phase
     let title = '', timer = 0, urgent = false, dawn = 0;
     if (g.phase === 'rush') { title = s.state === 'corridor' ? 'Find a room!' : 'Others are still running…'; timer = g.phaseT; urgent = g.phaseT < 8 && s.state === 'corridor'; }
-    else if (g.phase === 'grace') { title = `${g.boss.name} wakes in`; timer = g.phaseT; urgent = g.phaseT < 5; }
-    else if (g.endless) { title = `Wave ${g.stats.wave}`; timer = g.stats.timeSurvived; }
-    else { title = 'Dawn in'; timer = g.nightLeft; dawn = 1 - g.nightLeft / g.nightLen; }
+    else if (g.phase === 'grace') { title = `${g.boss.name} wakes in`; timer = g.phaseT / PACE; urgent = g.phaseT / PACE < 5; }
+    else if (g.endless) { title = `Wave ${g.stats.wave}`; timer = g.stats.realTime; }
+    else { title = 'Dawn in'; timer = g.nightLeft / PACE; dawn = 1 - g.nightLeft / g.nightLen; }
     if (g.phase === 'won') { title = 'Dawn!'; timer = 0; dawn = 1; }
     this.setText('phase-title', title);
     this.setText('phase-timer', mmss(timer));
@@ -148,8 +148,12 @@ export class HUD {
     // banner
     if (this.bannerT > 0) { this.bannerT -= dt; if (this.bannerT <= 0) $('banner').classList.remove('show'); }
     this.updateTutorial(dt);
-    // keep the tutorial bubble above the action bar
-    if (!$('tutorial').classList.contains('hidden')) $('tutorial').style.bottom = (this.R.insets.bottom + 10) + 'px';
+    // tutorial bubble: above the action bar, or under the top HUD when the thing it points at is in the lower half
+    const tb = $('tutorial');
+    if (!tb.classList.contains('hidden')) {
+      if (this.tutUp) { tb.style.top = (this.R.insets.top + 8) + 'px'; tb.style.bottom = 'auto'; }
+      else { tb.style.top = 'auto'; tb.style.bottom = (this.R.insets.bottom + 10) + 'px'; }
+    }
   }
 
   setText(id, v) { if (this.cache[id] !== v) { this.cache[id] = v; $(id).textContent = v; } }
@@ -160,7 +164,7 @@ export class HUD {
       const st = (c.ok ? 'afford' : c.max ? 'disabled' : c.locked || c.req || c.cd ? 'locked disabled' : c.poor ? 'poor' : 'disabled') + (extra || '');
       if (el.dataset.st !== st) { el.dataset.st = st; el.className = 'act ' + st; }
       const costEl = el.querySelector('.cost span');
-      const ct = c.max ? 'MAX' : c.req ? `Door Lv${c.req}` : c.cd ? mmss(c.cd).replace(/^0:/, '') + 's' : c.full ? 'Full' : fmt(c.cost || 0);
+      const ct = c.max ? 'MAX' : c.req ? `Door Lv${c.req}` : c.cd ? mmss(c.cd / PACE).replace(/^0:/, '') + 's' : c.full ? 'Full' : fmt(c.cost || 0);
       if (costEl.textContent !== ct) costEl.textContent = ct;
       if (label) { const lv = el.querySelector('.lv'); if (lv && lv.textContent !== label) lv.textContent = label; }
     };
@@ -194,7 +198,7 @@ export class HUD {
       if (!c.max) html += `<br><small>Lv${room.bedLvl + 2} will need Door Lv${bedDoorReq(room.bedLvl + 2)}</small>`;
     } else if (id === 'act-repair') {
       const c = g.canRepair(s);
-      html = `<b>Repair door (R)</b><br>Restores ${Math.round(REPAIR_FRAC * 100)}% door HP for ${fmt(c.cost)}.<br>Cooldown ${Math.round(g.repairCdMax(s))}s.`;
+      html = `<b>Repair door (R)</b><br>Restores ${Math.round(REPAIR_FRAC * 100)}% door HP for ${fmt(c.cost)}.<br>Cooldown ${Math.round(g.repairCdMax(s) / PACE)}s.`;
     } else if (id === 'act-door') {
       html = `<b>Door Lv${room.doorLvl} (U)</b><br>Upgrade: max HP ${fmt(g.doorMax(room))} → <span class="good">${fmt(Math.round(g.doorMax(room) * doorMaxHp(room.doorLvl + 1) / doorMaxHp(room.doorLvl)))}</span> and fully repairs.`;
     } else if (id === 'act-adscrap') html = `<b>Watch an ad</b><br>Get ${fmt(g.adScrapAmount())} scrap instantly. (${2 - g.adScrapUses} left tonight)`;
@@ -414,7 +418,7 @@ export class HUD {
     switch (ev.type) {
       case 'phase':
         if (ev.phase === 'grace') {
-          this.banner('DOORS LOCKED!', `${g.boss.name} wakes in ${GRACE_TIME}s — get building!`, 2.4);
+          this.banner('DOORS LOCKED!', `${g.boss.name} wakes in ${Math.round(GRACE_TIME / PACE)}s — get building!`, 2.4);
           if (g.player.room && this.R.vw < 900) this.R.focusRoom(g.player.room);
         }
         break;
@@ -435,7 +439,7 @@ export class HUD {
       case 'howl': this.toast('The Howler called more zombies!', 'bad'); break;
       case 'acid': if (ev.b.room === g.player.room) this.toast('Acid! A gadget is jammed', 'bad'); break;
       case 'toast': this.toast(ev.text, 'bad'); break;
-      case 'waveCleared': this.toast(`Wave ${ev.wave} cleared! Next boss in 12s`, 'good'); break;
+      case 'waveCleared': this.toast(`Wave ${ev.wave} cleared! Next boss in ${Math.round(12 / PACE)}s`, 'good'); break;
     }
     if (this.tut) this.tutEvent(ev);
   }
@@ -474,7 +478,7 @@ export class HUD {
     if (T.step === 2 && room && room.bedLvl >= 2) T.step = 3;
     if (T.step === 3 && room && room.buildings.length) { T.step = 4; T.t = 0; }
     if (T.step === 4 && T.t > 7) T.step = 4.5;
-    if (T.step === 5 && T.t > 25) { T.step = 6; T.t = 0; }
+    if (T.step === 5 && T.t > 15) { T.step = 6; T.t = 0; }
     if (T.step === 6 && T.t > 7) { T.step = 7; }
     switch (T.step) {
       case 0: {
@@ -507,6 +511,8 @@ export class HUD {
     let ax = null, ay = null;
     if (target) { const p = this.R.worldToScreen(target.x, target.y); ax = p.x; ay = p.y - 10; }
     else if (el && !el.closest('.hidden')) { const r = el.getBoundingClientRect(); ax = r.left + r.width / 2; ay = r.top - 6; }
+    // world targets in the lower half of the screen push the bubble to the top so it never covers them
+    this.tutUp = !!target && ay > this.R.insets.top + (window.innerHeight - this.R.insets.top - this.R.insets.bottom) * 0.5;
     if (ax != null) {
       arrow.classList.remove('hidden');
       arrow.style.left = (ax - 16) + 'px'; arrow.style.top = (ay - 26) + 'px';

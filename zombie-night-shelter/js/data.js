@@ -2,8 +2,11 @@
 
 export const GAME_TITLE = 'Last Door Standing';
 
-export const RUSH_TIME = 30;      // seconds to pick a room
-export const GRACE_TIME = 30;     // seconds after rush before the boss wakes
+export const RUSH_TIME = 22;      // real seconds to pick a room (runs at normal speed)
+// After the rush the whole simulation runs PACE× faster (boss, turrets, income, cooldowns, dawn timer
+// all scale together), so balance is identical but a night plays out in about half the time.
+export const PACE = 2.0;
+export const GRACE_TIME = 38;     // game-seconds after the rush before the boss wakes (19 s real at PACE 2)
 export const MAX_BED = 10;
 export const MAX_DOOR = 12;
 

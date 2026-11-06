@@ -51,8 +51,13 @@ tools/                Test + asset pipeline scripts (not needed at runtime)
 ```
 
 ## Design notes
-**One night:** Room rush (30 s; 40 s on the tutorial night) → 30 s grace to build → the boss wakes and walks out of the
-stairwell lair → dawn timer (170–300 s depending on night) or kill the boss. Your door breaking = loss (one rewarded
+**Pace:** after the room rush the whole simulation runs at `PACE = 2` (data.js) — boss movement/attacks, turret fire
+rate, projectiles, income, cooldowns and the dawn timer all scale together, so balance is unchanged but nights play
+twice as fast. All numbers below are in game-seconds; the HUD shows real seconds.
+
+**One night:** Room rush (22 s real, normal speed; 40 s on the tutorial night) → 38 game-s (19 s real) to build → the boss
+wakes and walks out of the stairwell lair → dawn timer (170–300 game-s = 85–150 s real) or kill the boss.
+Typical real lengths with modest perks: Night 1 ≈ 1:15, Night 4 ≈ 1:55, Night 7 ≈ 2:30, Night 12 ≈ 2:55. Your door breaking = loss (one rewarded
 continue per night).
 
 **Economy:** bed income doubles per level (2 → 1024 scrap/s), bed cost grows ×2.45 per level, so each upgrade's payback
