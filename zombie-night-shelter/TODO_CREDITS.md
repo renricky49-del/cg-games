@@ -1,6 +1,6 @@
 # Where more Higgsfield credits would help
 
-Spent so far: **27.88 credits** (see `store/ASSET_LOG.md`). All cheap polish items (boss/minion animation frames,
+Spent so far: **35.88 credits** (see `store/ASSET_LOG.md`). All cheap polish items (boss/minion animation frames,
 sleeping sprites, painted door damage, tileset, furniture, extra skins, menu music, victory/defeat stings, roar/smash/groan
 SFX) are now done.
 

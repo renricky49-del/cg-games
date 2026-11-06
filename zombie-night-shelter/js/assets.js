@@ -3,6 +3,7 @@ export const IMG_NAMES = [
   's0', 's1', 's2', 's3', 's4', 's5',
   'boss_brute', 'boss_spitter', 'boss_charger', 'boss_howler', 'boss_tank', 'boss_abom',
   'minion0', 'minion1', 'minion2', 'minion3',
+  'flame1', 'flame2', 'flame3', 'mortar1', 'mortar2', 'mortar3',
   'nail1', 'nail2', 'nail3', 'bow1', 'bow2', 'bow3', 'tesla1', 'tesla2', 'tesla3',
   'generator', 'freezer', 'bench', 'vending', 'spikes', 'radio',
   'bed1', 'bed2', 'bed3', 'bed4', 'bed5', 'bed6',

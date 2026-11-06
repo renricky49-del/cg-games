@@ -75,10 +75,10 @@ img { -webkit-user-drag: none; }
 @keyframes flashred { 50% { background: #8a2b2b; } }
 
 /* build menu */
-#build-menu { position: absolute; width: 250px; background: rgba(27,21,48,0.97); border: 2px solid var(--gold2); border-radius: 14px; padding: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.5); animation: popin 0.15s ease-out; z-index: 5; }
+#build-menu { position: absolute; width: 316px; background: rgba(27,21,48,0.97); border: 2px solid var(--gold2); border-radius: 14px; padding: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.5); animation: popin 0.15s ease-out; z-index: 5; }
 @keyframes popin { from { transform: scale(0.8); opacity: 0; } }
 .bm-title { font-size: 16px; color: var(--gold); margin: 0 4px 6px; }
-.bm-list { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+.bm-list { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
 .bm-item { position: relative; background: var(--panel2); border: 2px solid var(--line); border-radius: 10px; padding: 4px 2px 3px; display: flex; flex-direction: column; align-items: center; font-size: 11px; line-height: 1.1; min-height: 78px; }
 .bm-item img.ic { width: 40px; height: 40px; object-fit: contain; }
 .bm-item .c { display: flex; align-items: center; gap: 2px; font-size: 13px; margin-top: 2px; }
@@ -254,7 +254,8 @@ img { -webkit-user-drag: none; }
   .btn.big { font-size: 26px; padding: 10px 34px; }
   .logo { font-size: 44px; }
   .tut-text { font-size: 16px; }
-  #build-menu { width: 220px; }
+  #build-menu { width: 236px; }
+  .bm-list { grid-template-columns: repeat(3, 1fr); }
 }
 @media (max-height: 500px) {
   #hud-top { padding: 4px 6px; gap: 6px; }

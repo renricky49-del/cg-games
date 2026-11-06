@@ -43,9 +43,14 @@ function chooseGoal(g, s) {
   const turrets = r.buildings.filter((b) => BUILDINGS[b.type].kind === 'turret');
   const tiles = nearDoorTiles(g, r);
   const pw = g.power(r);
-  let ttype = 'nail';
-  if (g.unlocked('bow') && inc * 90 > BUILDINGS.bow.cost) ttype = 'bow';
-  if (g.unlocked('tesla') && inc * 70 > BUILDINGS.tesla.cost) ttype = 'tesla';
+  // pick a weapon: the best one the survivor can sensibly afford, with some variety
+  const opts = ['nail'];
+  if (g.unlocked('flame') && inc * 25 > BUILDINGS.flame.cost) opts.push('flame');
+  if (g.unlocked('bow') && inc * 60 > BUILDINGS.bow.cost) opts.push('bow', 'bow');
+  if (g.unlocked('mortar') && inc * 60 > BUILDINGS.mortar.cost) opts.push('mortar', 'mortar');
+  if (g.unlocked('tesla') && inc * 70 > BUILDINGS.tesla.cost) opts.push('tesla', 'tesla', 'tesla');
+  let ttype = opts[Math.floor(g.rng() * opts.length)];
+  if (opts.length > 1 && ttype === 'nail' && turrets.length >= 2) ttype = opts[opts.length - 1];
   if (tiles.length && turrets.length < 6) {
     let cost = BUILDINGS[ttype].cost;
     if (ttype === 'tesla' && pw.cap - pw.used < 2) {

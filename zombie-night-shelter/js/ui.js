@@ -87,8 +87,8 @@ export class HUD {
     else if (k === 'u') this.doAction('door');
     else if (k === 'z') this.app.toggleZoom();
     else if (k === ' ' && g.player.state === 'inroom' && !g.player.lying) g.lieDown(g.player);
-    else if (/^[1-9]$/.test(k)) {
-      const type = BUILD_ORDER[+k - 1]; if (!type) return;
+    else if (/^[0-9]$/.test(k)) {
+      const type = BUILD_ORDER.find((t) => BUILDINGS[t].hotkey === k); if (!type) return;
       let t = this.bmTile;
       if (!t && this.R.hover) t = this.R.hover;
       if (!t || !g.player.room) return;
@@ -303,7 +303,7 @@ export class HUD {
       const D = BUILDINGS[type];
       const el = document.createElement('button');
       el.className = 'bm-item'; el.dataset.type = type;
-      el.innerHTML = `<span class="hk">${i + 1}</span><img class="ic" src="assets/img/${D.sprites[0]}.png" alt=""><span>${D.name}</span><span class="c"><img src="assets/img/i_scrap.png" alt=""><span class="cv">${fmt(D.cost)}</span></span>`;
+      el.innerHTML = `<span class="hk">${D.hotkey}</span><img class="ic" src="assets/img/${D.sprites[0]}.png" alt=""><span>${D.name}</span><span class="c"><img src="assets/img/i_scrap.png" alt=""><span class="cv">${fmt(D.cost)}</span></span>`;
       el.addEventListener('mouseenter', () => { this.bmHover = type; Audio.play('hover'); this.bmTip(type, el); });
       el.addEventListener('mouseleave', () => { this.bmHover = null; this.hideTip(); this.R.preview = null; });
       el.addEventListener('click', (e) => { e.stopPropagation(); Audio.unlock(); this.tryBuild(type, tx, ty); this.hideTip(); });
@@ -335,8 +335,10 @@ export class HUD {
     let html = `<b>${D.name}</b> · ${fmt(D.cost)} scrap${D.power > 0 ? ` · ${D.power}⚡ power` : D.power < 0 ? ` · +${-D.power}⚡` : ''}<br>${D.desc}`;
     if (D.kind === 'turret') { const st = turretStats(type, 1, g.perks); html += `<br>Damage ${fmt(st.dmg)} · ${st.rate.toFixed(1)}/s · Range ${st.range.toFixed(1)}`; }
     if (!c.ok) html += `<br><span class="bad">${c.reason}</span>`;
-    const r = el.getBoundingClientRect();
-    this.showTip(html, r.left + r.width / 2, r.top - 6, true);
+    // show under the menu (or above it when there is no room below) so it never covers the items
+    const m = this.bm.getBoundingClientRect();
+    if (m.bottom + 110 < window.innerHeight) this.showTip(html, m.left + m.width / 2, m.bottom - 12, false);
+    else this.showTip(html, m.left + m.width / 2, m.top - 6, true);
   }
 
   // ---------------------------------------------------------------- info panel

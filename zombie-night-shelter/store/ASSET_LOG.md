@@ -34,5 +34,12 @@ Style anchor = job `05a68226` (survivors sheet), passed as `image_references` to
 | 28 | defeat sting | 6 s sad trombone | elevenlabs_music_v2 | 0.39 | assets/audio/lose.mp3 | 26.38 |
 | 29–31 | SFX: boss roar, door smash, zombie groan | 2 s each, loudness-normalised, mono 64 kbps | mirelo_text_to_audio | 3 × 0.50 | roar/smash/groan.mp3 | 27.88 |
 
-**Total spent: 27.88 credits** (cap 95; parent asked ≤ ~45). Covers are composited locally by `tools/covers.py` (key art + logo + soft shadow).
+### Weapons + recorded SFX pass
+| # | Asset | Prompt summary | Settings | Cost | Output | Running total |
+|---|---|---|---|---|---|---|
+| 32 | new turrets | Fire Sprayer ×3 tiers, Mortar ×3 tiers, top-down, ref turret sheet #4 | medium 1k, transparent | 0.50 | flame1–3, mortar1–3 | 28.38 |
+| 33–44 | 12 SFX | nail gun, crossbow, tesla zap, flamethrower, mortar launch, explosion, door thud, hammer repair, build clunk, upgrade chime, coins, zombie splat | mirelo_text_to_audio 1–1.5 s | 12 × 0.50 | assets/audio/s_*.mp3 | 34.38 |
+| 45–47 | SFX redo | flamethrower, crossbow, coins (first takes were near-silent) | mirelo_text_to_audio 2 s | 3 × 0.50 | s_flame, s_bolt, s_coin | 35.88 |
+
+**Total spent: 35.88 credits** (cap 95; parent asked ≤ ~45). Covers are composited locally by `tools/covers.py` (key art + logo + soft shadow).
 Post-processing: all PNG sprites quantized to 256 colours (PIL FASTOCTREE, no dither) — 2.0 MB → 0.45 MB with no visible loss.

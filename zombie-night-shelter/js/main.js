@@ -151,7 +151,7 @@ const App = {
     $('intro-name').textContent = idx < 0 ? 'The Endless Horde' : B.name;
     $('intro-desc').textContent = idx < 0 ? 'Bosses keep coming, each one stronger. How many waves can you hold?' : B.desc;
     const newB = idx < 0 ? null : BUILD_ORDER.filter((t) => BUILDINGS[t].unlock === night.n).map((t) => BUILDINGS[t].name);
-    $('intro-unlock').textContent = newB && newB.length ? 'New: ' + newB.join(' & ') + '!' : '';
+    $('intro-unlock').textContent = newB && newB.length ? 'New: ' + newB.join(', ') + '!' : '';
     this.prepareGame(night);
     this.show('intro');
     $('hud').classList.add('hidden');
@@ -225,7 +225,9 @@ const App = {
       hud.onEvent(ev);
       const near = (x, y) => !pr || Math.hypot(x - (pr.x + pr.w / 2), y - (pr.y + pr.h / 2)) < 9;
       switch (ev.type) {
-        case 'shoot': if (ev.player) Audio.play(ev.type === 'shoot' && ev.b.type === 'bow' ? 'bolt' : 'nail', 0.8); break;
+        case 'shoot': if (ev.player) Audio.play(ev.b.type === 'bow' ? 'bolt' : ev.b.type === 'mortar' ? 'mortar' : 'nail', 0.8); break;
+        case 'flame': if (ev.player) Audio.play('flame'); break;
+        case 'boom': if (near(ev.x, ev.y)) Audio.play('boom', ev.player ? 1 : 0.5); break;
         case 'zap': if (near(ev.x, ev.y)) Audio.play('zap', ev.b.room === pr ? 1 : 0.4); break;
         case 'doorHit': Audio.play(ev.player ? 'doorHit' : 'doorHitFar', near(ev.x, ev.y) ? 1 : 0.5); break;
         case 'doorBreak': Audio.play('doorBreak', ev.player ? 1 : 0.6); break;
@@ -246,7 +248,7 @@ const App = {
         case 'win': Audio.stopMusic(true); Audio.play('win'); CG.happytime(); break;
         case 'lose': Audio.stopMusic(true); Audio.play('lose'); break;
         case 'minionSpawn': if (near(ev.x, ev.y)) Audio.play('groan'); break;
-        case 'chargeHit': Audio.play('doorHit', 1); break;
+        case 'chargeHit': Audio.play('chargeHit', 1); break;
       }
     }
     g.events.length = 0;

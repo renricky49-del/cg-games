@@ -38,7 +38,7 @@ js/main.js            App: boot, screens, save/progression, input (mouse/touch/k
 js/ui.js              HUD: resource pills, phase timer, boss card, action bar, build menu, info panels, tooltips, tutorial
 js/sim.js             Pure simulation (no DOM): survivors, rooms, doors, buildings, boss/minion AI, projectiles, results
 js/ai.js              Survivor AI: room picking + spending heuristics per personality
-js/map.js             3 apartment-floor layouts (10 rooms, some with 2 doors), tile queries
+js/map.js             3 apartment-floor layouts (8 rooms, some with 2 doors), tile queries
 js/data.js            All tuning: economy curves, buildings, bosses, 12 nights, perks, skins, personalities
 js/render.js          Canvas renderer: pre-rendered floor layer, sprites, cracks, particles, floaters, night lighting, camera
 js/audio.js           WebAudio: music loop (file) + synthesized SFX
@@ -64,9 +64,12 @@ continue per night).
 time creeps up slowly. Bed level N requires door level N−2 — the core greed-vs-safety trade-off. Door HP ×1.72 per level,
 upgrading refills it. Repair = +35 % HP, cheap, 10 s cooldown.
 
-**Buildings (unlock night):** Nail Gun (1), Crossbow (2, pierces armor), Generator + Chill Trap (3), Vending Machine (4),
-Tesla Coil (5, chains, needs 2 power), Repair Bench (6), Spike Trap (7, reflects door damage), Signal Tower (8, fire-rate aura).
-Turret range grows +0.3 tiles/level, so turrets placed near the door also cover neighbours' doors — rooms whose doors
+**Buildings (unlock night):** Night 1 already offers 4 weapons — Nail Gun, Crossbow (pierces armor), Fire Sprayer (burns
+everything in range), Mortar (long-range splash shells) — plus Generator, Chill Trap and Spike Trap. Vending Machine (2),
+Tesla Coil (3, chains, needs 2 power), Repair Bench (4), Signal Tower (5, fire-rate aura).
+Turret ranges are long (Nail 5.5, Crossbow 6.8, Mortar 9 tiles, +0.4/level) and each floor has 8 apartments, so your
+turrets usually reach the boss even while it attacks a neighbour (in-range 40–63 % of that time vs 9–15 % before;
+`node tools/engagement.mjs` measures it) — rooms whose doors
 are close together (shown as "close neighbours" when hovering a room in the rush) are the strongest picks.
 
 **Boss:** gains XP from door hits, broken doors, destroyed buildings and slowly over time; each level is ×1.38 HP,
@@ -105,8 +108,9 @@ earnings) Nights 7–12 become 75–100 % survivable. The game expects players t
 - Doors have 3 painted states per tier (intact / damaged < 66 % / almost broken < 33 %, plus a pulsing red tint).
 - Camera: closer default zoom (≈44 px tiles during the rush centred on you, ≈56–66 px on your room after you claim it);
   Z / the button toggles a whole-floor overview. In-world labels never render below ~12–13 px.
-- Two generated music loops (calm menu track, tense night track), generated victory/defeat stings and roar/door-smash/groan
-  samples; the rest of the SFX (shots, coins, UI) are synthesized with WebAudio.
+- Two generated music loops (calm menu track, tense night track), generated victory/defeat stings, and recorded-style
+  generated samples for every combat/economy sound (shots, zaps, fire, mortar, explosions, door thuds, repair, build,
+  upgrade, coins, zombie hits, roar). Only tiny UI clicks are still synthesized.
 - Boss frames: walk A/B while moving, attack frame on each hit; minions alternate two walk frames.
 - Rooms get 1–3 pieces of furniture on back-wall tiles (not buildable) plus small clutter that disappears under buildings.
 - Room rush allows click-to-claim *and* WASD walking; the tutorial night requires clicking the bed, later nights

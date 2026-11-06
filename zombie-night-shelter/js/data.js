@@ -30,53 +30,65 @@ export const BUILDINGS = {
   nail: {
     name: 'Nail Gun', kind: 'turret', cost: 30, power: 0, unlock: 1, hotkey: '1',
     desc: 'Cheap rapid-fire turret. Great early on.',
-    dmg: 7, rate: 2.2, range: 3.4, rangeUp: 0.3, dmgMul: 1.75, costMul: 2.2, maxLvl: 9,
+    dmg: 7, rate: 2.2, range: 5.5, rangeUp: 0.4, dmgMul: 1.75, costMul: 2.2, maxLvl: 9,
     proj: 'nail', sprites: ['nail1', 'nail2', 'nail3'],
   },
   bow: {
-    name: 'Crossbow', kind: 'turret', cost: 220, power: 0, unlock: 2, hotkey: '2',
+    name: 'Crossbow', kind: 'turret', cost: 160, power: 0, unlock: 1, hotkey: '2',
     desc: 'Heavy bolts with long range. Pierces armor.',
-    dmg: 60, rate: 0.75, range: 4.6, rangeUp: 0.35, dmgMul: 1.8, costMul: 2.2, maxLvl: 9,
+    dmg: 48, rate: 0.75, range: 6.8, rangeUp: 0.45, dmgMul: 1.8, costMul: 2.2, maxLvl: 9,
     proj: 'bolt', pierce: true, sprites: ['bow1', 'bow2', 'bow3'],
   },
+  flame: {
+    name: 'Fire Sprayer', kind: 'turret', cost: 70, power: 0, unlock: 1, hotkey: '3',
+    desc: 'Sprays fire that burns every zombie in its range at once.',
+    dmg: 4, rate: 5, range: 3.8, rangeUp: 0.3, dmgMul: 1.75, costMul: 2.2, maxLvl: 9,
+    proj: 'flame', aoe: true, sprites: ['flame1', 'flame2', 'flame3'],
+  },
+  mortar: {
+    name: 'Mortar', kind: 'turret', cost: 180, power: 0, unlock: 1, hotkey: '4',
+    desc: 'Lobs explosive shells across the whole hallway. Splash damage.',
+    dmg: 50, rate: 0.45, range: 9.0, rangeUp: 0.4, dmgMul: 1.8, costMul: 2.2, maxLvl: 9,
+    proj: 'shell', splash: 1.4, sprites: ['mortar1', 'mortar2', 'mortar3'],
+  },
   tesla: {
-    name: 'Tesla Coil', kind: 'turret', cost: 1400, power: 2, unlock: 5, hotkey: '3',
+    name: 'Tesla Coil', kind: 'turret', cost: 1400, power: 2, unlock: 3, hotkey: '5',
     desc: 'Chains lightning between up to 3 zombies. Needs 2 power.',
-    dmg: 150, rate: 1.1, range: 4.0, rangeUp: 0.3, dmgMul: 1.8, costMul: 2.25, maxLvl: 9,
+    dmg: 150, rate: 1.1, range: 5.4, rangeUp: 0.4, dmgMul: 1.8, costMul: 2.25, maxLvl: 9,
     proj: 'zap', chain: 3, sprites: ['tesla1', 'tesla2', 'tesla3'],
   },
   generator: {
-    name: 'Generator', kind: 'util', cost: 120, power: -2, unlock: 3, hotkey: '4',
+    name: 'Generator', kind: 'util', cost: 120, power: -2, unlock: 1, hotkey: '6',
     desc: 'Produces 2 power per level. Power runs advanced gadgets.',
     powerUp: 2, costMul: 2.4, maxLvl: 6, sprites: ['generator'],
   },
   freezer: {
-    name: 'Chill Trap', kind: 'util', cost: 300, power: 1, unlock: 3, hotkey: '5',
+    name: 'Chill Trap', kind: 'util', cost: 300, power: 1, unlock: 1, hotkey: '7',
     desc: 'Freezing mist slows zombies in range.',
-    range: 3.2, rangeUp: 0.3, slow: 0.3, slowUp: 0.06, slowMax: 0.65, costMul: 2.3, maxLvl: 6, sprites: ['freezer'],
+    range: 4.2, rangeUp: 0.35, slow: 0.3, slowUp: 0.06, slowMax: 0.65, costMul: 2.3, maxLvl: 6, sprites: ['freezer'],
+  },
+  spikes: {
+    name: 'Spike Trap', kind: 'util', cost: 350, power: 0, unlock: 1, hotkey: '8',
+    desc: 'Reflects part of every door hit back at the attacker.',
+    reflect: 0.25, reflectUp: 0.12, costMul: 2.3, maxLvl: 6, sprites: ['spikes'],
   },
   vending: {
-    name: 'Vending Machine', kind: 'util', cost: 380, power: 1, unlock: 4, hotkey: '6',
+    name: 'Vending Machine', kind: 'util', cost: 380, power: 1, unlock: 2, hotkey: '9',
     desc: 'Produces scrap on its own, even while you sleep.',
     income: 5, incomeMul: 2.1, costMul: 2.3, maxLvl: 8, sprites: ['vending'],
   },
   bench: {
-    name: 'Repair Bench', kind: 'util', cost: 480, power: 1, unlock: 6, hotkey: '7',
+    name: 'Repair Bench', kind: 'util', cost: 480, power: 1, unlock: 4, hotkey: '0',
     desc: 'Slowly repairs your door automatically.',
     heal: 0.006, healUp: 0.004, costMul: 2.3, maxLvl: 6, sprites: ['bench'],
   },
-  spikes: {
-    name: 'Spike Trap', kind: 'util', cost: 350, power: 0, unlock: 7, hotkey: '8',
-    desc: 'Reflects part of every door hit back at the attacker.',
-    reflect: 0.25, reflectUp: 0.12, costMul: 2.3, maxLvl: 6, sprites: ['spikes'],
-  },
   radio: {
-    name: 'Signal Tower', kind: 'util', cost: 900, power: 2, unlock: 8, hotkey: '9',
+    name: 'Signal Tower', kind: 'util', cost: 900, power: 2, unlock: 5, hotkey: '',
     desc: 'Boosts fire rate of turrets in range.',
-    range: 2.6, rangeUp: 0.25, boost: 0.2, boostUp: 0.08, costMul: 2.3, maxLvl: 6, sprites: ['radio'],
+    range: 3.4, rangeUp: 0.3, boost: 0.2, boostUp: 0.08, costMul: 2.3, maxLvl: 6, sprites: ['radio'],
   },
 };
-export const BUILD_ORDER = ['nail', 'bow', 'tesla', 'generator', 'freezer', 'vending', 'bench', 'spikes', 'radio'];
+export const BUILD_ORDER = ['nail', 'bow', 'flame', 'mortar', 'tesla', 'generator', 'freezer', 'spikes', 'vending', 'bench', 'radio'];
 
 export function upgradeCost(type, lvl) { // cost to go lvl -> lvl+1
   const b = BUILDINGS[type];
@@ -131,7 +143,7 @@ export const NIGHTS = [
 export const ENDLESS = { n: 0, endless: true, boss: 'brute', diff: 1.6, len: 99999, map: 1 };
 
 export function bossBase(diff) {
-  return { hp: 4800 * diff, dmg: 13 * diff };
+  return { hp: 5400 * diff, dmg: 13 * diff };
 }
 export const BOSS_LVL_HP = 1.38;   // per boss level
 export const BOSS_LVL_DMG = 1.33;

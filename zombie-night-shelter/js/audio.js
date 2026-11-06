@@ -1,4 +1,12 @@
 // WebAudio: generated music loop (file) + synthesized SFX. Everything fails silently.
+// event name -> [sample file, volume, min gap (s), pitch variation]
+const SAMPLE_SFX = {
+  nail: ['s_nail', 0.45, 0.07, 0.25], bolt: ['s_bolt', 0.7, 0.09, 0.15], zap: ['s_zap', 0.6, 0.1, 0.2],
+  flame: ['s_flame', 0.45, 0.35, 0.15], mortar: ['s_mortar', 0.7, 0.1, 0.15], boom: ['s_boom', 0.75, 0.08, 0.2],
+  doorHit: ['s_doorhit', 1.0, 0.07, 0.12], doorHitFar: ['s_doorhit', 0.3, 0.15, 0.2],
+  repair: ['s_repair', 0.8, 0.2, 0.05], build: ['s_build', 0.8, 0.1, 0.1], upgrade: ['s_upgrade', 0.7, 0.1, 0.05],
+  coin: ['s_coin', 0.35, 0.18, 0.2], kill: ['s_splat', 0.6, 0.06, 0.25], chargeHit: ['s_doorhit', 1.2, 0.1, 0.05],
+};
 export const Audio = {
   ctx: null, master: null, musicGain: null, sfxGain: null,
   musicOn: true, sfxOn: true, adMuted: false, sdkMuted: false,
@@ -38,7 +46,7 @@ export const Audio = {
     const [night, menu] = await Promise.all([this.loadBuf('assets/audio/night_loop.mp3'), this.loadBuf('assets/audio/menu_loop.mp3')]);
     this.tracks.night = night; this.tracks.menu = menu;
     if (this.wantMusic) { const w = this.wantMusic; this.wantMusic = null; this.startMusic(w); }
-    for (const n of ['roar', 'smash', 'groan', 'win', 'lose']) this.loadBuf(`assets/audio/${n}.mp3`).then((b) => { this.samples[n] = b; });
+    for (const n of ['roar', 'smash', 'groan', 'win', 'lose', ...new Set(Object.values(SAMPLE_SFX).map((x) => x[0]))]) this.loadBuf(`assets/audio/${n}.mp3`).then((b) => { this.samples[n] = b; });
   },
   applyMute() {
     if (!this.ctx) return;
@@ -118,9 +126,17 @@ export const Audio = {
     try { this._play(name, vol); } catch (e) { /* ignore */ }
   },
   _play(name, v) {
+    // recorded samples first (with slight random pitch so repeats don't sound identical), synth as fallback
+    const S = SAMPLE_SFX[name];
+    if (S && this.samples && this.samples[S[0]]) {
+      if (!this.ctx || !this.sfxOn || this.ctx.state !== 'running') return;
+      if (!this._ok('S_' + name, S[2])) return;
+      this.sample(S[0], S[1] * v, 1 + (Math.random() - 0.5) * S[3]);
+      return;
+    }
     switch (name) {
       case 'click': if (this._ok(name, 0.03)) this.tone(660, 0.06, 'triangle', 0.18 * v, 1.4); break;
-      case 'hover': if (this._ok(name, 0.05)) this.tone(900, 0.03, 'sine', 0.05 * v); break;
+      case 'hover': break; // silent: hover beeps felt synthetic
       case 'error': if (this._ok(name, 0.1)) { this.tone(180, 0.14, 'square', 0.1 * v); this.tone(150, 0.16, 'square', 0.1 * v, 0, 0.08); } break;
       case 'nail': if (this._ok(name, 0.045)) { this.noise(0.05, 0.12 * v, 3000, 2); this.tone(1400, 0.03, 'square', 0.03 * v, 0.5); } break;
       case 'bolt': if (this._ok(name, 0.08)) { this.tone(260, 0.12, 'triangle', 0.18 * v, 0.6); this.noise(0.08, 0.1 * v, 1800, 3); } break;

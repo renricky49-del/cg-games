@@ -11,7 +11,7 @@ const VIEWS = [['desktop 1280x720', { viewport: { width: 1280, height: 720 } }],
     p.on('pageerror', (e) => { console.log('pageerror', e.message); fails++; });
     await p.goto('http://localhost:8123/index.html'); await p.waitForSelector('#title.show');
     for (let mapIdx = 0; mapIdx < 3; mapIdx++) {
-      for (let ri = 0; ri < 10; ri++) {
+      for (let ri = 0; ri < 8; ri++) {
         await p.evaluate(([mapIdx, ri]) => {
           const A = window.__app; A.save.tutDone = true; A.startNight(mapIdx, true);
         }, [mapIdx, ri]);

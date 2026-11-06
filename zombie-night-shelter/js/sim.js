@@ -718,6 +718,18 @@ export class Game {
           cur = nx;
         }
         this.emit('zap', { pts, b, x: b.x, y: b.y });
+      } else if (D.proj === 'flame') {
+        // burns every enemy inside the range at once
+        for (const e of this.enemies) {
+          if (!e.alive || e.rise > 0) continue;
+          if (dist(b.x, b.y, e.x, e.y) <= st.range + e.r * 0.5) this._damage(e, st.dmg, b.room, 'flame', false, true);
+        }
+        this.emit('flame', { b, x: b.x, y: b.y, tx: tgt.x, ty: tgt.y, angle: want, player: owner && owner.isPlayer });
+      } else if (D.proj === 'shell') {
+        // lobbed shell: flies to where the target is now, splashes on landing
+        const d0 = dist(b.x, b.y, tgt.x, tgt.y);
+        this.projectiles.push({ x: b.x, y: b.y, sx: b.x, sy: b.y, tx: tgt.x, ty: tgt.y, d0, sp: 7, target: tgt, dmg: st.dmg, type: 'shell', room: b.room, splash: D.splash, life: 3 });
+        this.emit('shoot', { b, type: 'shell', x: b.x, y: b.y, angle: want, player: owner && owner.isPlayer });
       } else {
         const sp = D.proj === 'bolt' ? 15 : 13;
         this.projectiles.push({ x: b.x + Math.cos(want) * 0.35, y: b.y + Math.sin(want) * 0.35, sp, target: tgt, dmg: st.dmg, type: D.proj, room: b.room, pierce: !!D.pierce, life: 2 });
@@ -730,6 +742,18 @@ export class Game {
     const keep = [];
     for (const p of this.projectiles) {
       p.life -= dt;
+      if (p.type === 'shell') {
+        const dx = p.tx - p.x, dy = p.ty - p.y, d = Math.hypot(dx, dy);
+        if (d <= p.sp * dt || p.life <= 0) {
+          for (const e of this.enemies) if (e.alive && e.rise <= 0 && dist(p.tx, p.ty, e.x, e.y) <= p.splash + e.r * 0.5) this._damage(e, p.dmg, p.room, 'shell');
+          this.emit('boom', { x: p.tx, y: p.ty, r: p.splash, player: p.room && p.room.owner && p.room.owner.isPlayer });
+          continue;
+        }
+        p.x += (dx / d) * p.sp * dt; p.y += (dy / d) * p.sp * dt;
+        p.prog = 1 - d / Math.max(0.01, p.d0);
+        keep.push(p);
+        continue;
+      }
       const t = p.target;
       if (!t.alive || p.life <= 0) continue;
       const dx = t.x - p.x, dy = t.y - p.y, d = Math.hypot(dx, dy);
@@ -744,10 +768,10 @@ export class Game {
     this.projectiles = keep;
   }
 
-  _damage(e, dmg, room, src, pierce) {
+  _damage(e, dmg, room, src, pierce, quiet) {
     if (!e.alive) return;
     if (e.armor && !pierce && src !== 'spike') dmg *= 0.5;
-    e.hp -= dmg; e.hitFlash = 0.08;
+    e.hp -= dmg; if (!quiet || e.hitFlash <= 0) e.hitFlash = 0.08;
     if (e.kind === 'boss') e.recentDmg += dmg;
     this.emit('hit', { e, dmg, x: e.x, y: e.y, src, player: room && room.owner && room.owner.isPlayer });
     if (e.hp <= 0) {

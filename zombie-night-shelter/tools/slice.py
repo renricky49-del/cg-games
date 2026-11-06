@@ -27,6 +27,7 @@ SHEETS = {
   'doordmg':   (3, 3, ['door1', 'door2', 'door3', 'door1_d1', 'door2_d1', 'door3_d1', 'door1_d2', 'door2_d2', 'door3_d2'], 128, 40),
   'skins2':    (3, 2, ['s6', 's7', 's8', 's9', 's10', 's11'], 112, 40),
   'furniture': (4, 3, ['f_fridge', 'f_shelf', 'f_desk', 'f_couch', 'f_wardrobe', 'f_kitchen', 'f_tv', 'f_armchair', 'f_table', 'f_lamp', 'f_pizza', 'f_laundry'], 128, 40),
+  'weapons2':  (3, 2, ['flame1', 'flame2', 'flame3', 'mortar1', 'mortar2', 'mortar3'], 112, 110),
 }
 ONLY = set(sys.argv[3:])
 def runs(profile, gap=6):

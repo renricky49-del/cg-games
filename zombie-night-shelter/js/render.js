@@ -181,7 +181,7 @@ export class Renderer {
     switch (ev.type) {
       case 'hit': {
         if (ev.src === 'nail' || ev.src === 'bolt') this.burst(ev.x, ev.y, ev.src === 'bolt' ? 5 : 2, '#ffd27a', 2.5, 0.25);
-        if (ev.player) this.floatText(ev.x + (Math.random() - 0.5) * 0.6, ev.y - 0.4, fmt(ev.dmg), ev.src === 'zap' ? '#8ee7ff' : '#fff', 0.7);
+        if (ev.player && (ev.src !== 'flame' || Math.random() < 0.25)) this.floatText(ev.x + (Math.random() - 0.5) * 0.6, ev.y - 0.4, fmt(ev.dmg), ev.src === 'zap' ? '#8ee7ff' : ev.src === 'flame' ? '#ffb347' : ev.src === 'shell' ? '#ffd84a' : '#fff', ev.src === 'shell' ? 0.95 : 0.7);
         break;
       }
       case 'doorHit': {
@@ -207,6 +207,18 @@ export class Renderer {
       case 'float': this.floatText(ev.x, ev.y, ev.text, ev.color, ev.big ? 1.3 : 0.9, ev.big); break;
       case 'shoot': this.burst(ev.x + Math.cos(ev.angle) * 0.4, ev.y + Math.sin(ev.angle) * 0.4, 2, '#fff2a8', 2, 0.12); break;
       case 'zap': this.zaps.push({ pts: ev.pts, life: 0.16 }); break;
+      case 'flame': {
+        const n = this.particles.length > 450 ? 2 : 5;
+        for (let i = 0; i < n; i++) {
+          const a = ev.angle + (Math.random() - 0.5) * 0.5, v = 4 + Math.random() * 3;
+          this.particles.push({ x: ev.x + Math.cos(ev.angle) * 0.4, y: ev.y + Math.sin(ev.angle) * 0.4, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0.45, max: 0.45, color: Math.random() < 0.5 ? '#ff8a2a' : '#ffd24a', kind: 'fire', size: 0.12 + Math.random() * 0.08, rot: 0 });
+        }
+        break;
+      }
+      case 'boom':
+        this.burst(ev.x, ev.y, 16, '#ffb347', 4.5, 0.5); this.burst(ev.x, ev.y, 10, '#666', 2.5, 0.8, 'smoke');
+        this.ring(ev.x, ev.y, '#ffd27a', ev.r); this.shake(ev.player ? 3 : 1);
+        break;
       case 'kill':
         this.burst(ev.x, ev.y, ev.e.kind === 'boss' ? 40 : 14, '#6fbf4a', 4, 0.9, 'goo');
         if (ev.e.kind === 'boss') { this.shake(14); this.ring(ev.x, ev.y, '#fff', 3); }
@@ -516,6 +528,14 @@ export class Renderer {
     for (const p of this.g.projectiles) {
       const cx = p.x * TS, cy = p.y * TS;
       ctx.save(); ctx.translate(cx, cy); ctx.rotate(p.angle || 0);
+      if (p.type === 'shell') {
+        ctx.restore();
+        const h = Math.sin((p.prog || 0) * Math.PI) * TS * 1.6;
+        ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(cx, cy, 7, 4, 0, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#3b3b44'; ctx.beginPath(); ctx.arc(cx, cy - h, 7, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#ff9f43'; ctx.beginPath(); ctx.arc(cx - 2, cy - h - 2, 2.5, 0, TAU); ctx.fill();
+        continue;
+      }
       if (p.type === 'bolt') {
         ctx.fillStyle = '#6b4a2a'; ctx.fillRect(-14, -2, 24, 4);
         ctx.fillStyle = '#ddd'; ctx.beginPath(); ctx.moveTo(10, -4); ctx.lineTo(17, 0); ctx.lineTo(10, 4); ctx.fill();
@@ -553,6 +573,7 @@ export class Renderer {
       if (p.kind === 'chip') { ctx.save(); ctx.translate(p.x * TS, p.y * TS); ctx.rotate(p.rot); ctx.fillRect(-s, -s / 2, s * 2, s); ctx.restore(); }
       else if (p.kind === 'plus') { ctx.fillRect(p.x * TS - s, p.y * TS - s / 3, s * 2, s * 0.66); ctx.fillRect(p.x * TS - s / 3, p.y * TS - s, s * 0.66, s * 2); }
       else if (p.kind === 'star') { star(ctx, p.x * TS, p.y * TS, s * 1.4, p.rot); }
+      else if (p.kind === 'fire') { ctx.globalCompositeOperation = 'lighter'; ctx.beginPath(); ctx.arc(p.x * TS, p.y * TS, s * (1.6 - a * 0.6), 0, TAU); ctx.fill(); ctx.globalCompositeOperation = 'source-over'; }
       else { ctx.beginPath(); ctx.arc(p.x * TS, p.y * TS, s, 0, TAU); ctx.fill(); }
     }
     ctx.globalAlpha = 1;

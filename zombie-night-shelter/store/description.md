@@ -9,12 +9,12 @@ Grab an apartment, lock the door and build turrets! Survive the zombie boss unti
 ## Long description
 The zombies are coming and the whole apartment floor is running for cover!
 
-**Last Door Standing** is a cartoony idle tower defense game. When the night begins you and five other survivors have 30 seconds to dash down the hallway and claim an apartment. Once you're inside, the door slams shut — and that door is your life bar.
+**Last Door Standing** is a cartoony idle tower defense game. When the night begins you and five other survivors have 22 seconds to dash down the hallway and claim an apartment. Once you're inside, the door slams shut — and that door is your life bar.
 
 Lie down on your bed to earn scrap every second, then spend it wisely:
 
 - **Upgrade your bed** to double your income — but fancy beds need a sturdier door first.
-- **Build turrets** on your floor: rapid Nail Guns, armor-piercing Crossbows and chain-lightning Tesla Coils.
+- **Build turrets** on your floor: rapid Nail Guns, armor-piercing Crossbows, Fire Sprayers, splash-damage Mortars and chain-lightning Tesla Coils.
 - **Power up** with Generators, slow zombies with Chill Traps, earn passive scrap with a Vending Machine, auto-fix your door with a Repair Bench and more.
 - **Repair or upgrade your door** before the boss smashes through.
 
@@ -24,16 +24,16 @@ Survive until dawn for a star, keep your neighbours alive for two, and destroy t
 
 ### Features
 - 12 nights + Endless mode, 6 boss types with unique abilities
-- 9 buildings, all upgradeable, plus bed and door upgrades
+- 11 buildings (5 weapon types), all upgradeable, plus bed and door upgrades
 - Smart AI survivors with different personalities who earn, build and fight alongside you (or get overrun)
 - Boss levels up as it smashes doors — escalating tension every night
 - Interactive tutorial on Night 1
-- Permanent perks, 6 unlockable survivors, star ratings for every night
+- Permanent perks, 12 unlockable survivors, star ratings for every night
 - Mouse-first controls with hotkeys, full touch support
 
 ## Controls
 - **Mouse:** click a room to claim it, click empty floor to build, click buildings to upgrade/sell, click your bed/door for options
-- **Hotkeys:** B upgrade bed · R repair door · U upgrade door · 1–9 build on the hovered tile · Z zoom · P / Esc pause
+- **Hotkeys:** B upgrade bed · R repair door · U upgrade door · 0–9 build on the hovered tile · Z zoom · P / Esc pause
 - **WASD / arrow keys:** run through the hallway during the room rush
 - **Mouse wheel / pinch:** zoom · **drag:** pan the camera
 - **Touch:** tap to select, drag to pan, pinch to zoom
