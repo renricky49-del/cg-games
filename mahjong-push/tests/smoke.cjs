@@ -1,0 +1,26 @@
+const { chromium } = require('playwright');
+const OUT = process.env.OUT || '.';
+(async () => {
+  const b = await chromium.launch();
+  const p = await b.newPage({ viewport: { width: 1280, height: 720 } });
+  const errs = [];
+  p.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errs.push(m.type() + ': ' + m.text()); });
+  p.on('pageerror', (e) => errs.push('pageerror: ' + e.message));
+  await p.goto('http://localhost:8123/index.html');
+  await p.waitForTimeout(2000);
+  await p.screenshot({ path: OUT + '/title.png' });
+  await p.click('[data-act=play]');
+  await p.waitForTimeout(1500);
+  await p.screenshot({ path: OUT + '/l1.png' });
+  await p.evaluate(() => window.__tts.startLevel(40));
+  await p.waitForTimeout(1500);
+  await p.screenshot({ path: OUT + '/l40.png' });
+  await p.evaluate(() => window.__tts.openMap(0));
+  await p.waitForTimeout(800);
+  await p.screenshot({ path: OUT + '/map.png' });
+  await p.evaluate(() => { const s = window.__tts.state.S; s.areas[0] = [true, true, true, true, true]; window.__tts.openHouse(0); });
+  await p.waitForTimeout(1500);
+  await p.screenshot({ path: OUT + '/house.png' });
+  console.log(errs.join('\n') || 'no console errors');
+  await b.close();
+})();

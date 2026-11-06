@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Teahouse Tile Slide</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<defs>
+<symbol id="i-back" viewBox="0 0 24 24"><path d="M15 4 7 12l8 8" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="i-left" viewBox="0 0 24 24"><path d="M15 5 8 12l7 7" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="i-right" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="i-house" viewBox="0 0 24 24"><path d="M2 10 12 4l10 6h-3v9h-5v-5h-4v5H5v-9z" fill="currentColor"/><path d="M1 10.5Q12 1 23 10.5" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+<symbol id="i-gear" viewBox="0 0 24 24"><path fill="currentColor" d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm8.9 4.9-.1-2.8 2-1.6-2-3.4-2.4.8-2.4-1.4L15.5 2h-4l-.6 2.5-2.4 1.4-2.4-.8-2 3.4 2 1.6v2.8l-2 1.6 2 3.4 2.4-.8 2.4 1.4.6 2.5h4l.5-2.5 2.4-1.4 2.4.8 2-3.4z" transform="translate(-1.5 0) scale(1.06)"/></symbol>
+<symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" fill="currentColor"/><g stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3M4.6 4.6l2.1 2.1M17.3 17.3l2.1 2.1M4.6 19.4l2.1-2.1M17.3 6.7l2.1-2.1"/></g></symbol>
+<symbol id="i-inf" viewBox="0 0 24 24"><path d="M7 8a4 4 0 1 0 0 8c3 0 7-8 10-8a4 4 0 1 1 0 8c-3 0-7-8-10-8Z" fill="none" stroke="currentColor" stroke-width="2.8"/></symbol>
+<symbol id="i-pause" viewBox="0 0 24 24"><rect x="5" y="4" width="5" height="16" rx="1.5" fill="currentColor"/><rect x="14" y="4" width="5" height="16" rx="1.5" fill="currentColor"/></symbol>
+<symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 5 4 10l5 5" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.5 10H14a6 6 0 0 1 0 12h-3" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/></symbol>
+<symbol id="i-bulb" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-4 12.7V18h8v-3.3A7 7 0 0 0 12 2Z" fill="currentColor"/><rect x="8.5" y="19.3" width="7" height="2.6" rx="1.2" fill="currentColor"/></symbol>
+<symbol id="i-shuffle" viewBox="0 0 24 24"><path d="M3 7h3.5c5 0 6 10 11 10H21M3 17h3.5c2 0 3.2-1.6 4.2-3.6M13.3 9.6C14.3 8 15.6 7 17.5 7H21" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><path d="M18 3.5 21.5 7 18 10.5M18 13.5l3.5 3.5-3.5 3.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="12" rx="2.5" fill="currentColor"/><path d="M7.5 10V7a4.5 4.5 0 0 1 9 0v3" fill="none" stroke="currentColor" stroke-width="2.6"/></symbol>
+<symbol id="i-star" viewBox="0 0 24 24"><path d="m12 1.8 3.1 6.5 7.1.9-5.2 4.9 1.3 7-6.3-3.4-6.3 3.4 1.3-7L1.8 9.2l7.1-.9z" fill="currentColor"/></symbol>
+<symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l12.5-7.5z" fill="currentColor"/></symbol>
+<symbol id="i-film" viewBox="0 0 24 24"><rect x="2" y="5" width="15" height="14" rx="3" fill="currentColor"/><path d="m17 10 5-3v10l-5-3z" fill="currentColor"/></symbol>
+<symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5l11-2v13" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="6.5" cy="18" r="3" fill="currentColor"/><circle cx="17.5" cy="16" r="3" fill="currentColor"/></symbol>
+<symbol id="i-sfx" viewBox="0 0 24 24"><path d="M3 9h4l5-4v14l-5-4H3z" fill="currentColor"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+<symbol id="i-eye" viewBox="0 0 24 24"><path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12Z" fill="none" stroke="currentColor" stroke-width="2.3"/><circle cx="12" cy="12" r="3.3" fill="currentColor"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="m4 12.5 5 5L20 6.5" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="i-restart" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/><path d="M18.5 2.5v4.5H14" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="i-map" viewBox="0 0 24 24"><path d="M2 5.5 8 3l8 3 6-2.5v15L16 21l-8-3-6 2.5z" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linejoin="round"/><path d="M8 3v15M16 6v15" stroke="currentColor" stroke-width="2.3"/></symbol>
+<symbol id="i-hand" viewBox="0 0 64 64"><path d="M24 6c3 0 5 2 5 5v17l2-1c2-1 5 0 6 2l1 1c2-1 5 0 6 2l1 1c2-1 5 1 5 3v12c0 6-3 10-6 13H26l-12-17c-2-3-1-6 2-7 2-1 4 0 5 1l3 4V11c0-3 2-5 5-5Z" fill="#fff" stroke="#2b2b2b" stroke-width="3" stroke-linejoin="round" transform="translate(-4 0)"/></symbol>
+</defs></svg>
+<div id="bg"></div>
+<canvas id="board"></canvas>
+<canvas id="fx"></canvas>
+
+<div id="loading" class="screen show">
+  <div class="load-box">
+    <div class="logo small"><span class="l1">Teahouse</span><span class="l2">Tile Slide</span></div>
+    <div class="bar"><div id="load-fill"></div></div>
+    <div class="load-txt">Brewing tea…</div>
+  </div>
+</div>
+
+<!-- TITLE -->
+<div id="s-title" class="screen">
+  <div class="title-wrap">
+    <div class="logo"><span class="l1">Teahouse</span><span class="l2">Tile Slide</span><span class="l3">slide · match · restore</span></div>
+    <div class="menu">
+      <button class="btn big primary" data-act="play">Play <small id="title-lvl"></small></button>
+      <div class="row">
+        <button class="btn" data-act="daily"><svg class="i"><use href="#i-sun"/></svg> Daily <small id="title-streak"></small></button>
+        <button class="btn" data-act="endless"><svg class="i"><use href="#i-inf"/></svg> Endless</button>
+      </div>
+      <div class="row">
+        <button class="btn" data-act="teahouse"><svg class="i"><use href="#i-house"/></svg> Teahouse</button>
+        <button class="btn" data-act="settings"><svg class="i"><use href="#i-gear"/></svg> Settings</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MAP -->
+<div id="s-map" class="screen">
+  <div class="topbar">
+    <button class="btn icon" data-act="home" title="Home"><svg class="i"><use href="#i-back"/></svg></button>
+    <div class="pill star" title="Stars to spend in the teahouse"><b id="map-stars">0</b></div>
+    <div class="pill coin" title="Coins"><b id="map-coins">0</b></div>
+    <div class="spacer"></div>
+    <button class="btn" data-act="teahouse"><svg class="i"><use href="#i-house"/></svg> Teahouse</button>
+  </div>
+  <div class="map-head">
+    <button class="btn icon" id="ch-prev" title="Previous chapter"><svg class="i"><use href="#i-left"/></svg></button>
+    <div class="ch-title"><div id="ch-name">Chapter</div><div id="ch-sub" class="sub"></div></div>
+    <button class="btn icon" id="ch-next" title="Next chapter"><svg class="i"><use href="#i-right"/></svg></button>
+  </div>
+  <div id="map-area"><svg id="map-svg" preserveAspectRatio="none"></svg><div id="map-nodes"></div>
+    <div id="map-lock" class="hidden"><div class="lock-card"><div class="lock-ic"><svg class="i"><use href="#i-lock"/></svg></div><div id="lock-txt"></div><button class="btn primary" data-act="teahouse">Go to Teahouse</button></div></div>
+  </div>
+</div>
+
+<!-- TEAHOUSE -->
+<div id="s-house" class="screen">
+  <div class="topbar">
+    <button class="btn icon" data-act="back" title="Back"><svg class="i"><use href="#i-back"/></svg></button>
+    <div class="pill star"><b id="house-stars">0</b></div>
+    <div class="spacer"></div>
+    <button class="btn icon" id="area-prev" title="Previous area"><svg class="i"><use href="#i-left"/></svg></button>
+    <div class="area-title"><div id="area-name"></div><div class="prog"><div id="area-prog"></div></div></div>
+    <button class="btn icon" id="area-next" title="Next area"><svg class="i"><use href="#i-right"/></svg></button>
+    <div class="spacer"></div>
+    <button class="btn primary" data-act="play">Play</button>
+  </div>
+  <div class="house-body">
+    <div id="scene-wrap"><div id="scene"></div></div>
+    <div id="tasks"></div>
+  </div>
+</div>
+
+<!-- GAME HUD -->
+<div id="s-game" class="screen hud">
+  <div class="topbar">
+    <button class="btn icon" data-act="pause" title="Pause (Esc)"><svg class="i"><use href="#i-pause"/></svg></button>
+    <div class="lvl-label" id="g-label">Level 1</div>
+    <div class="spacer"></div>
+    <div class="timer"><span id="g-time">0:00</span><span id="g-target" class="sub"></span></div>
+    <div class="spacer"></div>
+    <div class="pill coin"><b id="g-coins">0</b></div>
+  </div>
+  <div id="g-combo" class="combo"></div>
+  <div id="g-tip" class="tip hidden"></div>
+  <div class="boosters">
+    <button class="btn booster" data-act="undo" title="Undo (Z)"><span class="bi"><svg class="i"><use href="#i-undo"/></svg></span><span class="bl">Undo</span><span class="badge" id="b-undo">3</span></button>
+    <button class="btn booster" data-act="hint" title="Hint (H)"><span class="bi"><svg class="i"><use href="#i-bulb"/></svg></span><span class="bl">Hint</span><span class="badge" id="b-hint">3</span></button>
+    <button class="btn booster" data-act="shuffle" title="Shuffle (S)"><span class="bi"><svg class="i"><use href="#i-shuffle"/></svg></span><span class="bl">Shuffle</span><span class="badge" id="b-shuffle">3</span></button>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div id="modal" class="modal hidden"><div class="card" id="modal-card"></div></div>
+<div id="tutorial" class="hidden"><div id="hand"><svg viewBox="0 0 64 64"><use href="#i-hand"/></svg></div><div id="tut-bubble"></div></div>
+<div id="toast"></div>
+<div id="rotate-hint"></div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

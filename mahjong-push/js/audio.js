@@ -3,6 +3,16 @@ let ctx = null, master = null, sfxGain = null, musicGain = null;
 let musicOn = true, sfxOn = true, suspendedByAd = false, sdkMute = false;
 let musicBuffer = null, musicSrc = null, synthTimer = null, synthStep = 0, nextTime = 0;
 let noiseBuf = null;
+let musicArr = null, decoding = false;
+async function decodeMusic() {
+  if (decoding || !musicArr) return;
+  decoding = true;
+  try {
+    const buf = makeLoop(await ctx.decodeAudioData(musicArr.slice(0)), 2.0);
+    musicBuffer = buf;
+    if (synthTimer || musicSrc) { Audio.stopMusic(); Audio.startMusic(); }
+  } catch (e) { musicBuffer = null; }
+}
 
 function ensure() {
   if (ctx) return ctx;
@@ -29,17 +39,17 @@ export const Audio = {
     try {
       const res = await fetch(url);
       if (!res.ok) return;
-      const arr = await res.arrayBuffer();
-      if (!ensure()) return;
-      musicBuffer = await ctx.decodeAudioData(arr);
-    } catch (e) { musicBuffer = null; }
+      musicArr = await res.arrayBuffer();
+      if (ctx) await decodeMusic();
+    } catch (e) { musicArr = null; }
   },
   unlock() {
     if (!ensure()) return;
     if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    if (musicArr && !musicBuffer && !decoding) decodeMusic();
     if (musicOn) this.startMusic();
   },
-  setMusic(on) { musicOn = on; if (on) this.startMusic(); else this.stopMusic(); },
+  setMusic(on) { musicOn = on; if (on) { if (ctx) this.startMusic(); } else this.stopMusic(); },
   setSfx(on) { sfxOn = on; },
   get musicOn() { return musicOn; },
   get sfxOn() { return sfxOn; },
@@ -72,6 +82,23 @@ export const Audio = {
     if (fn) fn(ctx.currentTime, arg);
   },
 };
+
+// Builds a seamless loop: drops the first `sec` seconds and crossfades them into the tail.
+function makeLoop(buf, sec) {
+  const F = Math.floor(buf.sampleRate * sec), N = buf.length;
+  if (N < F * 3) return buf;
+  const out = ctx.createBuffer(buf.numberOfChannels, N - F, buf.sampleRate);
+  for (let c = 0; c < buf.numberOfChannels; c++) {
+    const src = buf.getChannelData(c), dst = out.getChannelData(c);
+    dst.set(src.subarray(F));
+    const L = N - F;
+    for (let i = 0; i < F; i++) {
+      const t = i / F;
+      dst[L - F + i] = src[N - F + i] * Math.cos(t * Math.PI / 2) + src[i] * Math.sin(t * Math.PI / 2);
+    }
+  }
+  return out;
+}
 
 // ---------- helpers ----------
 function env(g, t, a, peak, d) {

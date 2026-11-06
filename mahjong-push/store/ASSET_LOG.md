@@ -18,3 +18,4 @@ Raw downloads live in `store/raw/` (git-ignored, large PNGs); shipped assets are
 | 11 | Area 5 items sheet | Moon gate wall, sky lanterns, tea ceremony set, guqin on stand, orchid pots | medium, 1k, 3:2, transparent, ref #1 | 0.50 | `assets/img/items/a5_*.webp` | 10.25 |
 | 12 | Level map bg | Top-down tea garden terraces, open centre, no paths | medium, 2k, 16:9, ref #1 | 1.00 | `assets/img/bg/mapbg.webp` | 11.25 |
 | 13 | Gameplay bg | Top-down wooden tea table, bamboo mat edges, petals, teacup corner | medium, 2k, 16:9, ref #1 | 1.00 | `assets/img/bg/tablebg.webp` | 12.25 |
+| 14 | Music loop | Calm tea-garden puzzle music: guzheng, bamboo flute, soft pad, light wood percussion, pentatonic, 75 bpm, instrumental | elevenlabs_music_v2_5, 30 s | 4.36 | `assets/audio/music.mp3` | 16.61 |
