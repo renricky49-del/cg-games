@@ -103,7 +103,7 @@ function refreshWallet() {
 }
 const mascot = (pose, cls = '') => `<img class="mascot ${cls}" src="assets/img/mascot_${pose}.webp" alt="" draggable="false">`;
 const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
-const starRow = (n, big = false) => [0, 1, 2].map((i) => `<svg class="i ${i < n ? 'on' : ''}"${big ? ` style="animation-delay:${0.25 + i * 0.3}s"` : ''}><use href="#i-star"/></svg>`).join('');
+const starRow = (n, big = false) => [0, 1, 2].map((i) => `<svg class="i ${i < n ? 'on' : ''}"${big ? ` style="animation-delay:${0.12 + i * 0.18}s"` : ''}><use href="#i-star"/></svg>`).join('');
 
 // ---------------- board / session ----------------
 let board, amb;
@@ -193,7 +193,20 @@ function onWin() {
   save(); refreshWallet();
   if (stars === 3) CG.happytime();
   hideTutorial();
+  if (LEVELS[n - 1].tut && n < NUM_LEVELS) {
+    // tutorials chain straight on: quick celebration over the board, no result screen to click through
+    const box = board.frame ? { x: window.innerWidth / 2, y: window.innerHeight * 0.42 } : { x: 400, y: 300 };
+    board.floatText(n === 1 ? 'Nice! Now try sliding' : 'Great! Let\u2019s play', box.x, box.y, '#fff6c8');
+    [0, 1, 2].forEach((i) => setTimeout(() => Audio.play('star', i), 100 + i * 150));
+    setTimeout(() => { if (G && G.level === n && current === 's-game') startLevel(n + 1); }, 850);
+    return;
+  }
   const isChapterEnd = n % LEVELS_PER_CHAPTER === 0;
+  // early meta hook: offer the teahouse as soon as a restoration in the current area is affordable
+  const area = Math.min(chapterOf(n), AREAS.length - 1);
+  const canRestore = areaUnlocked(area) && AREAS[area].tasks.some((t, k) => !S.areas[area][k] && S.bank >= t.cost);
+  const firstPrompt = canRestore && !S.housePrompted;
+  if (firstPrompt) { S.housePrompted = true; save(); }
   const nextLocked = n < NUM_LEVELS && !levelUnlocked(n + 1);
   const card = modal(`${mascot(stars === 3 ? 1 : 0)}
     <h2>${['', 'Cleared!', 'Well brewed!', 'Perfect cup!'][stars]}</h2>
@@ -207,11 +220,17 @@ function onWin() {
     ${CG.rewardedAvailable() ? `<div class="btns">
       <button class="btn gold" id="w-double">${icon('film')} Double coins</button>
     </div>` : ''}
+    ${firstPrompt ? `<p class="hook">${icon('star')} You can restore your first teahouse piece now!</p>
+    <div class="btns"><button class="btn primary big pulse" id="w-house">${icon('house')} Restore the teahouse</button></div>` : ''}
     <div class="btns">
       <button class="btn" id="w-map">${icon('map')} Map</button>
-      ${isChapterEnd || nextLocked ? `<button class="btn primary" id="w-house">${icon('house')} Teahouse</button>` : n < NUM_LEVELS ? `<button class="btn primary big" id="w-next">Next ${icon('play')}</button>` : ''}
+      ${firstPrompt
+        ? (!nextLocked && n < NUM_LEVELS ? `<button class="btn" id="w-next">Next ${icon('play')}</button>` : '')
+        : isChapterEnd || nextLocked
+          ? `<button class="btn primary" id="w-house">${icon('house')} Teahouse</button>`
+          : `${canRestore ? `<button class="btn" id="w-house">${icon('house')} Teahouse <span class="dot"></span></button>` : ''}${n < NUM_LEVELS ? `<button class="btn primary big" id="w-next">Next ${icon('play')}</button>` : ''}`}
     </div>`);
-  setTimeout(() => [0, 1, 2].forEach((i) => i < stars && setTimeout(() => Audio.play('star', i), 250 + i * 300)), 0);
+  setTimeout(() => [0, 1, 2].forEach((i) => i < stars && setTimeout(() => Audio.play('star', i), 150 + i * 180)), 0);
   const dbl = card.querySelector('#w-double');
   if (dbl) dbl.onclick = async (e) => {
     e.currentTarget.disabled = true;
@@ -439,7 +458,7 @@ function howTo(after) {
 function startTutorial(kind) {
   tut.kind = kind; tut.step = 0;
   $('#tutorial').classList.remove('hidden');
-  setTimeout(tutPoint, 700);
+  setTimeout(tutPoint, 250);
 }
 function hideTutorial() { $('#tutorial').classList.add('hidden'); tut.kind = null; cancelAnimationFrame(tut.raf); }
 function tutBubble(txt) { $('#tut-bubble').innerHTML = `${mascot(0, 'tut')}<div>${txt}</div>`; }
@@ -494,7 +513,7 @@ function tutAfterMove() {
     if (board.remaining() > 0) tutBubble('Great! Clear the last pair yourself.');
     return;
   }
-  setTimeout(tutPoint, 500);
+  setTimeout(tutPoint, 250);
 }
 
 const TIPS = {
@@ -723,11 +742,13 @@ function renderHouse(anim = -1) {
     const isDone = S.areas[c][k];
     d.className = 'task' + (isDone ? ' done' : '') + (unlocked ? '' : ' locked');
     d.innerHTML = `<img src="assets/img/items/${t.img}.webp" alt=""><div class="tn">${t.name}<small>${t.desc}</small></div>` +
-      (isDone ? `<span class="btn">${icon('check')}</span>` : `<button class="btn ${S.bank >= t.cost && unlocked ? 'primary' : ''}" ${unlocked ? '' : 'disabled'}>${t.cost} ${icon('star')}</button>`);
+      (isDone ? `<span class="btn">${icon('check')}</span>` : `<button class="btn ${S.bank >= t.cost && unlocked ? 'primary pulse' : ''}" ${unlocked ? '' : 'disabled'}>${t.cost} ${icon('star')}</button>`);
     const btn = d.querySelector('button');
     if (btn) btn.onclick = () => restoreTask(c, k);
     list.appendChild(d);
   });
+  const affordable = unlocked && A.tasks.some((t, k) => !S.areas[c][k] && S.bank >= t.cost);
+  $('#s-house [data-act=play]').classList.toggle('pulse', !affordable && levelUnlocked(nextLevel()));
 }
 function restoreTask(c, k) {
   const t = AREAS[c].tasks[k];
@@ -794,7 +815,10 @@ function bindUi() {
     Audio.unlock();
     const a = b.dataset.act;
     if (a !== 'hint' && a !== 'undo' && a !== 'shuffle') Audio.play('click');
-    if (a === 'play') { const n = nextLevel(); if (!cleared(1)) startLevel(1); else openMap(chapterOf(n)); }
+    if (a === 'play') {
+      const n = nextLevel();
+      if (!cleared(1) || (current === 's-house' && levelUnlocked(n) && !cleared(n))) startLevel(n); else openMap(chapterOf(n));
+    }
     else if (a === 'home') openTitle();
     else if (a === 'back') houseBack === 'map' ? openMap(houseArea) : openTitle();
     else if (a === 'teahouse') {
@@ -861,7 +885,7 @@ async function boot() {
   Audio.loadSamples({ pour: 'assets/audio/sfx/pour.mp3', chime: 'assets/audio/sfx/chime.mp3' });
   // lazy-load the teahouse art in the background
   setTimeout(() => preload(AREAS.flatMap((a) => [`assets/img/bg/${a.bg}.webp`, ...a.tasks.map((t) => `assets/img/items/${t.img}.webp`)]), () => {}), 1500);
-  openTitle();
+  if (!cleared(1) && !S.played) startLevel(1); else openTitle();
   $('#loading').classList.remove('show');
 }
 

@@ -46,39 +46,45 @@ async function solveAndPlay(p) {
   await p.goto(URL);
   await p.evaluate(() => localStorage.clear());
   await p.reload();
-  await p.waitForSelector('#s-title.show');
-  await p.waitForTimeout(800);
-  await p.screenshot({ path: `${OUT}/01_title.png` });
+  // brand-new players land straight in the tutorial (no title click)
+  await p.waitForFunction(() => window.__tts && window.__tts.state.screen === 's-game' && window.__tts.state.G.level === 1);
+  console.log('new player lands directly in level 1');
 
   // Level 1 — tutorial (direct matches)
-  await p.click('[data-act=play]');
-  await p.waitForTimeout(1200);
+  await p.waitForTimeout(700);
   await p.screenshot({ path: `${OUT}/02_tutorial_match.png` });
   const n1 = await solveAndPlay(p);
-  await p.waitForSelector('#w-next', { timeout: 5000 });
-  await p.waitForTimeout(1300);
-  await p.screenshot({ path: `${OUT}/03_level_complete.png` });
   console.log('level 1 won in', n1, 'moves');
 
-  // Level 2 — tutorial (push)
-  await p.click('#w-next');
-  await p.waitForTimeout(1300);
+  // Level 2 — tutorial (push): starts automatically
+  await p.waitForFunction(() => window.__tts.state.G && window.__tts.state.G.level === 2, null, { timeout: 5000 });
+  await p.waitForTimeout(700);
   await p.screenshot({ path: `${OUT}/04_tutorial_push.png` });
   const n2 = await solveAndPlay(p);
-  await p.waitForSelector('#w-next', { timeout: 5000 });
   console.log('level 2 won in', n2, 'moves');
 
-  // Level 3 — first generated level, solver-driven mouse play
-  await p.click('#w-next');
-  await p.waitForTimeout(1000);
+  // Level 3 — first generated level (starts automatically), solver-driven mouse play
+  await p.waitForFunction(() => window.__tts.state.G && window.__tts.state.G.level === 3, null, { timeout: 5000 });
+  await p.waitForTimeout(800);
   await p.screenshot({ path: `${OUT}/05_level3.png` });
   const n3 = await solveAndPlay(p);
-  await p.waitForSelector('#w-next', { timeout: 5000 });
-  console.log('level 3 won in', n3, 'moves');
+  await p.waitForSelector('#w-house.pulse', { state: 'visible', timeout: 5000 });
+  await p.waitForTimeout(900);
+  await p.screenshot({ path: `${OUT}/03_level_complete.png` });
+  console.log('level 3 won in', n3, 'moves; teahouse prompt shown');
   const st = await p.evaluate(() => ({ stars: window.__tts.state.S.stars, bank: window.__tts.state.S.bank, coins: window.__tts.state.S.coins }));
   console.log('progress', JSON.stringify(st));
-  await p.click('#w-map');
-  await p.waitForTimeout(1500); // midgame ad may be skipped (3 min rule)
+  await p.click('#w-house');
+  await p.waitForTimeout(700);
+  await p.screenshot({ path: `${OUT}/05b_first_restore_prompt.png` });
+  await p.click('#tasks .btn.primary.pulse'); await p.waitForTimeout(1200);
+  await p.click('#s-house [data-act=play]');
+  await p.waitForFunction(() => window.__tts.state.G && window.__tts.state.G.level === 4, null, { timeout: 5000 });
+  console.log('first restore done, Play went straight to level 4');
+  await p.evaluate(() => window.__tts.openTitle()); await p.waitForTimeout(600);
+  await p.screenshot({ path: `${OUT}/01_title.png` });
+  await p.evaluate(() => window.__tts.openMap(0));
+  await p.waitForTimeout(900);
   await p.screenshot({ path: `${OUT}/06_map.png` });
 
   // A failed push (no match) must slide back
@@ -131,8 +137,8 @@ async function solveAndPlay(p) {
   // Teahouse with stars to spend
   await p.evaluate(() => { const S = window.__tts.state.S; S.bank = 20; window.__tts.openHouse(0); });
   await p.waitForTimeout(800);
-  await p.click('#tasks .task:nth-child(1) button'); await p.waitForTimeout(300);
-  await p.click('#tasks .task:nth-child(2) button'); await p.waitForTimeout(1300);
+  await p.click('#tasks .task button'); await p.waitForTimeout(300);
+  await p.click('#tasks .task button'); await p.waitForTimeout(1300);
   await p.screenshot({ path: `${OUT}/11_teahouse.png` });
 
   // Daily + Endless
@@ -152,7 +158,7 @@ async function solveAndPlay(p) {
   const m = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
   const mp = await m.newPage();
   mp.on('pageerror', (e) => errors.push('mobile pageerror: ' + e.message));
-  await mp.goto(URL); await mp.waitForSelector('#s-title.show'); await mp.waitForTimeout(600);
+  await mp.goto(URL); await mp.waitForFunction(() => window.__tts && window.__tts.state.screen === 's-game'); await mp.evaluate(() => window.__tts.openTitle()); await mp.waitForTimeout(600);
   await mp.screenshot({ path: `${OUT}/m1_title.png` });
   await mp.evaluate(() => window.__tts.startLevel(45)); await mp.waitForTimeout(1000);
   await mp.screenshot({ path: `${OUT}/m2_game.png` });
@@ -164,7 +170,7 @@ async function solveAndPlay(p) {
   // mobile landscape
   const ml = await browser.newContext({ viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true });
   const lp = await ml.newPage();
-  await lp.goto(URL); await lp.waitForSelector('#s-title.show');
+  await lp.goto(URL); await lp.waitForFunction(() => window.__tts && window.__tts.state.screen === 's-game');
   await lp.evaluate(() => window.__tts.startLevel(60)); await lp.waitForTimeout(1000);
   await lp.screenshot({ path: `${OUT}/m5_landscape_game.png` });
 

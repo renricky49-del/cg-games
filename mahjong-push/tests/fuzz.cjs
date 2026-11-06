@@ -10,7 +10,7 @@ const URL = process.env.URL || 'http://localhost:8123/index.html';
   const errors = [];
   p.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
   p.on('console', (m) => { if (m.type() === 'error' && !m.text().includes('throttled')) errors.push(m.text()); });
-  await p.goto(URL); await p.evaluate(() => localStorage.clear()); await p.reload(); await p.waitForSelector('#s-title.show');
+  await p.goto(URL); await p.evaluate(() => localStorage.clear()); await p.reload(); await p.waitForFunction(() => window.__tts && ['s-title', 's-game'].includes(window.__tts.state.screen));
   await p.evaluate(() => { const S = window.__tts.state.S; S.coins = 99999; S.boosters = { hint: 99, shuffle: 99, undo: 99 }; });
   let rng = 12345; const R = () => (rng = (rng * 1103515245 + 12345) % 2147483648) / 2147483648;
   const invariant = () => p.evaluate(() => {

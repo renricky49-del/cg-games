@@ -25,7 +25,7 @@ async function record(browser, { name, w, h, coverBg, coverScale, coverTop, leve
 
   // 2) gameplay capture
   const p = await browser.newPage({ viewport: { width: w, height: h } });
-  await p.goto(URL); await p.evaluate(() => localStorage.clear()); await p.reload(); await p.waitForSelector('#s-title.show');
+  await p.goto(URL); await p.evaluate(() => localStorage.clear()); await p.reload(); await p.waitForFunction(() => window.__tts && ['s-title', 's-game'].includes(window.__tts.state.screen));
   await p.evaluate(() => { const S = window.__tts.state.S; S.settings.music = false; S.settings.sfx = false; });
   const cdp = await p.context().newCDPSession(p);
   const frames = [];

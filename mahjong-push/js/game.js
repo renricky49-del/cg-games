@@ -55,7 +55,7 @@ export class BoardView {
     this.active = true; this.paused = false; this.locked = false; this.over = false;
     this.layout();
     // intro: tiles drop in with a stagger
-    this.tiles.forEach((t) => { t.intro = -((t.x + t.y) * 0.035) ; t.alpha = 0; });
+    this.tiles.forEach((t) => { t.intro = -((t.x + t.y) * 0.018); t.alpha = 0; });
   }
   stop() { this.active = false; this.g.clearRect(0, 0, this.cv.width, this.cv.height); this.fg.clearRect(0, 0, this.fx.width, this.fx.height); }
 
@@ -300,7 +300,7 @@ export class BoardView {
     const left = this.remaining();
     if (left === 0) {
       this.over = true;
-      setTimeout(() => this.cb.onWin && this.cb.onWin(), 650);
+      setTimeout(() => this.cb.onWin && this.cb.onWin(), 420);
     } else {
       const cells = this.cells();
       if (!L.hasMove(cells, this.w, this.h)) setTimeout(() => { if (this.active && !this.over) this.cb.onStuck && this.cb.onStuck(); }, 700);
@@ -411,7 +411,7 @@ export class BoardView {
     this.time += dt;
     const k = Math.min(1, dt * 16);
     for (const t of this.tiles) {
-      if (t.intro < 1) { t.intro += dt * 3.2; t.alpha = Math.max(0, Math.min(1, t.intro)); }
+      if (t.intro < 1) { t.intro += dt * 5.5; t.alpha = Math.max(0, Math.min(1, t.intro)); }
       t.vx += (t.x - t.vx) * k; t.vy += (t.y - t.vy) * k;
       if (Math.abs(t.x - t.vx) < 0.002) t.vx = t.x;
       if (Math.abs(t.y - t.vy) < 0.002) t.vy = t.y;

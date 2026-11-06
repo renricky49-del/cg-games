@@ -24,7 +24,7 @@ async function run(browser, adblock) {
   await ctx.route('https://sdk.crazygames.com/**', (r) => r.fulfill({ contentType: 'application/javascript', body: MOCK(adblock) }));
   const p = await ctx.newPage();
   const errs = []; p.on('pageerror', (e) => errs.push(e.message));
-  await p.goto('http://localhost:8123/index.html'); await p.evaluate(() => localStorage.clear()); await p.waitForSelector('#s-title.show');
+  await p.goto('http://localhost:8123/index.html'); await p.evaluate(() => localStorage.clear()); await p.waitForFunction(() => window.__tts && ['s-title', 's-game'].includes(window.__tts.state.screen));
   const calls = () => p.evaluate(() => window.__calls.slice());
   const res = {};
   res.boot = (await calls()).slice(0, 3).join(',');

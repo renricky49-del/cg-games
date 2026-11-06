@@ -226,3 +226,11 @@ body.blurbg #bg { filter: blur(8px) brightness(.7); transform: scale(1.05); }
 .skin b { font-size: .8em; text-align: center; }
 .skin .btn { padding: .35em .6em; font-size: .8em; }
 @media (max-width: 640px) { .skins { grid-template-columns: repeat(2, 1fr); } }
+
+/* pacing: call-to-action pulse + teahouse hook */
+.btn.pulse { animation: ctaPulse 1.3s ease-in-out infinite; }
+@keyframes ctaPulse { 0%, 100% { box-shadow: 0 3px 0 #0f4f37, 0 5px 12px rgba(0,0,0,.3), 0 0 0 0 rgba(255, 214, 90, .0); } 50% { box-shadow: 0 3px 0 #0f4f37, 0 5px 12px rgba(0,0,0,.3), 0 0 0 7px rgba(255, 214, 90, .55); } }
+.btn .dot { width: .55em; height: .55em; border-radius: 50%; background: var(--red); box-shadow: 0 0 0 2px #fff; display: inline-block; margin-left: .1em; }
+.card .hook { font-weight: 800; color: #7a2e12; margin: .3em 0 0; }
+.card .hook svg { color: #f0a91c; }
+.stars-big svg.on { animation-duration: .38s; }

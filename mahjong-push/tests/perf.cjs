@@ -9,7 +9,7 @@ const URL = process.env.URL || 'http://localhost:8123/index.html';
   const errors = [];
   p.on('pageerror', (e) => errors.push(e.message));
   p.on('console', (m) => { if (m.type() === 'error' && !m.text().includes('throttled')) errors.push(m.text()); });
-  await p.goto(URL); await p.waitForSelector('#s-title.show');
+  await p.goto(URL); await p.waitForFunction(() => window.__tts && ['s-title', 's-game'].includes(window.__tts.state.screen));
   await p.evaluate(() => window.__tts.startEndless());
   await p.waitForTimeout(800);
   const res = await p.evaluate(() => new Promise((resolve) => {

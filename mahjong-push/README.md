@@ -129,3 +129,15 @@ Results from the last run are in `REPORT.md`.
 | Preview videos: landscape 1080p 16:9 + portrait 1080p 2:3, 15–20 s, no sound, opens on the cover, no cursor, ≤ 50 MB | `store/preview_*.mp4` (`tools/preview.cjs`) |
 
 Paste-ready portal values: `store/SUBMISSION.md`.
+
+## Opening pace (measured by `tests/pace.cjs`, an instantly-reacting new player)
+
+| Moment | Before | Now |
+|---|---|---|
+| Load → first playable board | 1.58 s, 1 click (title → Play) | **0.56 s, 0 clicks** (new players skip the title and land in the tutorial) |
+| Tutorial hand appears | 0.33 s | 0.05 s |
+| Tutorial 1 → 2 → level 3 | result screen + click each | **auto-advance**, about 1.5 s, 0 clicks |
+| Level clear → next board (normal levels) | about 1.5 s | **about 0.7 s** (shorter clear delay, faster tile drop-in and star animation) |
+| First teahouse visit | only at chapter end (after level 12) | **after level 3**: one-time "Restore the teahouse" prompt; affordable restorations pulse; teahouse "Play" goes straight to the next level |
+
+Afterwards, whenever a restoration becomes affordable, the result screen shows a "Teahouse" button with a red dot next to "Next".

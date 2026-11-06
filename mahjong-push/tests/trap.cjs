@@ -4,7 +4,7 @@ const { chromium } = require('playwright');
 (async () => {
   const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 1280, height: 720 } });
   const errs = []; p.on('pageerror', (e) => errs.push(e.message));
-  await p.goto('http://localhost:8123/index.html'); await p.waitForSelector('#s-title.show');
+  await p.goto('http://localhost:8123/index.html'); await p.waitForFunction(() => window.__tts && ['s-title', 's-game'].includes(window.__tts.state.screen));
   await p.evaluate(() => {
     window.__tts.startLevel(5);
     const bv = window.__tts.board(); const L = window.__tts.L;
