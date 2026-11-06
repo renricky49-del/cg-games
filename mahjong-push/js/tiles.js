@@ -54,7 +54,7 @@ function indexLabel(face) {
   const s = suitOf(face);
   if (s === 0) return String(face + 1);
   if (s === 1) return String(face - 8);
-  if (s === 2) return ['R', 'G', 'W'][face - 18];
+  if (s === 2) return ['R', 'G', 'Wh'][face - 18];
   if (s === 3) return ['E', 'S', 'W', 'N'][face - 21];
   if (s === 4) return String(face - 24);
   return ['P', 'O', 'C', 'L'][face - 34];
