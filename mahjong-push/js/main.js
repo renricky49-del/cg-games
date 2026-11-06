@@ -2,7 +2,8 @@
 import * as L from './logic.js';
 import { LEVELS } from './levels-data.js';
 import { AREAS, LEVELS_PER_CHAPTER } from './meta.js';
-import { loadGlyphs } from './tiles.js';
+import { loadGlyphs, setSkin, SKINS, skinPreview } from './tiles.js';
+import { Ambient } from './ambient.js';
 import { BoardView } from './game.js';
 import { Audio } from './audio.js';
 import { CG } from './cg.js';
@@ -21,6 +22,7 @@ const DEFAULT_SAVE = () => ({
   areas: AREAS.map(() => [false, false, false, false, false]),
   settings: { music: true, sfx: true, hc: false },
   daily: { last: '', streak: 0, best: 0 }, endlessBest: 0, played: 0, seenAreaDone: [],
+  skins: ['jade'], skin: 'jade',
 });
 let S = DEFAULT_SAVE();
 async function loadSave() {
@@ -69,6 +71,7 @@ function show(id) {
   current = id;
   document.body.classList.toggle('ingame', id === 's-game');
   document.body.classList.toggle('blurbg', id === 's-house');
+  if (amb) amb.set(id === 's-title' || id === 's-map' ? 'petals' : id === 's-house' ? (AREAS[houseArea].ambient || 'motes') : 'none');
 }
 function setBg(name) { $('#bg').style.backgroundImage = `url(assets/img/bg/${name}.webp)`; }
 let toastT;
@@ -98,11 +101,12 @@ function refreshWallet() {
     b.textContent = n > 0 ? n : '+'; b.classList.toggle('plus', n <= 0);
   }
 }
+const mascot = (pose, cls = '') => `<img class="mascot ${cls}" src="assets/img/mascot_${pose}.webp" alt="" draggable="false">`;
 const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 const starRow = (n, big = false) => [0, 1, 2].map((i) => `<svg class="i ${i < n ? 'on' : ''}"${big ? ` style="animation-delay:${0.25 + i * 0.3}s"` : ''}><use href="#i-star"/></svg>`).join('');
 
 // ---------------- board / session ----------------
-let board;
+let board, amb;
 let G = null; // current session
 const tut = { el: null, step: 0, kind: null };
 
@@ -189,7 +193,7 @@ function onWin() {
   hideTutorial();
   const isChapterEnd = n % LEVELS_PER_CHAPTER === 0;
   const nextLocked = n < NUM_LEVELS && !levelUnlocked(n + 1);
-  const card = modal(`
+  const card = modal(`${mascot(stars === 3 ? 1 : 0)}
     <h2>${['', 'Cleared!', 'Well brewed!', 'Perfect cup!'][stars]}</h2>
     <div class="stars-big">${starRow(stars, true)}</div>
     <p>Time ${fmt(G.t)} · ${G.used ? `${G.used} booster${G.used > 1 ? 's' : ''} used` : 'no boosters'}</p>
@@ -228,7 +232,7 @@ function onStuck() {
   }
   G.paused = true; board.paused = true; CG.gameplayStop();
   Audio.play('lose');
-  const card = modal(`
+  const card = modal(`${mascot(2)}
     <h2>No moves left!</h2>
     <p>No pair can be matched and no slide lines one up.</p>
     <div class="col">
@@ -255,7 +259,7 @@ function onStuck() {
 function levelFailed() {
   G.done = true; CG.gameplayStop();
   const n = G.level, mode = G.mode;
-  const card = modal(`
+  const card = modal(`${mascot(2)}
     <h2>Out of moves</h2>
     <p>The tea went cold this time. Plan your slides a little further ahead!</p>
     <div class="btns">
@@ -358,20 +362,49 @@ function bindSettings(card) {
   });
 }
 function applySettings() {
-  Audio.setMusic(S.settings.music); Audio.setSfx(S.settings.sfx);
+  Audio.setMusic(S.settings.music); Audio.setSfx(S.settings.sfx); setSkin(S.skin);
   if (board.hc !== S.settings.hc) { board.hc = S.settings.hc; }
 }
 function openSettings() {
   const card = modal(`<h2>Settings</h2>${settingsHtml()}
-    <div class="col"><button class="btn" id="s-help">How to play</button><button class="btn red" id="s-reset">Reset progress</button><button class="btn primary" id="s-close">Done</button></div>`);
+    <div class="col"><button class="btn gold" id="s-skins">Tile backs</button><button class="btn" id="s-help">How to play</button><button class="btn red" id="s-reset">Reset progress</button><button class="btn primary" id="s-close">Done</button></div>`);
   bindSettings(card);
   card.querySelector('#s-close').onclick = closeModal;
   card.querySelector('#s-help').onclick = () => howTo();
+  card.querySelector('#s-skins').onclick = () => openSkins(openSettings);
   card.querySelector('#s-reset').onclick = () => {
     const c2 = modal(`<h2>Reset progress?</h2><p>All stars, coins and teahouse restorations will be lost.</p><div class="btns"><button class="btn" id="r-no">Cancel</button><button class="btn red" id="r-yes">Reset</button></div>`);
     c2.querySelector('#r-no').onclick = closeModal;
     c2.querySelector('#r-yes').onclick = () => { const st = S.settings; S = DEFAULT_SAVE(); S.settings = st; save(); closeModal(); openTitle(); toast('Progress reset'); };
   };
+}
+function openSkins(back) {
+  const card = modal(`<h2>Tile backs</h2><p>Give your tiles a new look. Coins: <b id="sk-coins">${S.coins}</b></p><div class="skins"></div>
+    <div class="btns"><button class="btn primary" id="sk-done">Done</button></div>`);
+  const box = card.querySelector('.skins');
+  const draw = () => {
+    box.innerHTML = '';
+    for (const [k, v] of Object.entries(SKINS)) {
+      const own = S.skins.includes(k), on = S.skin === k;
+      const d = document.createElement('div'); d.className = 'skin' + (on ? ' on' : '');
+      d.appendChild(skinPreview(k));
+      d.insertAdjacentHTML('beforeend', `<b>${v.name}</b>`);
+      const b = document.createElement('button');
+      b.className = 'btn ' + (on ? '' : own ? 'primary' : 'gold');
+      b.innerHTML = on ? `${icon('check')} In use` : own ? 'Use' : `${v.price} coins`;
+      b.disabled = on;
+      b.onclick = () => {
+        if (!own) {
+          if (S.coins < v.price) { Audio.play('deny'); return toast('Not enough coins — clear levels and dailies to earn more'); }
+          S.coins -= v.price; S.skins.push(k); Audio.play('coin');
+        } else Audio.play('click');
+        S.skin = k; setSkin(k); save(); refreshWallet(); card.querySelector('#sk-coins').textContent = S.coins; draw();
+      };
+      d.appendChild(b); box.appendChild(d);
+    }
+  };
+  draw();
+  card.querySelector('#sk-done').onclick = () => { closeModal(); back && back(); };
 }
 function howTo(after) {
   const card = modal(`<h2>How to play</h2>
@@ -394,7 +427,7 @@ function startTutorial(kind) {
   setTimeout(tutPoint, 700);
 }
 function hideTutorial() { $('#tutorial').classList.add('hidden'); tut.kind = null; cancelAnimationFrame(tut.raf); }
-function tutBubble(txt) { $('#tut-bubble').innerHTML = txt; }
+function tutBubble(txt) { $('#tut-bubble').innerHTML = `${mascot(0, 'tut')}<div>${txt}</div>`; }
 function tutPoint() {
   if (!tut.kind || !G) return;
   cancelAnimationFrame(tut.raf);
@@ -456,6 +489,7 @@ const TIPS = {
   13: 'New: mossy stones never move and block lines.',
   25: 'New tiles: flowers! Corner letters help tell them apart.',
   37: 'New tiles: characters. The small number in the corner shows the value.',
+  61: 'Expert chapters: more stones and more tile types. Plan two slides ahead!',
 };
 function showLevelTip(n) {
   const el = $('#g-tip');
@@ -512,7 +546,7 @@ function dailyWin() {
     CG.happytime();
   }
   save(); refreshWallet();
-  const card = modal(`<h2>Daily cleared!</h2><p>Time ${fmt(G.t)}</p>
+  const card = modal(`${mascot(1)}<h2>Daily cleared!</h2><p>Time ${fmt(G.t)}</p>
     ${first ? `<div class="rewards"><div class="pill coin"><b>+50</b></div><div class="pill star"><b>+2</b></div></div>` : ''}
     <p>${msg}</p><div class="btns"><button class="btn primary big" id="dw-ok">Continue</button></div>`);
   card.querySelector('#dw-ok').onclick = async () => { closeModal(); await CG.midgame(); G = null; board.stop(); openTitle(); };
@@ -640,6 +674,7 @@ function openHouse(a) {
 function renderHouse(anim = -1) {
   const c = houseArea, A = AREAS[c];
   setBg(A.bg);
+  if (amb) amb.set(A.ambient || 'motes');
   $('#area-name').textContent = A.name;
   const done = S.areas[c].filter(Boolean).length;
   $('#area-prog').style.width = (done / 5 * 100) + '%';
@@ -648,11 +683,14 @@ function renderHouse(anim = -1) {
   const sc = $('#scene');
   const unlocked = areaUnlocked(c);
   const prog = done / 5;
-  sc.innerHTML = `<div class="base" style="background-image:url(assets/img/bg/${A.bg}.webp);filter:saturate(${0.5 + 0.5 * prog}) brightness(${0.82 + 0.18 * prog})"></div>`;
+  const prevProg = anim >= 0 ? (done - 1) / 5 : prog;
+  sc.innerHTML = `<div class="base" style="background-image:url(assets/img/bg/${A.before || A.bg}.webp)"></div>` +
+    `<div class="base after" style="background-image:url(assets/img/bg/${A.bg}.webp);opacity:${prevProg}"></div>`;
+  if (anim >= 0) requestAnimationFrame(() => requestAnimationFrame(() => { const a = sc.querySelector('.after'); if (a) a.style.opacity = prog; }));
   A.tasks.forEach((t, k) => {
     const im = document.createElement('img');
     im.src = `assets/img/items/${t.img}.webp`; im.alt = t.name; im.draggable = false;
-    im.className = 'item' + (S.areas[c][k] ? (k === anim ? ' drop' : '') + (t.anim ? ' ' + t.anim : '') : ' ghost');
+    im.className = 'item' + (S.areas[c][k] ? (k === anim ? ' drop' : '') + (t.anim ? ' ' + t.anim : '') + (t.glow ? ' glow' : '') : ' ghost');
     im.style.left = t.x * 100 + '%'; im.style.top = t.y * 100 + '%'; im.style.width = t.w * 100 + '%'; im.style.zIndex = t.z;
     if (!S.areas[c][k]) { im.style.opacity = '0.28'; im.style.filter = 'brightness(0) blur(1px)'; }
     sc.appendChild(im);
@@ -687,9 +725,9 @@ function restoreTask(c, k) {
     S.coins += 100; save(); refreshWallet();
     CG.happytime();
     setTimeout(() => {
-      Audio.play('win');
+      Audio.play('win'); Audio.play('chime');
       const nextC = c + 1;
-      const card = modal(`<h2>${AREAS[c].name} restored!</h2>
+      const card = modal(`${mascot(1)}<h2>${AREAS[c].name} restored!</h2>
         <p>The teahouse grows more beautiful. You earned <b>100 coins</b>.</p>
         ${nextC < AREAS.length ? `<p><b>${AREAS[nextC].chapter}</b> is now open!</p>` : '<p><b>The whole teahouse is restored!</b> Thank you for playing — keep enjoying the Daily Puzzle and Endless mode.</p>'}
         <div class="btns">${nextC < AREAS.length ? `<button class="btn primary big" id="ad-go">${icon('play')} Play chapter ${nextC + 1}</button>` : '<button class="btn primary" id="ad-ok">Wonderful</button>'}</div>`);
@@ -787,13 +825,15 @@ async function boot() {
   ]);
   fill.style.width = '100%';
   board = new BoardView($('#board'), $('#fx'));
+  amb = new Ambient($('#amb'));
   board.insets = insets;
   applySettings();
   bindUi();
   refreshWallet();
   requestAnimationFrame(tick);
   CG.loadingStop();
-  Audio.loadMusic('assets/audio/music.mp3');
+  Audio.loadMusic(['assets/audio/music2.mp3', 'assets/audio/music.mp3']);
+  Audio.loadSamples({ pour: 'assets/audio/sfx/pour.mp3', chime: 'assets/audio/sfx/chime.mp3' });
   // lazy-load the teahouse art in the background
   setTimeout(() => preload(AREAS.flatMap((a) => [`assets/img/bg/${a.bg}.webp`, ...a.tasks.map((t) => `assets/img/items/${t.img}.webp`)]), () => {}), 1500);
   openTitle();

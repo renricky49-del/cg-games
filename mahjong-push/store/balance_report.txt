@@ -58,4 +58,28 @@
 58 10x8  50 tiles 4 stones  d= 1.06  bot win  23% #######
 59 10x8  50 tiles 5 stones  d= 1.16  bot win   8% ##
 60 10x8  50 tiles 5 stones  d= 1.20  bot win  10% ###
-chapter avg bot win: 99%  74%  56%  47%  26%
+61 9x8   40 tiles 3 stones  d= 0.42  bot win  68% ####################
+62 9x8   38 tiles 3 stones  d= 0.49  bot win  50% ###############
+63 10x8  44 tiles 4 stones  d= 0.61  bot win  78% #######################
+64 10x8  44 tiles 4 stones  d= 0.51  bot win  73% ######################
+65 10x8  44 tiles 3 stones  d= 0.71  bot win  48% ##############
+66 10x8  46 tiles 4 stones  d= 0.61  bot win  53% ################
+67 10x8  44 tiles 3 stones  d= 0.63  bot win  43% #############
+68 10x8  46 tiles 4 stones  d= 0.91  bot win  23% #######
+69 10x8  46 tiles 4 stones  d= 0.81  bot win  28% ########
+70 10x8  46 tiles 4 stones  d= 0.84  bot win  30% #########
+71 10x8  46 tiles 4 stones  d= 0.86  bot win  38% ###########
+72 10x8  46 tiles 5 stones  d= 1.09  bot win  20% ######
+73 9x8   38 tiles 4 stones  d= 0.59  bot win  57% #################
+74 9x8   38 tiles 4 stones  d= 0.59  bot win  53% ################
+75 10x8  46 tiles 5 stones  d= 0.81  bot win  40% ############
+76 10x8  44 tiles 5 stones  d= 0.78  bot win  50% ###############
+77 10x8  44 tiles 4 stones  d= 0.76  bot win  33% ##########
+78 10x8  44 tiles 5 stones  d= 0.86  bot win  13% ####
+79 10x8  46 tiles 5 stones  d= 0.96  bot win  15% #####
+80 10x8  46 tiles 6 stones  d= 0.99  bot win  23% #######
+81 10x8  46 tiles 5 stones  d= 0.94  bot win  28% ########
+82 10x8  44 tiles 4 stones  d= 0.93  bot win  20% ######
+83 10x8  44 tiles 5 stones  d= 0.98  bot win  13% ####
+84 10x8  44 tiles 5 stones  d= 1.03  bot win  10% ###
+chapter avg bot win: 99%  74%  56%  47%  26%  46%  29%

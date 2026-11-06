@@ -235,10 +235,20 @@ function drawFace(g, face, fx, fy, fw, fh, hc) {
 
 const cache = new Map();
 
+// Tile-back skins (cosmetic, bought with coins). [top, bottom] gradient of the back layer.
+export const SKINS = {
+  jade: { name: 'Jade', price: 0, c: ['#2e9d74', '#155c43'] },
+  cherry: { name: 'Cherry Lacquer', price: 400, c: ['#e9708f', '#9c2a4a'] },
+  ink: { name: 'Night Ink', price: 600, c: ['#4a5bab', '#1b2152'] },
+  gold: { name: 'Imperial Gold', price: 900, c: ['#f0c04a', '#9a6410'] },
+};
+let skin = 'jade';
+export function setSkin(k) { if (SKINS[k] && k !== skin) { skin = k; cache.clear(); } }
+
 // Returns a canvas with the full tile (body + face) drawn at pixel size (pw x ph) (already DPR scaled).
 // The tile occupies the canvas; depth (green back) is the bottom `depth` px.
 export function tileCanvas(face, pw, ph, hc) {
-  const key = `${face}|${pw}|${ph}|${hc ? 1 : 0}`;
+  const key = `${face}|${pw}|${ph}|${hc ? 1 : 0}|${skin}`;
   let c = cache.get(key);
   if (c) return c;
   c = document.createElement('canvas');
@@ -248,7 +258,7 @@ export function tileCanvas(face, pw, ph, hc) {
   const r = pw * 0.14;
   // back (jade) layer
   const bg = g.createLinearGradient(0, 0, 0, ph);
-  bg.addColorStop(0, '#2e9d74'); bg.addColorStop(1, '#155c43');
+  bg.addColorStop(0, SKINS[skin].c[0]); bg.addColorStop(1, SKINS[skin].c[1]);
   g.fillStyle = bg;
   g.beginPath(); g.roundRect(0, depth * 0.6, pw, ph - depth * 0.6, r); g.fill();
   // ivory front
@@ -303,3 +313,16 @@ export function stoneCanvas(pw, ph) {
 }
 
 export function clearTileCache() { cache.clear(); }
+
+// Preview of a skin for the shop: the tile seen from behind (full back colour) with an embossed motif.
+export function skinPreview(k) {
+  const W = 76, H = 96, c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d'), col = SKINS[k].c;
+  g.fillStyle = '#d9cdb2'; g.beginPath(); g.roundRect(0, 0, W, H, 11); g.fill();
+  const gr = g.createLinearGradient(0, 0, W, H); gr.addColorStop(0, col[0]); gr.addColorStop(1, col[1]);
+  g.fillStyle = gr; g.beginPath(); g.roundRect(0, 0, W, H - 8, 11); g.fill();
+  g.strokeStyle = 'rgba(255,255,255,.45)'; g.lineWidth = 2; g.beginPath(); g.roundRect(6, 6, W - 12, H - 20, 8); g.stroke();
+  g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 3;
+  for (let i = 0; i < 4; i++) { g.beginPath(); g.arc(W / 2, (H - 8) / 2, 8 + i * 6, -0.6 + i * 0.4, 2.2 + i * 0.4); g.stroke(); }
+  return c;
+}

@@ -19,7 +19,20 @@ Raw downloads live in `store/raw/` (git-ignored, large PNGs); shipped assets are
 | 12 | Level map bg | Top-down tea garden terraces, open centre, no paths | medium, 2k, 16:9, ref #1 | 1.00 | `assets/img/bg/mapbg.webp` | 11.25 |
 | 13 | Gameplay bg | Top-down wooden tea table, bamboo mat edges, petals, teacup corner | medium, 2k, 16:9, ref #1 | 1.00 | `assets/img/bg/tablebg.webp` | 12.25 |
 | 14 | Music loop | Calm tea-garden puzzle music: guzheng, bamboo flute, soft pad, light wood percussion, pentatonic, 75 bpm, instrumental | elevenlabs_music_v2_5, 30 s | 4.36 | `assets/audio/music.mp3` | 16.61 |
-| 15 | Cover art portrait | Portrait variant of key art, calm upper third for the title | high, 2k, 2:3, ref #1 | 2.75 | `store/cover_800x1200.png` | 19.36 |
-| 16 | Cover art square | Square variant of key art, tilted sliding tile, calm upper third | high, 2k, 1:1, ref #1 | 2.75 | `store/cover_800x800.png` | 22.11 |
+| 15 | Cover art portrait | Portrait variant of key art, calm upper third for the title | high, 2k, 2:3, ref #1 | 2.75 | `store/cover_800x1200.jpg` | 19.36 |
+| 16 | Cover art square | Square variant of key art, tilted sliding tile, calm upper third | high, 2k, 1:1, ref #1 | 2.75 | `store/cover_800x800.jpg` | 22.11 |
+| 17–21 | "Before" variants, areas 1–5 | Same composition as each area bg (passed as reference), neglected: cracks, weeds, dust, murky water, broken planks, grey overcast | medium, 2k, 16:9, ref = area job | 5 × 1.00 | `assets/img/bg/before1..5.webp` | 27.11 |
+| 22 | Area 6 bg — Tea Terraces | Empty clearing among terraced tea hills, morning light | medium, 2k, 16:9, ref #1 | 1.00 | `assets/img/bg/area6.webp` | 28.11 |
+| 23 | Area 7 bg — Winter Courtyard | Empty snowy courtyard behind the teahouse, falling snow | medium, 2k, 16:9, ref #1 | 1.00 | `assets/img/bg/area7.webp` | 29.11 |
+| 24 | Area 6 items sheet | Thatched pickers' hut, water wheel, drying rack, leaf baskets, hillside shrine | medium, 1k, 3:2, transparent, ref #1 | 0.50 | `assets/img/items/a6_*.webp` | 29.61 |
+| 25 | Area 7 items sheet | Snowy pavilion, red plum tree, snow lantern, brazier + kettle, blanket bench | medium, 1k, 3:2, transparent, ref #1 | 0.50 | `assets/img/items/a7_*.webp` | 30.11 |
+| 26 | Mascot sheet | Original red-panda teahouse keeper "Momo" (jade apron, straw hat): pointing, cheering with teacup, sad with empty cup | medium, 1k, 3:2, transparent, ref #1 | 0.50 | `assets/img/mascot_0..2.webp` | 30.61 |
+| 27 | Painted UI kit | Red lacquer plaque banner, parchment panel, jade medallion button (all blank) | medium, 1k, 3:2, transparent, ref #1 | 0.50 | `assets/img/uikit_0..2.webp` | 31.11 |
+| 28–29 | "Before" variants, areas 6–7 | As 17–21 for the new areas | medium, 2k, 16:9, ref = area job | 2 × 1.00 | `assets/img/bg/before6..7.webp` | 33.11 |
+| 30–34 | SFX (mirelo_text_to_audio) | tile clack 1 s, bell 1.5 s, tea pour 2 s, wind chime 2 s, tile slide 1 s | 0.25 each | 1.25 | pour + chime → `assets/audio/sfx/`; clack/bell/slide came back as near-silent noise (peak < −45 dB) and were **rejected** (synth kept) | 34.36 |
+| 35–36 | SFX retry | clack 2 s, singing-bowl ding 2 s | 0.25 each | 0.50 | both again near-silent noise → rejected; percussive prompts don't work with this model | 34.86 |
+| 37 | Music track 2 | Calm tea-garden dusk: erhu + guzheng, bamboo flute, warm pad, light percussion, 70 bpm, 90 s | elevenlabs_music_v2_5, 90 s | 13.08 | `assets/audio/music2.mp3` (plays in sequence with track 1) | **47.94** |
+
+Total spent: **47.94 credits** of the 80 cap (second pass approved by the orchestrating session with a ~60 ceiling).
 
 The 1920x1080 cover reuses the key art (#1). Titles/logos are composited locally (`tools/covers.cjs`), never AI-rendered.

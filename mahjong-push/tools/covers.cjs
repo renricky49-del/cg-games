@@ -1,4 +1,4 @@
-// Composites the title logo onto the AI key art -> store/cover_*.png  (needs static server on :8123)
+// Composites the title logo onto the AI key art -> store/cover_*.jpg (rendered to PNG, then saved as JPG q92 via PIL)  (needs static server on :8123)
 const { chromium } = require('playwright');
 const covers = [
   { out: 'store/cover_1920x1080.png', w: 1920, h: 1080, bg: 'store/raw/keyart.png', top: '7%', scale: 1.0, pos: 'center' },
@@ -18,6 +18,8 @@ const covers = [
     </style></head><body><div class="glow"></div><div class="logo"><span class="l1">Teahouse</span><span class="l2">Tile Slide</span><span class="l3">slide · match · restore</span></div></body></html>`);
     await p.waitForTimeout(800);
     await p.screenshot({ path: c.out });
+    require('child_process').execSync(`python3 -c "from PIL import Image; Image.open('${c.out}').convert('RGB').save('${c.out.replace('.png', '.jpg')}', quality=92, optimize=True)"`);
+    require('fs').unlinkSync(c.out);
     await p.close();
     console.log('wrote', c.out);
   }

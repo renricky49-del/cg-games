@@ -23,5 +23,5 @@ LEVELS.forEach((lv, k) => {
   rows.push({ level: k + 1, size: `${b.w}x${b.h}`, tiles: L.tileCount(b.cells), stones: b.cells.filter((v) => v === L.STONE).length, d: lv.d, botWin: wins / RUNS });
 });
 for (const r of rows) console.log(String(r.level).padStart(2), r.size.padEnd(5), String(r.tiles).padStart(2), 'tiles', r.stones, 'stones  d=' + r.d.toFixed(2).padStart(5), ' bot win', (r.botWin * 100).toFixed(0).padStart(3) + '%', '#'.repeat(Math.round(r.botWin * 30)));
-const ch = [0, 1, 2, 3, 4].map((c) => rows.slice(c * 12, c * 12 + 12).reduce((s, r) => s + r.botWin, 0) / 12);
+const ch = [0, 1, 2, 3, 4, 5, 6].map((c) => rows.slice(c * 12, c * 12 + 12).reduce((s, r) => s + r.botWin, 0) / 12);
 console.log('chapter avg bot win:', ch.map((x) => (x * 100).toFixed(0) + '%').join('  '));

@@ -1,17 +1,51 @@
 // WebAudio sound effects + music (file loop if present, otherwise a generated pentatonic loop).
 let ctx = null, master = null, sfxGain = null, musicGain = null;
 let musicOn = true, sfxOn = true, suspendedByAd = false, sdkMute = false;
-let musicBuffer = null, musicSrc = null, synthTimer = null, synthStep = 0, nextTime = 0;
+let musicSrc = null, synthTimer = null, synthStep = 0, nextTime = 0;
 let noiseBuf = null;
-let musicArr = null, decoding = false;
-async function decodeMusic() {
-  if (decoding || !musicArr) return;
+// music playlist: raw arrays are fetched at boot, decoded after the first user gesture
+let musicArrs = [], tracks = [], trackIdx = 0, decoding = false;
+// recorded foley samples (optional; synth fallbacks are used when missing)
+let sampleArrs = {}; const samples = {};
+async function decodeAll() {
+  if (decoding) return;
   decoding = true;
-  try {
-    const buf = makeLoop(await ctx.decodeAudioData(musicArr.slice(0)), 2.0);
-    musicBuffer = buf;
-    if (synthTimer || musicSrc) { Audio.stopMusic(); Audio.startMusic(); }
-  } catch (e) { musicBuffer = null; }
+  for (const [k, arr] of Object.entries(sampleArrs)) {
+    try { samples[k] = normalize(await ctx.decodeAudioData(arr.slice(0))); } catch (e) { /* */ }
+  }
+  sampleArrs = {};
+  const dec = [];
+  for (const arr of musicArrs) { try { dec.push(await ctx.decodeAudioData(arr.slice(0))); } catch (e) { /* */ } }
+  musicArrs = [];
+  tracks = dec.length === 1 ? [makeLoop(dec[0], 2.0)] : dec;
+  if (tracks.length && synthTimer) { Audio.stopMusic(); Audio.startMusic(); }
+}
+function normalize(buf) {
+  let peak = 0;
+  for (let c = 0; c < buf.numberOfChannels; c++) { const d = buf.getChannelData(c); for (let i = 0; i < d.length; i++) peak = Math.max(peak, Math.abs(d[i])); }
+  if (peak > 0.05 && peak < 0.9) { const g = 0.9 / peak; for (let c = 0; c < buf.numberOfChannels; c++) { const d = buf.getChannelData(c); for (let i = 0; i < d.length; i++) d[i] *= g; } }
+  return buf;
+}
+function playSample(name, t, vol = 1, rate = 1) {
+  const b = samples[name]; if (!b) return false;
+  const s = ctx.createBufferSource(); s.buffer = b; s.playbackRate.value = rate;
+  const g = ctx.createGain(); g.gain.value = vol;
+  s.connect(g); g.connect(sfxGain); s.start(t);
+  return true;
+}
+function playTrack() {
+  const buf = tracks[trackIdx % tracks.length];
+  const src = ctx.createBufferSource(); src.buffer = buf;
+  const g = ctx.createGain(); const t = ctx.currentTime;
+  src.connect(g); g.connect(musicGain);
+  if (tracks.length === 1) { src.loop = true; g.gain.value = 1; }
+  else {
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(1, t + 1.5);
+    g.gain.setValueAtTime(1, t + buf.duration - 2); g.gain.linearRampToValueAtTime(0.0001, t + buf.duration);
+    src.onended = () => { if (musicSrc === src) { musicSrc = null; trackIdx++; if (musicOn) { musicSrc = playTrack(); } } };
+  }
+  src.start(t);
+  return src;
 }
 
 function ensure() {
@@ -35,18 +69,22 @@ function applyMaster() {
 }
 
 export const Audio = {
-  async loadMusic(url) {
-    try {
-      const res = await fetch(url);
-      if (!res.ok) return;
-      musicArr = await res.arrayBuffer();
-      if (ctx) await decodeMusic();
-    } catch (e) { musicArr = null; }
+  // urls: list of music files played in sequence (one file = seamless loop)
+  async loadMusic(urls) {
+    for (const u of [].concat(urls)) {
+      try { const r = await fetch(u); if (r.ok) musicArrs.push(await r.arrayBuffer()); } catch (e) { /* */ }
+    }
+    if (ctx && ctx.state === 'running') decodeAll();
+  },
+  async loadSamples(map) {
+    for (const [k, u] of Object.entries(map)) {
+      try { const r = await fetch(u); if (r.ok) sampleArrs[k] = await r.arrayBuffer(); } catch (e) { /* */ }
+    }
   },
   unlock() {
     if (!ensure()) return;
     if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-    if (musicArr && !musicBuffer && !decoding) decodeMusic();
+    if ((musicArrs.length || Object.keys(sampleArrs).length) && !decoding) decodeAll();
     if (musicOn) this.startMusic();
   },
   setMusic(on) { musicOn = on; if (on) { if (ctx) this.startMusic(); } else this.stopMusic(); },
@@ -61,18 +99,16 @@ export const Audio = {
     if (musicSrc || synthTimer) return;
     musicGain.gain.cancelScheduledValues(ctx.currentTime);
     musicGain.gain.setValueAtTime(musicGain.gain.value, ctx.currentTime);
-    musicGain.gain.linearRampToValueAtTime(musicBuffer ? 0.45 : 0.32, ctx.currentTime + 2);
-    if (musicBuffer) {
-      musicSrc = ctx.createBufferSource();
-      musicSrc.buffer = musicBuffer; musicSrc.loop = true;
-      musicSrc.connect(musicGain); musicSrc.start();
+    musicGain.gain.linearRampToValueAtTime(tracks.length ? 0.45 : 0.32, ctx.currentTime + 2);
+    if (tracks.length) {
+      musicSrc = playTrack();
     } else {
       nextTime = ctx.currentTime + 0.1;
       synthTimer = setInterval(scheduleSynth, 120);
     }
   },
   stopMusic() {
-    if (musicSrc) { try { musicSrc.stop(); } catch (e) { /* */ } musicSrc = null; }
+    if (musicSrc) { const m = musicSrc; musicSrc = null; try { m.stop(); } catch (e) { /* */ } }
     if (synthTimer) { clearInterval(synthTimer); synthTimer = null; }
   },
 
@@ -132,6 +168,7 @@ function pentaHz(step, base = 0) {
 const SFX = {
   // tile clack: crisp click with a woody body
   clack(t) {
+    if (playSample('clack', t, 0.9, 0.94 + Math.random() * 0.12)) return;
     noise(t, 0.5, 0.035, 'bandpass', 2600, 3);
     tone(t, 820, 'triangle', 0.18, 0.001, 0.05);
     tone(t + 0.012, 1300, 'sine', 0.08, 0.001, 0.03);
@@ -151,15 +188,18 @@ const SFX = {
   deny(t) { tone(t, 180, 'sine', 0.25, 0.005, 0.12); tone(t + 0.09, 140, 'sine', 0.2, 0.005, 0.14); },
   hint(t) { tone(t, pentaHz(10), 'sine', 0.15, 0.01, 0.4); tone(t + 0.12, pentaHz(12), 'sine', 0.12, 0.01, 0.5); },
   shuffle(t) { for (let i = 0; i < 8; i++) SFX.clack(t + i * 0.045 + Math.random() * 0.02); },
-  star(t, i) { tone(t, pentaHz(10 + i * 2), 'triangle', 0.2, 0.005, 0.5); tone(t, pentaHz(15 + i * 2), 'sine', 0.08, 0.005, 0.6); },
+  star(t, i) {
+    if (i === 2) playSample('chime', t + 0.1, 0.5); tone(t, pentaHz(10 + i * 2), 'triangle', 0.2, 0.005, 0.5); tone(t, pentaHz(15 + i * 2), 'sine', 0.08, 0.005, 0.6); },
   coin(t) { tone(t, 1568, 'square', 0.05, 0.002, 0.08); tone(t + 0.07, 2093, 'square', 0.05, 0.002, 0.18); },
   win(t) { [0, 2, 4, 5, 7, 10].forEach((s, i) => tone(t + i * 0.09, pentaHz(s + 5), 'triangle', 0.18, 0.005, 0.6)); },
   lose(t) { [4, 3, 1, 0].forEach((s, i) => tone(t + i * 0.16, pentaHz(s + 3), 'sine', 0.18, 0.01, 0.5)); },
   build(t) {
+    playSample('pour', t + 0.05, 0.7);
     noise(t, 0.3, 0.3, 'lowpass', 600, 0.7);
     [0, 2, 4, 7, 9, 12].forEach((s, i) => tone(t + 0.15 + i * 0.07, pentaHz(s + 5), 'triangle', 0.16, 0.005, 0.7));
     tone(t + 0.6, pentaHz(17), 'sine', 0.12, 0.01, 1.2);
   },
+  chime(t) { playSample('chime', t, 0.6); },
   click(t) { tone(t, 660, 'sine', 0.1, 0.001, 0.06); noise(t, 0.12, 0.02, 'highpass', 3000); },
 };
 

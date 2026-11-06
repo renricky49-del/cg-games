@@ -12,18 +12,19 @@ Teahouse Tile Slide is a relaxing mahjong puzzle with a twist: tiles don't just 
 
 Match two identical tiles when they share a row or column with nothing between them. When no pair lines up, drag a tile and every tile in front of it slides along into the empty space. If your slide lines the tile up with its twin, both disappear. Plan your pushes, chain quick matches into combos and clear the whole board.
 
-Every board is checked by a solver, so each level can always be cleared. The difficulty rises gently over 60 hand-picked levels, from tiny tutorial boards to big 10×8 layouts with mossy stones that never move.
+Every board is checked by a solver, so each level can always be cleared. The difficulty rises gently over 84 hand-picked levels, from tiny tutorial boards to big 10×8 layouts with mossy stones that never move.
 
-Earn up to three stars per level by playing fast and without boosters, then spend them in the teahouse. Restore five lovely areas, from the Courtyard Gate and Tea Room to the Koi Pond, Blossom Meadow and Moon Terrace. Each restored area opens the next chapter.
+Earn up to three stars per level by playing fast and without boosters, then spend them in the teahouse. Restore seven lovely areas, from the Courtyard Gate and Tea Room to the Koi Pond, Blossom Meadow, Moon Terrace, Tea Terraces and a snowy Winter Courtyard. Watch each one change from neglected to beautiful. Each restored area opens the next chapter. Momo the red panda, the teahouse keeper, cheers you on.
 
-- 60 campaign levels in 5 chapters, all guaranteed solvable
+- 84 campaign levels in 7 chapters, all guaranteed solvable
 - Interactive tutorial: learn matching, then sliding
-- Teahouse renovation meta: 25 restorations across 5 garden areas
+- Teahouse renovation meta: 35 restorations across 7 areas, with before/after transformations
+- Unlockable tile-back skins
 - Daily Puzzle with a streak counter
 - Endless mode: race the clock, clear boards and build combos for a high score
 - Hint (it shows slides too), Undo and Shuffle boosters
 - Optional high-contrast tiles with coloured suits and big corner numbers
-- Relaxing music and satisfying tile clacks
+- Relaxing music (two tracks) and satisfying tile clacks
 - Progress saves automatically
 
 ## Controls
