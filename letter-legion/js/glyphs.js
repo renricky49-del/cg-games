@@ -7,7 +7,7 @@ const G = 160;
 const cache = new Map();
 
 // where the cartoon eyes sit on each letter (fraction of glyph box, relative to center)
-export const EYES = { S: [0.02, -0.17, 0.11], L: [-0.11, -0.06, 0.08], B: [-0.05, -0.17, 0.1], K: [-0.15, -0.08, 0.08] };
+export const EYES = { S: [0.02, -0.17, 0.12], L: [-0.085, -0.1, 0.07], B: [-0.04, -0.17, 0.11], K: [-0.105, -0.1, 0.07] };
 
 function shade(hex, f) {
   const n = parseInt(hex.slice(1), 16); let r = n >> 16, g = (n >> 8) & 255, b = n & 255;

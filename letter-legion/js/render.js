@@ -40,7 +40,8 @@ export class MatchView {
     this.land = land;
     const L = {};
     if (land) {
-      const hudW = clamp(W * 0.22, 220, 310);
+      const k = Math.min(1, H / 720);
+      const hudW = clamp(W * 0.22, 150, 310);
       const areaW = W - hudW;
       const stripH = clamp(H * 0.07, 34, 50);
       const rivalH = H * 0.33;
@@ -48,7 +49,10 @@ export class MatchView {
       L.player = { x: 10, y: rivalH + 4, w: areaW - 20, h: H - rivalH - stripH - 14 };
       L.strip = { x: 10, y: H - stripH - 4, w: areaW - 20, h: stripH };
       L.hud = { x: areaW, y: 0, w: hudW, h: H };
+      this.hk = k; this.hox = areaW;
+      L.hudD = { x: 0, y: 0, w: hudW / k, h: H / k }; // HUD design space
     } else {
+      this.hk = 1; this.hox = 0;
       const hudH = clamp(H * 0.25, 170, 260);
       const topH = 44;
       const stripH = 34;
@@ -78,7 +82,7 @@ export class MatchView {
   }
 
   buildButtons() {
-    const B = []; const L = this.L; const hud = L.hud;
+    const B = []; const L = this.L; const hud = this.land ? L.hudD : L.hud;
     const add = (id, x, y, w, h, extra = {}) => B.push({ id, x, y, w, h, ...extra });
     if (this.land) {
       const px = hud.x + 12, pw = hud.w - 24;
@@ -94,6 +98,7 @@ export class MatchView {
       add('item0', px, 298, iw, 50); add('item1', px + iw + 6, 298, iw, 50); this.shovelBox = { x: px + 2 * (iw + 6), y: 298, w: iw, h: 50 };
       add('adSummon', px, 356, (pw - 6) / 2, 34); add('adShovel', px + (pw - 6) / 2 + 6, 356, (pw - 6) / 2, 34);
       const ty = Math.max(400, hud.h - 196);
+      this.oddsPanel = ty - 424 > 46 ? { x: px, y: 398, w: pw, h: Math.min(110, ty - 424) } : null;
       const sw = Math.min(70, (pw - 3 * 8) / 4);
       this.trayRects = [0, 1, 2].map(i => ({ x: px + i * (sw + 8), y: ty, w: sw, h: sw }));
       this.trash = { x: px + 3 * (sw + 8), y: ty, w: sw, h: sw };
@@ -114,14 +119,17 @@ export class MatchView {
       for (let i = 0; i < 4; i++) add('train' + i, px + i * (bw + 5), row2, bw, bh);
       add('item0', px + 4 * (bw + 5), row2, bw, bh); add('item1', px + 5 * (bw + 5), row2, bw, bh);
       add('adSummon', px + 6 * (bw + 5), row2, bw, bh); add('adShovel', px + 7 * (bw + 5), row2, bw, bh);
-      this.shovelBox = null;
+      this.shovelBox = null; this.oddsPanel = null;
       this.playerInfo = { x: px, y: y0 - 2, w: pw, h: 20 };
     }
     this.buttons = B;
   }
-  buttonAt(x, y) { for (const b of this.buttons) if (x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h) return b; return null; }
-  trayAt(x, y) { return (this.trayRects || []).findIndex(r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h); }
-  inTrash(x, y) { const r = this.trash; return r && x >= r.x - 6 && x < r.x + r.w + 6 && y >= r.y - 6 && y < r.y + r.h + 6; }
+  toHud(x, y) { return [(x - this.hox) / this.hk, y / this.hk]; }
+  btnCenter(id) { const b = this.buttons.find(b => b.id === id); return [this.hox + (b.x + b.w / 2) * this.hk, (b.y + b.h / 2) * this.hk]; }
+  trayCenter(i) { const r = this.trayRects[i]; return [this.hox + (r.x + r.w / 2) * this.hk, (r.y + r.h / 2) * this.hk]; }
+  buttonAt(x, y) { [x, y] = this.toHud(x, y); for (const b of this.buttons) if (x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h) return b; return null; }
+  trayAt(x, y) { [x, y] = this.toHud(x, y); return (this.trayRects || []).findIndex(r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h); }
+  inTrash(x, y) { [x, y] = this.toHud(x, y); const r = this.trash; return r && x >= r.x - 6 && x < r.x + r.w + 6 && y >= r.y - 6 && y < r.y + r.h + 6; }
 
   // ---------- events -> effects ----------
   consume(sideIdx, events) {
@@ -165,7 +173,7 @@ export class MatchView {
         case 'transmute': { const c = this.match.sides[sideIdx].cells[e.cell]; const [x, y] = this.toScreen(sideIdx, c.x, c.y); this.fx.push({ k: 'ring', x, y, t: 0, dur: 0.5, r: g.ts * 0.7, col: '#ffd24a' }); if (me) { this.text(x, y - g.ts * 0.5, '→ ' + e.unit.letter, '#ffd24a', g.ts * 0.34); A.play('transmute'); } break; }
         case 'place': if (me) A.play('place'); break;
         case 'swap': if (me) A.play('place'); break;
-        case 'sell': if (me) { A.play('sell'); const at = e.cell !== undefined ? this.toScreen(0, this.match.sides[0].cells[e.cell].x, this.match.sides[0].cells[e.cell].y) : [this.trash.x + this.trash.w / 2, this.trash.y]; this.text(at[0], at[1] - 10, '+' + e.value + ' ink', '#7fd7ff', 16); } break;
+        case 'sell': if (me) { A.play('sell'); const at = e.cell !== undefined ? this.toScreen(0, this.match.sides[0].cells[e.cell].x, this.match.sides[0].cells[e.cell].y) : [this.hox + (this.trash.x + this.trash.w / 2) * this.hk, this.trash.y * this.hk]; this.text(at[0], at[1] - 10, '+' + e.value + ' ink', '#7fd7ff', 16); } break;
         case 'dig': { const c = this.match.sides[sideIdx].cells[e.cell]; const [x, y] = this.toScreen(sideIdx, c.x, c.y); this.burst(x, y, 18, '#a8743f', g.ts * 0.09); if (me) A.play('shovel'); break; }
         case 'train': if (me) { A.play('levelup'); } break;
         case 'summon': if (me) { if (e.slot >= 0) this.trayAnim[e.slot] = 1; A.play('summon'); setTimeout(() => A.play(e.item.kind === 'gold' ? 'gold' : e.item.kind === 'shovel' ? 'shovel' : 'reveal'), 260); if (e.item.kind === 'shovel') this.banner('Shovel found! Click a locked cell to dig', '#ffd88a', 1.6, 0.5); } break;
@@ -384,9 +392,9 @@ export class MatchView {
       const [ex, ey, er] = EYES[L]; const blink = (Math.sin(this.time * 1.3 + u.uid * 7) > 0.985) ? 0.15 : 1;
       for (const s of [-1, 1]) {
         const cx = (ex + s * er * 0.95) * size, cy = ey * size;
-        g.fillStyle = '#fff'; g.beginPath(); g.ellipse(cx, cy, er * size * 0.5, er * size * 0.62 * blink, 0, 0, TAU); g.fill();
+        g.fillStyle = '#fff'; g.beginPath(); g.ellipse(cx, cy, er * size * 0.58, er * size * 0.7 * blink, 0, 0, TAU); g.fill();
         g.lineWidth = 1.5; g.strokeStyle = '#26160b'; g.stroke();
-        g.fillStyle = '#1a0f08'; g.beginPath(); g.arc(cx + ax * er * size * 0.18, cy + ay * er * size * 0.18 * blink, er * size * 0.26 * blink, 0, TAU); g.fill();
+        g.fillStyle = '#1a0f08'; g.beginPath(); g.arc(cx + ax * er * size * 0.2, cy + ay * er * size * 0.2 * blink, er * size * 0.3 * blink, 0, TAU); g.fill();
       }
       // level pips
       if (u.level > 1) {
@@ -561,7 +569,8 @@ export class MatchView {
 
   drawHud(dt) {
     const g = this.g, m = this.match, me = m.sides[0], riv = m.sides[1], L = this.L, ctl = this.ctl;
-    if (this.land) { rr(g, L.hud.x + 4, 4, L.hud.w - 8, L.hud.h - 8, 16); g.fillStyle = 'rgba(14,12,30,0.82)'; g.fill(); g.strokeStyle = 'rgba(255,210,74,0.25)'; g.lineWidth = 2; g.stroke(); }
+    g.save(); g.translate(this.hox, 0); g.scale(this.hk, this.hk);
+    if (this.land) { const D = L.hudD; rr(g, D.x + 4, 4, D.w - 8, D.h - 8, 16); g.fillStyle = 'rgba(14,12,30,0.82)'; g.fill(); g.strokeStyle = 'rgba(255,210,74,0.25)'; g.lineWidth = 2; g.stroke(); }
     else { g.fillStyle = 'rgba(14,12,30,0.88)'; g.fillRect(L.hud.x, L.hud.y, L.hud.w, L.hud.h); g.fillRect(0, 0, L.top.w, L.top.h); }
     const B = id => this.buttons.find(b => b.id === id);
     // small top buttons
@@ -572,7 +581,7 @@ export class MatchView {
     // rival card
     if (this.rivalCard) {
       const r = this.rivalCard; this.panel(r, 'rgba(90,20,35,0.75)');
-      g.save(); g.beginPath(); g.arc(r.x + 31, r.y + r.h / 2, 25, 0, TAU); g.clip(); drawStrip(g, 'rivals', ctl.rival.portrait ?? 0, r.x + 31, r.y + r.h / 2, 54); g.restore();
+      g.save(); g.beginPath(); g.arc(r.x + 31, r.y + r.h / 2, 25, 0, TAU); g.clip(); drawStrip(g, ctl.rival.portraitStrip || 'rivals', ctl.rival.portrait ?? 0, r.x + 31, r.y + r.h / 2, 54); g.restore();
       g.textAlign = 'left'; g.textBaseline = 'alphabetic'; g.font = `15px ${FONT}`; g.fillStyle = '#fff'; g.fillText(ctl.rival.name, r.x + 62, r.y + 22);
       g.font = `bold 12px ${FONT2}`; g.fillStyle = '#ffb3bb'; g.fillText(`CPU · ${ctl.rival.tier}`, r.x + 62, r.y + 38);
       g.fillStyle = '#fff'; g.fillText(`♥ ${riv.lives}   ink ${fmt(riv.ink)}`, r.x + 62, r.y + 54);
@@ -629,6 +638,15 @@ export class MatchView {
     const adOk = !ctl.tutorial;
     this.btn(B('adSummon'), { col: '#2e9b58', enabled: adOk && !me.adSummonUsed && me.freeTraySlot() >= 0, label: this.land ? '▶ Free Summon' : '▶', sub: this.land ? '' : 'Summon' });
     this.btn(B('adShovel'), { col: '#2e9b58', enabled: adOk && !me.adShovelUsed && me.lockedCells().length > 0, label: this.land ? '▶ Free Shovel' : '▶', sub: this.land ? '' : 'Shovel' });
+    if (this.oddsPanel) {
+      const r = this.oddsPanel; this.panel(r);
+      const locked = me.lockedCells().length > me.shovels; const gold = Math.min(1, me.mods.gold); const sh = locked ? 0.05 : 0;
+      g.textAlign = 'left'; g.textBaseline = 'top'; g.font = `bold 12px ${FONT2}`; g.fillStyle = '#c8d0ff';
+      g.fillText('SUMMON ODDS', r.x + 10, r.y + 7);
+      const rows = [['Letter S·L·B·K', 1 - gold - sh, '#e8e8f0'], ['Golden hero letter', gold, '#ffd24a'], ['Shovel', sh, '#ffd88a']];
+      rows.forEach(([n, v, c], i) => { const yy = r.y + 24 + i * 17; if (yy + 14 > r.y + r.h) return; g.fillStyle = c; g.fillText(n, r.x + 10, yy); g.textAlign = 'right'; g.fillText(Math.round(v * 100) + '%', r.x + r.w - 10, yy); g.textAlign = 'left'; });
+      if (r.h > 86) { g.fillStyle = '#9aa3d8'; g.fillText(`Summoned ${me.stats.summons} · heroes ${me.stats.heroes} · best Lv ${me.stats.maxLevel}`, r.x + 10, r.y + r.h - 18); }
+    }
     // tray
     this.trayAnim = this.trayAnim.map(v => Math.max(0, v - dt * 1.6));
     if (this.trayRects) {
@@ -663,6 +681,7 @@ export class MatchView {
     const full = me.freeTraySlot() < 0;
     this.btn(sb, { col: '#d6402f', enabled: can, glow: can && !!ctl.tutorialWants?.('summon'), label: 'SUMMON', sub: full ? 'recruit tray full' : `${fmt(cost)} ink`, icon: (gg, b) => { if (b.w > 150) { gg.save(); gg.translate(b.h * 0.42, b.h * 0.5); gg.rotate(-0.15 + Math.sin(this.time * 3) * 0.05); const s = b.h * 0.5; rr(gg, -s / 2, -s / 2, s, s, 7); gg.fillStyle = '#7a3c12'; gg.fill(); gg.strokeStyle = '#ffd24a'; gg.lineWidth = 2.5; gg.stroke(); gg.fillStyle = '#ffd24a'; gg.font = `${s * 0.6}px ${FONT}`; gg.textAlign = 'center'; gg.textBaseline = 'middle'; gg.fillText('?', 0, 2); gg.restore(); } } });
     if (ctl.cloverLeft || me.cloverLeft) { g.fillStyle = '#7fe08a'; g.font = `bold 12px ${FONT2}`; g.textAlign = 'center'; g.fillText(`🍀 next ${me.cloverLeft} gold`, sb.x + sb.w / 2, sb.y - 6); }
+    g.restore();
   }
 
   drawDrag() {
@@ -701,11 +720,18 @@ export class MatchView {
   drawTip() {
     const t = this.tip; if (!t) return;
     const g = this.g; g.font = `bold 13px ${FONT2}`;
-    const lines = t.lines; const w = Math.max(...lines.map(l => g.measureText(l).width)) + 20; const h = lines.length * 18 + 12;
+    const maxW = 330; const lines = [];
+    for (const l of t.lines) {
+      const words = String(l).split(' '); let cur = '';
+      for (const w of words) { const test = cur ? cur + ' ' + w : w; if (g.measureText(test).width > maxW && cur) { lines.push(cur); cur = w; } else cur = test; }
+      lines.push(cur); if (lines.length === 1) lines.first = 1;
+    }
+    const firstLen = (() => { const words = String(t.lines[0]).split(' '); let cur = '', n = 1; for (const w of words) { const test = cur ? cur + ' ' + w : w; if (g.measureText(test).width > maxW && cur) { n++; cur = w; } else cur = test; } return n; })();
+    const w = Math.min(maxW, Math.max(...lines.map(l => g.measureText(l).width))) + 20; const h = lines.length * 18 + 12;
     let x = clamp(t.x + 16, 4, this.W - w - 4), y = clamp(t.y - h - 10, 4, this.H - h - 4);
-    rr(g, x, y, w, h, 8); g.fillStyle = 'rgba(10,8,24,0.92)'; g.fill(); g.strokeStyle = t.col || '#ffd24a'; g.lineWidth = 1.5; g.stroke();
+    rr(g, x, y, w, h, 8); g.fillStyle = 'rgba(10,8,24,0.94)'; g.fill(); g.strokeStyle = t.col || '#ffd24a'; g.lineWidth = 1.5; g.stroke();
     g.textAlign = 'left'; g.textBaseline = 'top';
-    lines.forEach((l, i) => { g.fillStyle = i === 0 ? (t.col || '#ffd24a') : '#e8e8f0'; g.fillText(l, x + 10, y + 7 + i * 18); });
+    lines.forEach((l, i) => { g.fillStyle = i < firstLen ? (t.col || '#ffd24a') : '#e8e8f0'; g.fillText(l, x + 10, y + 7 + i * 18); });
   }
 }
 function shadeHex(hex, f) {

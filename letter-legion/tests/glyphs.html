@@ -1,0 +1,19 @@
+<!DOCTYPE html><html><head><link rel="stylesheet" href="../css/style.css"></head><body style="background:#e8dcc0;overflow:auto">
+<canvas id="c" width="1200" height="760" style="display:block"></canvas>
+<script type="module">
+import { MatchView } from '../js/render.js';
+import { loadAll } from '../js/assets.js';
+import { FONT } from '../js/glyphs.js';
+await document.fonts.load('40px ' + FONT);
+await loadAll();
+const cv = document.getElementById('c'); const v = new MatchView(cv); v.g = cv.getContext('2d');
+v.match = { time: 10, sides: [] }; v.geo = [{ ts: 120 }]; v.toScreen = (s, x, y) => [x, y];
+const g = v.g; g.fillStyle = '#efe3c6'; g.fillRect(0, 0, 1200, 760);
+let uid = 1;
+['S','L','B','K'].forEach((L, r) => { for (let lv = 1; lv <= 7; lv++) v.drawUnit(0, null, { uid: uid++, kind: 'basic', letter: L, level: lv, atkT: 0, born: -5 }, { x: 70 + (lv - 1) * 120, y: 70 + r * 130, size: 110 }); });
+// attack poses
+['S','L','B','K'].forEach((L, r) => { [0.8, 0.55, 0.3].forEach((a, k) => v.drawUnit(0, null, { uid: 99, kind: 'basic', letter: L, level: 3, atkT: a, aimX: 2000, aimY: 70 + r * 130, born: -5 }, { x: 900 + k * 100, y: 70 + r * 130, size: 100 })); });
+['K','I','N','G'].forEach((L, i) => v.drawUnit(0, null, { uid: 50 + i, kind: 'gold', letter: L, level: 1, atkT: 0, born: -5 }, { x: 70 + i * 120, y: 620, size: 110 }));
+v.drawUnit(0, null, { uid: 70, kind: 'hero', heroId: 'MAGE', level: 2, atkT: 0, born: -5, skillMax: 7, skillCd: 3 }, { x: 600, y: 620, size: 110 });
+window.done = true;
+</script></body></html>

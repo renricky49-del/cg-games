@@ -162,7 +162,7 @@ export const RIVALS = [
     quote: 'Your words will freeze on your tongue.', ward: 'Princess Pom' },
 ];
 export const RIVAL_BY_ID = Object.fromEntries(RIVALS.map(r => [r.id, r]));
-export const TUTOR_RIVAL = { id: 'dummy', power: 0.3, name: 'Training Dummy', tier: 'Tutorial', map: 'ember', portrait: 0, think: 99, skill: 0.1, spell: 0, mistakes: 1,
+export const TUTOR_RIVAL = { id: 'dummy', power: 0.3, name: 'Princess Pom (practice)', tier: 'Tutorial', map: 'ember', portrait: 2, portraitStrip: 'wards', think: 99, skill: 0.1, spell: 0, mistakes: 1,
   quote: '...', ward: 'Princess Pom', tutorial: true };
 
 // ---------- Weapons ----------

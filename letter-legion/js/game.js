@@ -144,7 +144,7 @@ export class MatchController {
       if (u) v.tip = { x, y, ...this.unitTip(u) };
       else if (v.hoverCell && v.hoverCell.locked) v.tip = { x, y, lines: ['Locked cell', me.shovels ? 'Click to dig with a shovel' : 'Summon a Shovel to unlock'], col: '#ffd88a' };
       else if (v.hover) v.tip = this.buttonTip(v.hover, x, y);
-      else if (v.stripHits) { const h = v.stripHits.find(s => x >= s.x && x < s.x + s.w && y >= s.y && y < s.y + s.h); if (h) v.tip = { x, y, lines: [`${h.hero.word} — ${h.hero.skill}`, h.hero.skillDesc.slice(0, 64), 'Place golden letters in a row, left→right'], col: h.hero.color }; }
+      else if (v.stripHits) { const h = v.stripHits.find(s => x >= s.x && x < s.x + s.w && y >= s.y && y < s.y + s.h); if (h) v.tip = { x, y, lines: [`${h.hero.word} — ${h.hero.skill}`, h.hero.skillDesc, 'Place golden letters in a row, left→right'], col: h.hero.color }; }
     }
     const interactive = v.hover || (v.hoverTray >= 0 && this.me.tray[v.hoverTray]) || (v.hoverCell && (v.hoverCell.unit || (v.hoverCell.locked && this.me.shovels) || v.selected));
     this.hooks.cursor(v.drag && v.drag.moved ? 'grabbing' : interactive ? 'pointer' : 'default');
@@ -191,10 +191,10 @@ export class MatchController {
   }
   unitTip(u) {
     const me = this.me;
-    if (u.kind === 'basic') { const d = UNITS[u.letter]; return { lines: [`${d.name} (${u.letter}) · Lv ${u.level} ${LEVEL_NAMES[u.level - 1]}`, `${d.role} · dmg ${Math.round(me.unitDamage(u))} · ${me.unitRate(u).toFixed(1)}/s`, d.desc.slice(0, 70), u.level < 7 ? 'Merge with same letter & level to upgrade' : 'Max level!'], col: d.color }; }
+    if (u.kind === 'basic') { const d = UNITS[u.letter]; return { lines: [`${d.name} (${u.letter}) · Lv ${u.level} ${LEVEL_NAMES[u.level - 1]}`, `${d.role} · dmg ${Math.round(me.unitDamage(u))} · ${me.unitRate(u).toFixed(1)}/s`, d.desc, u.level < 7 ? 'Merge with same letter & level to upgrade' : 'Max level!'], col: d.color }; }
     if (u.kind === 'gold') { const words = me.unlockedHeroes().filter(h => h.word.includes(u.letter)).map(h => h.word); return { lines: [`Golden letter "${u.letter}"`, words.length ? 'Spells: ' + words.join(', ') : 'Not used by your heroes yet', 'Drop on an identical gold letter to transmute', `Weak attack: ${Math.round(me.unitDamage(u))} dmg`], col: '#ffd24a' }; }
     const h = HERO_BY_ID[u.heroId]; const w = me.mods.weapons[u.heroId];
-    return { lines: [`${h.word} · ${h.title} ★${u.level}`, `${h.skill}: ${h.skillDesc.slice(0, 60)}`, `dmg ${Math.round(me.unitDamage(u))} · skill every ${(u.skillMax || h.cd).toFixed(1)}s`, w ? `Weapon: +${Math.round(w.dmg * 100)}% dmg${w.upgrade ? ' · skill upgraded' : ''}` : 'Spell it again to level up (max ★3)'], col: h.color };
+    return { lines: [`${h.word} · ${h.title} ★${u.level}`, `${h.skill}: ${h.skillDesc}`, `dmg ${Math.round(me.unitDamage(u))} · skill every ${(u.skillMax || h.cd).toFixed(1)}s`, w ? `Weapon: +${Math.round(w.dmg * 100)}% dmg${w.upgrade ? ' · skill upgraded' : ''}` : 'Spell it again to level up (max ★3)'], col: h.color };
   }
   buttonTip(b, x, y) {
     const me = this.me;

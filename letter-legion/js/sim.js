@@ -37,7 +37,7 @@ export function parseMap(mapId) {
   const pts = path.map(p => ({ x: p.x + 0.5, y: p.y + 0.5 }));
   // extend entry half a tile outward so enemies walk in from the edge
   const d0x = pts[0].x - pts[1].x, d0y = pts[0].y - pts[1].y;
-  pts.unshift({ x: pts[0].x + d0x * 0.9, y: pts[0].y + d0y * 0.9 });
+  pts.unshift({ x: pts[0].x + d0x * 0.5, y: pts[0].y + d0y * 0.5 });
   const cum = [0];
   for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y));
   // horizontal runs of cells (for spelling)
