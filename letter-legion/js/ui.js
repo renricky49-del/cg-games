@@ -89,8 +89,24 @@ function hub() {
       </div>
       <div class="card quick">
         <div class="card-h">🎲 Quick Battle</div>
-        <div class="muted">Pick any unlocked map and any rival you have met.</div>
-        <div class="row"><button class="btn" data-go="quick">Choose</button></div>
+        <div class="muted">Any unlocked map against any rival you have met.</div>
+        <div class="qmaps">${MAPS.map(m => mapUnlocked(m.id) ? `<div class="qmap clickable" data-qm="${m.id}" style="background-image:url(assets/img/map_${m.id}.webp)"><span>${m.name}</span><small>♥${m.lives} · ${m.waves}w</small></div>` : `<div class="qmap locked"><span>🔒 ${m.name}</span></div>`).join('')}</div>
+      </div>
+      <div class="card roster">
+        <div class="card-h">⭐ Level rewards <span class="muted">Lv ${P.level} · ${P.xp}/${xpForLevel(P.level)} XP</span></div>
+        <div class="xpbig"><i style="width:${Math.min(100, P.xp / xpForLevel(P.level) * 100)}%"></i></div>
+        <div class="unlocks">${HEROES.map(hh => { const got = hh.unlock <= P.level; const next = !got && HEROES.filter(x => x.unlock > P.level)[0] === hh;
+          return `<div class="unl ${got ? 'got' : ''} ${next ? 'next' : ''}" title="${hh.word}: ${hh.skill}"><div style="${stripCss('heroes_full', hh.portrait, 64)}"></div><b>${hh.word}</b><small>${got ? '✔' : 'Lv ' + hh.unlock}</small></div>`; }).join('')}</div>
+        ${(() => { const nx = HEROES.find(x => x.unlock > P.level); return nx ? `<div class="nextunlock">Next hero at <b>level ${nx.unlock}</b>: <b style="color:${nx.color}">${nx.word}</b> — ${nx.skillDesc}</div>` : '<div class="nextunlock">All heroes unlocked! Collect Legendary weapons to max them out.</div>'; })()}
+      </div>
+      <div class="card stats">
+        <div class="card-h">📜 Your legend</div>
+        <div class="statgrid">
+          <div><b>${P.stats.matches}</b><span>battles</span></div><div><b>${P.stats.wins}</b><span>victories</span></div>
+          <div><b>${P.stats.heroes}</b><span>heroes spelled</span></div><div><b>${P.stats.kills}</b><span>foes defeated</span></div>
+          <div><b>${P.weapons.length}</b><span>weapons</span></div><div><b>${Object.keys(P.bests).length}/4</b><span>maps conquered</span></div>
+        </div>
+        <div class="feat">${(() => { const eqw = equippedWeapons(); const ids = Object.keys(eqw); const hid = ids.length ? ids[0] : unlockedHeroIds()[0]; const hh = HERO_BY_ID[hid]; return `<div style="${stripCss('heroes_full', hh.portrait, 72)}"></div><div><div class="muted small">Featured hero</div><b style="color:${hh.color}">${hh.word}</b> · ${hh.title}<div class="small">${eqw[hid] ? '⚒ ' + eqw[hid].name : hh.skill}</div></div>`; })()}</div>
       </div>
     </div>
     <div class="navbar">
@@ -104,6 +120,7 @@ function hub() {
   $('#fight').onclick = () => show('prematch', { mode: 'ladder', rivalIndex: Math.min(P.ladder, RIVALS.length - 1) });
   $('#dailyGo').onclick = () => show('prematch', { mode: 'daily' });
   $('#tut').onclick = () => api.startTutorial();
+  root().querySelectorAll('[data-qm]').forEach(e => e.onclick = () => show('quick', e.dataset.qm));
 }
 
 // ---------------- ladder ----------------
@@ -122,10 +139,10 @@ function ladder() {
 }
 
 // ---------------- quick ----------------
-function quick() {
+function quick(pre) {
   const maps = MAPS.filter(m => mapUnlocked(m.id));
   const rivals = RIVALS.filter((r, i) => i <= Math.min(P.ladder, RIVALS.length - 1));
-  let mi = 0, ri = rivals.length - 1;
+  let mi = Math.max(0, maps.findIndex(m => m.id === pre)), ri = rivals.length - 1;
   const draw = () => {
     h(`${topBar('Quick Battle')}
       <div class="quick-wrap">

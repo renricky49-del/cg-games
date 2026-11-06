@@ -1,6 +1,10 @@
 // WebAudio: synthesized SFX + a looping music track (generated asset) with mute handling.
 let ctx = null, master = null, sfxGain = null, musicGain = null;
 let musicBuf = null, musicSrc = null, musicWanted = false;
+const tracks = {}; let curTrack = 'menu', wantTrack = 'menu'; let trackGain = null;
+const samples = {};
+const SAMPLE_FOR = { gold: 'sfx_gold', summon: 'sfx_box', merge: 'sfx_merge', boss: 'sfx_roar', meteor: 'sfx_meteor', leak: 'sfx_cry', win: 'win', lose: 'lose' };
+const SAMPLE_VOL = { sfx_gold: 0.7, sfx_box: 0.8, sfx_merge: 0.7, sfx_roar: 0.8, sfx_meteor: 0.7, sfx_cry: 0.6, win: 0.9, lose: 0.9 };
 const state = { sfx: true, music: true, adMuted: false, sdkMuted: false };
 const lastPlay = {};
 
@@ -96,21 +100,38 @@ export const Audio = {
     const gap = MIN_GAP[name] || 0.02;
     if (lastPlay[name] && now - lastPlay[name] < gap) return;
     lastPlay[name] = now;
+    const smp = SAMPLE_FOR[name];
+    if (smp && samples[smp]) { this.playSample(smp, SAMPLE_VOL[smp] || 0.8); if (name === 'merge' || name === 'summon') { try { SFX[name](); } catch (e) { /* ignore */ } } return; }
     try { SFX[name] && SFX[name](); } catch (e) { /* ignore */ }
   },
-  async loadMusic(url) {
-    try {
-      if (!ensure()) return;
-      const res = await fetch(url); const ab = await res.arrayBuffer();
-      musicBuf = await new Promise((ok, bad) => ctx.decodeAudioData(ab, ok, bad));
-      if (musicWanted) this.playMusic();
-    } catch (e) { console.warn('music load failed', e); }
+  async decode(url) {
+    const res = await fetch(url); const ab = await res.arrayBuffer();
+    return new Promise((ok, bad) => ctx.decodeAudioData(ab, ok, bad));
   },
+  async loadMusic(map) {
+    if (!ensure()) return;
+    for (const [k, url] of Object.entries(map)) { try { tracks[k] = await this.decode(url); } catch (e) { console.warn('music load failed', url); } }
+    if (musicWanted) this.playMusic();
+  },
+  async loadSamples(names) {
+    if (!ensure()) return;
+    await Promise.all(names.map(async n => { try { samples[n] = await this.decode('assets/audio/' + n + '.mp3'); } catch (e) { /* synth fallback */ } }));
+  },
+  playSample(n, vol = 0.8) {
+    if (!state.sfx || state.adMuted || state.sdkMuted || !ctx || ctx.state !== 'running' || !samples[n]) return;
+    const src = ctx.createBufferSource(); src.buffer = samples[n]; const g = ctx.createGain(); g.gain.value = vol;
+    src.connect(g); g.connect(sfxGain); src.start();
+  },
+  voice(heroId) { const n = 'v_' + heroId; if (samples[n]) setTimeout(() => this.playSample(n, 1.0), 380); },
+  setTrack(name) { wantTrack = name; if (curTrack !== name && musicSrc) { const old = musicSrc, og = trackGain; og.gain.setTargetAtTime(0, ctx.currentTime, 0.35); setTimeout(() => { try { old.stop(); } catch (e) { /* */ } }, 1500); musicSrc = null; } this.playMusic(); },
   playMusic() {
     musicWanted = true;
-    if (!ctx || !musicBuf || musicSrc || ctx.state !== 'running') return;
-    musicSrc = ctx.createBufferSource(); musicSrc.buffer = musicBuf; musicSrc.loop = true;
-    musicSrc.connect(musicGain); musicSrc.start();
+    const buf = tracks[wantTrack] || tracks.battle;
+    if (!ctx || !buf || musicSrc || ctx.state !== 'running') return;
+    curTrack = wantTrack;
+    musicSrc = ctx.createBufferSource(); musicSrc.buffer = buf; musicSrc.loop = true;
+    trackGain = ctx.createGain(); trackGain.gain.value = 0.0001; trackGain.gain.setTargetAtTime(1, ctx.currentTime, 0.4);
+    musicSrc.connect(trackGain); trackGain.connect(musicGain); musicSrc.start();
   },
   setMusicIntensity(v) { if (musicGain && state.music) musicGain.gain.setTargetAtTime(0.32 * v, ctx.currentTime, 0.4); },
   setSfx(on) { state.sfx = on; applyMute(); },

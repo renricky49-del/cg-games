@@ -62,7 +62,7 @@ function startMatch(o) {
   canvas.style.display = 'block';
   ctl = new MatchController(view, opts, hooks);
   CG.gameplayStart();
-  Audio.playMusic();
+  Audio.setTrack('battle');
 }
 function startTutorial() { startMatch({ mode: 'tutorial', mapId: 'ember', seed: 12345 }); }
 
@@ -115,7 +115,7 @@ function endMatch(res) {
   setHint(null);
   resultsScreen(res, rewards, async () => {
     const wasTutorial = res.opts.tutorial;
-    ctl = null; canvas.style.display = 'none';
+    ctl = null; canvas.style.display = 'none'; Audio.setTrack('menu');
     // natural break → midgame ad (rate-limited inside the adapter; never right after session start)
     if (!wasTutorial) await CG.midgame();
     show('hub');
@@ -163,7 +163,8 @@ async function boot() {
   Audio.setMusic(P.settings.music); Audio.setSfx(P.settings.sfx);
   Audio.setSdkMuted(CG.muteAudioSetting());
   CG.onSettingsChange(s => { if (s && 'muteAudio' in s) Audio.setSdkMuted(!!s.muteAudio); });
-  Audio.loadMusic('assets/audio/music.mp3');
+  Audio.loadMusic({ menu: 'assets/audio/menu.mp3', battle: 'assets/audio/music.mp3' });
+  Audio.loadSamples(['sfx_gold', 'sfx_box', 'sfx_merge', 'sfx_roar', 'sfx_meteor', 'sfx_cry', 'win', 'lose', ...HEROES.map(h => 'v_' + h.id)]);
   resize();
   initUI({ startMatch, startTutorial, onScreen: () => { CG.gameplayStop(); }, rewarded: () => CG.rewarded() });
   document.getElementById('loading').remove();

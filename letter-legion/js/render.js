@@ -1,5 +1,5 @@
 // Match renderer: layout, boards, letter soldiers, enemies, effects and in-match HUD (canvas).
-import { UNITS, HERO_BY_ID, HEROES, LEVEL_COLORS, BOSSES, ITEM_BY_ID, MAX_LEVEL, RARITIES } from './data.js';
+import { UNITS, HERO_BY_ID, HEROES, LEVEL_COLORS, BOSSES, ENEMIES, ITEM_BY_ID, MAX_LEVEL, RARITIES } from './data.js';
 import { IMG, drawStrip } from './assets.js';
 import { letterGlyph, goldGlyph, EYES, FONT, FONT2 } from './glyphs.js';
 import { posAt } from './sim.js';
@@ -23,6 +23,7 @@ export class MatchView {
     this.trayAnim = [0, 0, 0];
     this.wardSad = [0, 0];
     this.tip = null;
+    this.cuts = []; this.lastCut = {};
   }
   resize(W, H, dpr) {
     this.W = W; this.H = H; this.dpr = dpr;
@@ -39,18 +40,45 @@ export class MatchView {
     const land = W / H >= 1.15;
     this.land = land;
     const L = {};
+    // fit a board into a rect, leaving room for its frame (and for the rival, the castle overhang on top)
+    const fit = (rect, mirror) => {
+      const padX = 12, padTop = mirror ? 18 : 12, padBot = 12;
+      const ts = Math.max(8, Math.floor(Math.min((rect.w - 2 * padX) / map.cols, (rect.h - padTop - padBot) / (map.rows + (mirror ? 0.2 : 0)))));
+      const w = ts * map.cols, h = ts * map.rows;
+      const extra = mirror ? Math.round(ts * 0.2) : 0;
+      return { x: Math.round(rect.x + (rect.w - w) / 2), y: Math.round(rect.y + padTop + extra + (rect.h - padTop - padBot - extra - h) / 2), ts, w, h, cols: map.cols, rows: map.rows, mirror };
+    };
     if (land) {
-      const k = Math.min(1, H / 720);
-      const hudW = clamp(W * 0.22, 150, 310);
+      const k = clamp(Math.min(H / 720, W / 1280), 0.5, 1.5);
+      const hudW = clamp(W * 0.22, 150, 310 * Math.max(1, k));
       const areaW = W - hudW;
       const stripH = clamp(H * 0.07, 34, 50);
-      const rivalH = H * 0.33;
-      L.rival = { x: 10, y: 8, w: areaW - 20, h: rivalH - 12 };
-      L.player = { x: 10, y: rivalH + 4, w: areaW - 20, h: H - rivalH - stripH - 14 };
+      const A = { x: 6, y: 4, w: areaW - 12, h: H - stripH - 14 };
+      // try stacked and side-by-side arrangements; keep the one with the biggest readable boards
+      const cands = [];
+      for (const f of [0.3, 0.34, 0.38]) {
+        const rh = Math.round(A.h * f);
+        cands.push({ rival: { x: A.x, y: A.y, w: A.w, h: rh }, player: { x: A.x, y: A.y + rh + 4, w: A.w, h: A.h - rh - 4 } });
+      }
+      for (const g of [0.6, 0.66, 0.72]) {
+        const pw = Math.round(A.w * g);
+        cands.push({ player: { x: A.x, y: A.y, w: pw, h: A.h }, rival: { x: A.x + pw + 6, y: A.y, w: A.w - pw - 6, h: Math.round(A.h * 0.62) }, side: true });
+      }
+      let best = null;
+      for (const c of cands) {
+        const gp = fit(c.player, false), gr = fit(c.rival, true);
+        let score = gp.ts + 0.45 * gr.ts - (gr.ts < gp.ts * 0.42 ? 1000 : 0);
+        if (!best || score > best.score) best = { ...c, gp, gr, score };
+      }
+      L.rival = best.rival; L.player = best.player; L.side = !!best.side;
+      // leftover space under the rival panel (side-by-side) becomes a duel info panel
+      if (best.side) { const rb = best.gr.y + best.gr.h + 16; const ih = A.y + A.h - rb; if (ih > 110) L.info = { x: best.rival.x + 6, y: rb, w: best.rival.w - 12, h: Math.min(ih, 360) }; }
+      else { const pr = best.gp.x + best.gp.w + 18; const iw = A.x + A.w - pr; if (iw > 150) L.info = { x: pr, y: best.gp.y, w: Math.min(iw, 320), h: best.gp.h }; }
       L.strip = { x: 10, y: H - stripH - 4, w: areaW - 20, h: stripH };
       L.hud = { x: areaW, y: 0, w: hudW, h: H };
       this.hk = k; this.hox = areaW;
       L.hudD = { x: 0, y: 0, w: hudW / k, h: H / k }; // HUD design space
+      this.geo = [best.gp, best.gr];
     } else {
       this.hk = 1; this.hox = 0;
       const hudH = clamp(H * 0.25, 170, 260);
@@ -58,21 +86,17 @@ export class MatchView {
       const stripH = 34;
       const avail = H - hudH - topH - stripH - 8;
       L.top = { x: 0, y: 0, w: W, h: topH };
-      L.rival = { x: 6, y: topH, w: W - 12, h: avail * 0.36 };
-      L.player = { x: 6, y: topH + avail * 0.36 + 4, w: W - 12, h: avail * 0.64 - 4 };
+      L.rival = { x: 4, y: topH, w: W - 8, h: avail * 0.36 };
+      L.player = { x: 4, y: topH + avail * 0.36 + 2, w: W - 8, h: avail * 0.64 - 2 };
       L.strip = { x: 6, y: L.player.y + L.player.h + 2, w: W - 12, h: stripH };
       L.hud = { x: 0, y: H - hudH, w: W, h: hudH };
+      this.geo = [fit(L.player, false), fit(L.rival, true)];
     }
-    // board geometry
-    const fit = (rect, mirror) => {
-      const ts = Math.floor(Math.min(rect.w / map.cols, rect.h / map.rows));
-      const w = ts * map.cols, h = ts * map.rows;
-      return { x: Math.round(rect.x + (rect.w - w) / 2), y: Math.round(rect.y + (rect.h - h) / 2), ts, w, h, cols: map.cols, rows: map.rows, mirror };
-    };
-    this.geo = [fit(L.player, false), fit(L.rival, true)];
     this.L = L;
     this.buildButtons();
   }
+  boardRect(si) { const g = this.geo[si]; return { x: g.x - 8, y: g.y - 8 - (g.mirror ? Math.round(g.ts * 0.2) : 0), w: g.w + 16, h: g.h + 16 + (g.mirror ? Math.round(g.ts * 0.2) : 0) }; }
+  layoutRects() { const L = this.L; return { player: this.boardRect(0), rival: this.boardRect(1), hud: this.land ? { x: L.hud.x + 4, y: 0, w: L.hud.w - 4, h: L.hud.h } : L.hud, strip: L.strip, top: L.top || null, info: L.info || null }; }
   toScreen(side, x, y) { const g = this.geo[side]; return [g.x + x * g.ts, g.y + (g.mirror ? g.rows - y : y) * g.ts]; }
   cellRect(side, c) { const g = this.geo[side]; const [sx, sy] = this.toScreen(side, c.col + (g.mirror ? 0 : 0), g.mirror ? c.row + 1 : c.row); return { x: sx, y: sy, w: g.ts, h: g.ts }; }
   cellAt(px, py) {
@@ -185,14 +209,14 @@ export class MatchView {
           this.fx.push({ k: 'rays', x: tx, y: ty, t: -0.45, dur: 1.2, r: g.ts * 2.4, col: h.color });
           setTimeout(() => this.burst(tx, ty, 40, '#ffe066', g.ts * 0.12), 520);
           if (me) {
-            A.play('spell'); this.shake = Math.max(this.shake, 8);
-            this.banner(e.level > 1 ? `${h.word} levels up! ★${e.level}` : `${h.word} joins the legion!`, h.color, 2.2, 0.5, h);
+            A.play('spell'); A.voice(h.id); this.shake = Math.max(this.shake, 8); this.cutin(h, e.level > 1 ? `${h.word} ★${e.level}` : h.word);
+
           } else this.banner(`Rival spelled ${h.word}!`, '#ffb3bb', 1.4, 0.4);
           break;
         }
         case 'skill': {
           const h = HERO_BY_ID[e.hero]; const [cx, cy] = this.toScreen(sideIdx, e.x, e.y);
-          if (me) A.play(e.hero === 'MAGE' ? 'meteor' : 'skill');
+          if (me) { A.play(e.hero === 'MAGE' ? 'meteor' : 'skill'); const last = this.lastCut[e.hero] || -99; if (this.time - last > 30) this.cutin(h, h.skill.toUpperCase() + '!'); }
           if (e.hero === 'MAGE') for (const t of e.targets) { const [x, y] = this.toScreen(sideIdx, t.x, t.y); this.fx.push({ k: 'meteor', x, y, t: 0, dur: 0.55, s: g.ts }); }
           else if (e.hero === 'HAWK') { for (const t of e.targets) { const [x, y] = this.toScreen(sideIdx, t.x, t.y); this.fx.push({ k: 'rain', x, y, t: -Math.random() * 0.25, dur: 0.35, s: g.ts }); } }
           else if (e.hero === 'NINJA') e.targets.forEach((t, i) => { const [x, y] = this.toScreen(sideIdx, t.x, t.y); this.fx.push({ k: 'cross', x, y, t: -i * 0.07, dur: 0.25, r: g.ts * 0.5, col: '#c99cff' }); });
@@ -215,6 +239,30 @@ export class MatchView {
         case 'item': if (me) { A.play(e.id === 'frost' ? 'freeze' : e.id === 'bomb' ? 'meteor' : 'skill'); this.banner(ITEM_BY_ID[e.id].name + '!', '#bfe9ff', 1.2, 0.3); if (e.id === 'bomb') { this.shake = 12; this.flash = 0.25; } if (e.id === 'frost') this.fx.push({ k: 'frostscreen', t: 0, dur: e.v }); } break;
       }
     }
+  }
+  cutin(h, label) { this.lastCut[h.id] = this.time; this.cuts = [{ h, label, t: 0, dur: 1.25 }]; }
+  drawCutins(dt) {
+    const im = IMG.cutins; if (!im || !this.cuts.length) return;
+    const g = this.g; const c = this.cuts[0]; c.t += dt; if (c.t > c.dur) { this.cuts.length = 0; return; }
+    const p = c.t / c.dur; const geo = this.geo[0];
+    const ph = clamp(geo.h * 0.42, 90, 260), pw = ph * 16 / 9 * 1.25;
+    const cx = geo.x + geo.w / 2, cy = geo.y + geo.h * 0.38;
+    const slide = p < 0.18 ? 1 - easeOut(p / 0.18) : p > 0.82 ? -easeOut((p - 0.82) / 0.18) : 0;
+    const x = cx - pw / 2 + slide * (this.W * 0.8);
+    g.save(); g.globalAlpha = p > 0.85 ? 1 - (p - 0.85) / 0.15 : 1;
+    // dark band
+    g.fillStyle = 'rgba(10,6,24,0.55)'; g.fillRect(0, cy - ph / 2 - 8, this.W, ph + 16);
+    g.beginPath(); const sk = ph * 0.25;
+    g.moveTo(x + sk, cy - ph / 2); g.lineTo(x + pw + sk, cy - ph / 2); g.lineTo(x + pw - sk, cy + ph / 2); g.lineTo(x - sk, cy + ph / 2); g.closePath();
+    g.save(); g.clip();
+    const i = c.h.portrait; const zoom = 1 + p * 0.08;
+    g.drawImage(im, i * 480, 0, 480, 270, x - pw * (zoom - 1) / 2 - sk, cy - ph / 2 - ph * (zoom - 1) / 2, pw * zoom + sk * 2, ph * zoom);
+    g.restore();
+    g.lineWidth = 4; g.strokeStyle = c.h.color; g.stroke();
+    const fs = ph * 0.26; g.font = `${fs}px ${FONT}`; g.textAlign = 'right'; g.textBaseline = 'alphabetic';
+    g.lineWidth = fs * 0.14; g.strokeStyle = '#26160b'; g.strokeText(c.label, x + pw - sk * 0.2, cy + ph / 2 - fs * 0.25);
+    g.fillStyle = '#fff3b0'; g.fillText(c.label, x + pw - sk * 0.2, cy + ph / 2 - fs * 0.25);
+    g.restore();
   }
   text(x, y, s, col, size) { this.texts.push({ x, y, s, col, size: Math.max(11, size), t: 0, dur: 0.9 }); }
   burst(x, y, n, col, sz) {
@@ -243,8 +291,10 @@ export class MatchView {
     this.drawFx(dt);
     g.restore();
     this.drawStrip();
+    if (this.L.info) this.drawInfo();
     this.drawHud(dt);
     this.drawDrag();
+    this.drawCutins(dt);
     this.drawBanners(dt);
     if (this.flash > 0) { g.fillStyle = `rgba(255,40,60,${this.flash * 0.5})`; g.fillRect(0, 0, this.W, this.H); this.flash -= dt; }
     const frost = this.fx.find(f => f.k === 'frostscreen');
@@ -308,10 +358,10 @@ export class MatchView {
     { const w = map.ward; const [x, y] = this.toScreen(si, w.x, w.y); const sad = this.wardSad[si] > 0;
       this.wardSad[si] = Math.max(0, this.wardSad[si] - dt);
       const idx = (si === 0 ? 0 : 2) + (sad || side.lives <= 1 ? 1 : 0);
-      const h = ts * 1.75; const bob = sad ? Math.sin(this.time * 30) * 2 : 0;
-      if (!drawStrip(g, 'wards', idx, x + bob, y + ts * 0.45, h, { anchor: 'bottom' })) { g.fillStyle = '#aaa'; g.fillRect(x - ts / 2, y - ts / 2, ts, ts); }
-      // lives hearts above castle
-      this.drawHearts(x, y - h + ts * 0.35, side.lives, side.maxLives, Math.max(9, ts * 0.2), true);
+      const mir = geo.mirror; const h = ts * (mir ? 1.4 : 1.75); const bob = sad ? Math.sin(this.time * 30) * 2 : 0;
+      const baseY = mir ? y - ts * 0.7 + h : y + ts * 0.45; // rival castle hangs from the top edge of its board
+      if (!drawStrip(g, 'wards', idx, x + bob, baseY, h, { anchor: 'bottom' })) { g.fillStyle = '#aaa'; g.fillRect(x - ts / 2, y - ts / 2, ts, ts); }
+      this.drawHearts(x, mir ? baseY + ts * 0.05 : y - h + ts * 0.35, side.lives, side.maxLives, Math.max(9, ts * 0.2), true);
     }
     // units
     for (const c of side.cells) if (c.unit && !(dragSrc && dragSrc.cell === c.id)) this.drawUnit(si, c, c.unit);
@@ -323,8 +373,9 @@ export class MatchView {
     if (si === 1) { // label
       g.font = `bold ${clamp(ts * 0.3, 11, 16)}px ${FONT2}`; g.textAlign = 'left'; g.textBaseline = 'top';
       const lbl = `CPU RIVAL · ${this.ctl.rival.name}`; const tw = g.measureText(lbl).width;
-      rr(g, geo.x - 6, geo.y - 6, tw + 16, 22, 8); g.fillStyle = 'rgba(120,20,30,0.85)'; g.fill();
-      g.fillStyle = '#fff'; g.fillText(lbl, geo.x + 2, geo.y - 2);
+      const lx = geo.x + geo.w - tw - 10;
+      rr(g, lx - 8, geo.y - 6, tw + 16, 22, 8); g.fillStyle = 'rgba(120,20,30,0.85)'; g.fill();
+      g.fillStyle = '#fff'; g.fillText(lbl, lx, geo.y - 2);
     } else {
       g.font = `bold ${clamp(ts * 0.3, 11, 16)}px ${FONT2}`; g.textAlign = 'left'; g.textBaseline = 'top';
       const lbl = 'YOU · Prince Pip'; const tw = g.measureText(lbl).width;
@@ -418,19 +469,22 @@ export class MatchView {
       // aura
       g.globalCompositeOperation = 'lighter'; const grd = g.createRadialGradient(0, 0, R * 0.5, 0, 0, R * 1.35);
       grd.addColorStop(0, h.color + 'aa'); grd.addColorStop(1, h.color + '00'); g.fillStyle = grd; g.beginPath(); g.arc(0, 0, R * 1.35, 0, TAU); g.fill(); g.globalCompositeOperation = 'source-over';
-      g.save(); g.beginPath(); g.arc(0, -R * 0.05, R * 0.92, 0, TAU); g.fillStyle = '#2a1a40'; g.fill(); g.clip();
-      drawStrip(g, 'heroes', h.portrait, 0, -R * 0.05, R * 2.1);
-      g.restore();
-      g.lineWidth = Math.max(3, R * 0.12); g.strokeStyle = '#ffd24a'; g.beginPath(); g.arc(0, -R * 0.05, R * 0.92, 0, TAU); g.stroke();
+      // golden pedestal + full-body hero sprite
+      g.fillStyle = 'rgba(80,40,0,0.35)'; g.beginPath(); g.ellipse(0, R * 0.62, R * 0.8, R * 0.22, 0, 0, TAU); g.fill();
+      g.strokeStyle = '#ffd24a'; g.lineWidth = Math.max(2, R * 0.08); g.beginPath(); g.ellipse(0, R * 0.62, R * 0.8, R * 0.22, 0, 0, TAU); g.stroke();
+      const hop = atk ? -Math.sin(p * Math.PI) * R * 0.15 : 0;
+      if (!drawStrip(g, 'heroes_full', h.portrait, 0, R * 0.7 + hop, R * 2.15, { anchor: 'bottom', flip: ax < -0.3 })) {
+        g.save(); g.beginPath(); g.arc(0, -R * 0.05, R * 0.92, 0, TAU); g.clip(); drawStrip(g, 'heroes', h.portrait, 0, -R * 0.05, R * 2.1); g.restore();
+      }
       // name plate
       g.font = `${Math.max(9, R * 0.42)}px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
       const tw = g.measureText(h.word).width + R * 0.4;
-      rr(g, -tw / 2, R * 0.58, tw, R * 0.5, R * 0.2); g.fillStyle = '#7a3a08'; g.fill(); g.strokeStyle = '#ffd24a'; g.lineWidth = 2; g.stroke();
-      g.fillStyle = '#fff3c4'; g.fillText(h.word, 0, R * 0.84);
+      rr(g, -tw / 2, R * 0.66, tw, R * 0.46, R * 0.2); g.fillStyle = '#7a3a08'; g.fill(); g.strokeStyle = '#ffd24a'; g.lineWidth = 2; g.stroke();
+      g.fillStyle = '#fff3c4'; g.fillText(h.word, 0, R * 0.9);
       // stars
-      for (let i = 0; i < u.level; i++) { g.fillStyle = '#ffe066'; this.star((i - (u.level - 1) / 2) * R * 0.38, -R * 0.98, R * 0.16); }
+      for (let i = 0; i < u.level; i++) { g.fillStyle = '#ffe066'; this.star((i - (u.level - 1) / 2) * R * 0.38, -R * 1.5, R * 0.16); }
       // skill cooldown ring
-      if (u.skillMax) { const f = 1 - clamp(u.skillCd / u.skillMax, 0, 1); g.strokeStyle = 'rgba(255,255,255,0.85)'; g.lineWidth = 3; g.beginPath(); g.arc(0, -R * 0.05, R * 1.02, -Math.PI / 2, -Math.PI / 2 + f * TAU); g.stroke(); }
+      if (u.skillMax) { const f = 1 - clamp(u.skillCd / u.skillMax, 0, 1); g.strokeStyle = 'rgba(255,255,255,0.85)'; g.lineWidth = 3; g.beginPath(); g.ellipse(0, R * 0.62, R * 0.95, R * 0.3, 0, -Math.PI / 2, -Math.PI / 2 + f * TAU); g.stroke(); }
       // KING aura radius
       if (u.heroId === 'KING') { g.strokeStyle = 'rgba(255,210,74,0.35)'; g.setLineDash([4, 6]); g.lineWidth = 2; g.beginPath(); g.arc(0, 0, ts * 1.9 / sc, 0, TAU); g.stroke(); g.setLineDash([]); }
     }
@@ -447,16 +501,18 @@ export class MatchView {
     const g = this.g, ts = this.geo[si].ts;
     const [x, y] = this.toScreen(si, e.x, e.y);
     const boss = e.type === 'boss';
-    const h = ts * e.size * (boss ? 1.35 : 1.15);
+    const h = Math.max(ts * e.size * (boss ? 1.6 : 1.42), boss ? 44 : 30);
     const fly = e.type === 'bat' || e.type === 'wisp';
     const bob = fly ? Math.sin(this.time * 8 + e.id) * ts * 0.06 : -Math.abs(Math.sin(this.time * 9 * e.speed + e.id)) * ts * 0.05;
     const squash = e.type === 'slime' || e.type === 'baby' ? 1 + 0.08 * Math.sin(this.time * 10 + e.id) : 1;
     g.fillStyle = 'rgba(0,0,0,0.25)'; g.beginPath(); g.ellipse(x, y + h * 0.32, h * 0.3, h * 0.08, 0, 0, TAU); g.fill();
     const flip = e.dir < 0;
-    g.save(); g.translate(x, y + h * 0.35 + bob); g.scale(1 / squash, squash);
     const frozen = this.match.sides[si].freezeT > 0 || e.stunT > 0;
-    drawStrip(g, boss ? 'bosses' : 'enemies', e.sprite, 0, 0, h, { flip, anchor: 'bottom' });
-    if (e.hitT > 0) drawStrip(g, boss ? 'bosses' : 'enemies', e.sprite, 0, 0, h, { flip, anchor: 'bottom', flash: true, alpha: 0.6 });
+    g.save(); g.translate(x, y + h * 0.35 + bob); g.scale(1 / squash, squash);
+    const walkB = (Math.floor(this.time * (4 + 3 * e.speed) + e.id * 0.37) & 1) === 1;
+    const strip = boss ? (e.castT > 0 ? 'bosses_atk' : 'bosses') : (walkB && !frozen ? 'enemies_b' : 'enemies');
+    drawStrip(g, strip, e.sprite, 0, 0, h, { flip, anchor: 'bottom' });
+    if (e.hitT > 0) drawStrip(g, strip, e.sprite, 0, 0, h, { flip, anchor: 'bottom', flash: true, alpha: 0.6 });
     g.restore();
     if (frozen) { g.fillStyle = e.stunT > 0 && this.match.sides[si].freezeT <= 0 ? '#ffe066' : '#bfe9ff'; for (let i = 0; i < 3; i++) { const a = this.time * 4 + i * 2.1; this.star(x + Math.cos(a) * h * 0.3, y - h * 0.55 + Math.sin(a) * h * 0.08, h * 0.07); } }
     if (e.slowT > 0) { g.strokeStyle = 'rgba(255,190,100,0.8)'; g.lineWidth = 2; g.beginPath(); g.ellipse(x, y + h * 0.3, h * 0.35, h * 0.1, 0, 0, TAU); g.stroke(); }
@@ -514,6 +570,43 @@ export class MatchView {
     g.globalAlpha = 1;
   }
 
+  drawInfo() {
+    const g = this.g, r = this.L.info, m = this.match, [me, riv] = m.sides;
+    this.panel(r, 'rgba(20,16,40,0.8)');
+    const fs = clamp(r.w / 22, 11, 18);
+    g.textAlign = 'left'; g.textBaseline = 'top';
+    let y = r.y + 10;
+    g.font = `${fs * 1.1}px ${FONT}`; g.fillStyle = '#ffd24a'; g.fillText('DUEL', r.x + 12, y); y += fs * 1.7;
+    const rows = [['', 'YOU', 'CPU'], ['Lives', `♥ ${me.lives}`, `♥ ${riv.lives}`], ['Kills', me.stats.kills, riv.stats.kills], ['Heroes', me.stats.heroes, riv.stats.heroes], ['Best letter', 'Lv ' + me.stats.maxLevel, 'Lv ' + riv.stats.maxLevel]];
+    const c1 = r.x + 12, c2 = r.x + r.w * 0.52, c3 = r.x + r.w * 0.78;
+    for (const [i, row] of rows.entries()) {
+      if (y + fs > r.y + r.h - 8) break;
+      g.font = i === 0 ? `bold ${fs * 0.8}px ${FONT2}` : `bold ${fs}px ${FONT2}`;
+      g.fillStyle = '#b9b2dc'; g.textAlign = 'left'; g.fillText(row[0], c1, y);
+      g.textAlign = 'center'; g.fillStyle = i === 0 ? '#7fd7ff' : '#fff'; g.fillText(String(row[1]), c2, y);
+      g.fillStyle = i === 0 ? '#ffb3bb' : '#fff'; g.fillText(String(row[2]), c3, y);
+      y += fs * 1.45;
+    }
+    // next wave preview
+    const nw = m.previewWave ? m.previewWave() : null;
+    if (nw && y + fs * 4 < r.y + r.h) {
+      y += fs * 0.4; g.textAlign = 'left'; g.font = `${fs}px ${FONT}`; g.fillStyle = nw.isBoss ? '#ff6b5e' : '#ffd24a';
+      g.fillText(nw.isBoss ? `NEXT: WAVE ${nw.w} · BOSS` : `NEXT: WAVE ${nw.w}`, c1, y); y += fs * 1.6;
+      const counts = {}; let boss = null;
+      for (const sp of nw.list) { if (sp.type === 'boss') boss = sp.boss; else counts[sp.type] = (counts[sp.type] || 0) + 1; }
+      const isz = clamp(r.w / 7, 26, 52); let x = c1;
+      const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+      if (boss !== null) entries.unshift(['boss', 1]);
+      for (const [t, n] of entries) {
+        if (x + isz > r.x + r.w - 6) { x = c1; y += isz + fs; }
+        if (y + isz > r.y + r.h - 4) break;
+        if (t === 'boss') drawStrip(g, 'bosses', boss, x + isz / 2, y + isz, isz * 1.1, { anchor: 'bottom' });
+        else drawStrip(g, 'enemies', ENEMIES[t].sprite, x + isz / 2, y + isz, isz, { anchor: 'bottom' });
+        g.font = `bold ${fs * 0.85}px ${FONT2}`; g.fillStyle = '#fff'; g.textAlign = 'center'; g.fillText(t === 'boss' ? BOSSES[boss].name.split(' ').pop() : '×' + n, x + isz / 2, y + isz + 2);
+        g.textAlign = 'left'; x += isz + 8;
+      }
+    }
+  }
   drawStrip() {
     const g = this.g, S = this.L.strip, side = this.match.sides[0];
     rr(g, S.x, S.y, S.w, S.h, 10); g.fillStyle = 'rgba(20,16,40,0.72)'; g.fill();
@@ -697,15 +790,16 @@ export class MatchView {
     for (const b of this.banners) b.t += dt;
     this.banners = this.banners.filter(b => b.t < b.dur);
     let y = this.geo[0].y + this.geo[0].ts * 0.55;
-    const cx = this.land ? (this.L.hud.x) / 2 : this.W / 2;
+    const cx = this.geo[0].x + this.geo[0].w / 2;
     for (const b of this.banners) {
       if (b.t < 0) continue;
       const p = b.t / b.dur;
       const a = p < 0.12 ? p / 0.12 : p > 0.8 ? (1 - p) / 0.2 : 1;
       const s = p < 0.12 ? 0.7 + 0.3 * easeOut(p / 0.12) : 1;
-      const fs = clamp(this.W * 0.032, 18, 38) * (b.hero ? 1.25 : 1);
+      let fs = clamp(this.geo[0].ts * 0.42, 16, 34) * (b.hero ? 1.2 : 1);
+      g.font = `${fs}px ${FONT}`; let tw = g.measureText(b.text).width;
+      const maxW = this.geo[0].w * 0.8; if (tw > maxW) { fs *= maxW / tw; g.font = `${fs}px ${FONT}`; tw = g.measureText(b.text).width; }
       g.save(); g.globalAlpha = a; g.translate(cx, y); g.scale(s, s);
-      g.font = `${fs}px ${FONT}`; const tw = g.measureText(b.text).width;
       const ph = b.hero ? fs * 2.4 : fs * 1.5;
       rr(g, -tw / 2 - fs * (b.hero ? 2.4 : 0.8), -ph / 2, tw + fs * (b.hero ? 3.2 : 1.6), ph, ph * 0.3);
       g.fillStyle = 'rgba(20,12,40,0.82)'; g.fill(); g.strokeStyle = b.col; g.lineWidth = 3; g.stroke();

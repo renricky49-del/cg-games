@@ -553,7 +553,7 @@ export class Side {
       if (e.hitT > 0) e.hitT -= dt;
       if (e.dotT > 0) { e.dotT -= dt; this.damage(e, e.dot * dt, true, null); if (e.hp <= 0) continue; }
       if (e.type === 'wisp') e.hp = Math.min(e.maxHp, e.hp + e.maxHp * ENEMIES.wisp.regen * dt);
-      if (e.type === 'boss') { e.abilityT -= dt; if (e.abilityT <= 0) { e.abilityT = BOSSES[e.boss].abilityCd; this.bossAbility(e); } }
+      if (e.type === 'boss') { if (e.castT > 0) e.castT -= dt; e.abilityT -= dt; if (e.abilityT <= 0) { e.abilityT = BOSSES[e.boss].abilityCd; e.castT = 0.8; this.bossAbility(e); } }
       let sp = e.speed;
       if (e.slowT > 0) { e.slowT -= dt; sp *= e.slowF; }
       if (e.stunT > 0) { e.stunT -= dt; sp = 0; }
@@ -587,9 +587,15 @@ export class Match {
     this.state = 'running'; this.winner = -1; this.endReason = '';
     this.sides = [new Side(this, 0, player), new Side(this, 1, rival)];
     this.tutorialHold = false; // tutorial can pause wave progression
+    this.plan = {}; // pre-rolled waves so the next one can be previewed
     this.events = [];
   }
   get finalWave() { return this.mapDef.waves; }
+  getPlan(w) {
+    if (!this.plan[w]) { const r = new RNG(this.seed * 7919 + w * 104729); this.plan[w] = makeWave(w, r, this.mapDef, 0); }
+    return this.plan[w];
+  }
+  previewWave() { const w = this.wave + 1; if (w > this.finalWave) return null; return this.getPlan(w); }
   timeToNextWave() { return this.curWave ? Math.max(0, this.curWave.dur - this.waveT) : Math.max(0, -this.waveT); }
   onLeak(side) {
     if (this.overtime > 0 && this.state === 'running') {
@@ -606,7 +612,7 @@ export class Match {
     this.wave++;
     const isOver = this.wave > this.finalWave;
     if (isOver) this.overtime++;
-    this.curWave = makeWave(this.wave, this.rng, this.mapDef, this.overtime);
+    this.curWave = this.overtime ? makeWave(this.wave, this.rng, this.mapDef, this.overtime) : this.getPlan(this.wave);
     this.spawnIdx = 0; this.waveT = 0;
     const bonus = 20 + 8 * this.wave;
     for (const s of this.sides) { s.ink += bonus; s.emit({ t: 'wave', w: this.wave, boss: this.curWave.isBoss, ink: bonus, overtime: this.overtime }); }

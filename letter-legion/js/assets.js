@@ -2,6 +2,9 @@
 export const IMG = {};
 export const STRIPS = {
   enemies: { file: 'enemies.webp', size: 128 },
+  enemies_b: { file: 'enemies_b.webp', size: 128 },
+  bosses_atk: { file: 'bosses_atk.webp', size: 224 },
+  heroes_full: { file: 'heroes_full.webp', size: 192 },
   bosses: { file: 'bosses.webp', size: 224 },
   wards: { file: 'wards.webp', size: 256 },
   heroes: { file: 'heroes.webp', size: 192 },
@@ -23,10 +26,11 @@ export async function loadAll(onProgress) {
   for (const [k, s] of Object.entries(STRIPS)) jobs.push(['strip_' + k, 'assets/img/' + s.file]);
   for (const m of MAPS) jobs.push(['map_' + m, 'assets/img/map_' + m + '.webp']);
   jobs.push(['keyart', 'assets/img/keyart.webp']);
+  jobs.push(['cutins', 'assets/img/cutins.webp']);
   let done = 0;
   await Promise.all(jobs.map(async ([k, src]) => { IMG[k] = await load(src); done++; onProgress && onProgress(done / jobs.length); }));
   // white silhouettes for hit flashes
-  for (const k of ['enemies', 'bosses']) {
+  for (const k of ['enemies', 'bosses', 'enemies_b', 'bosses_atk']) {
     const im = IMG['strip_' + k]; if (!im) continue;
     const c = document.createElement('canvas'); c.width = im.width; c.height = im.height;
     const g = c.getContext('2d'); g.drawImage(im, 0, 0); g.globalCompositeOperation = 'source-atop'; g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);

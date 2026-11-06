@@ -39,9 +39,9 @@ js/save.js          profile (coins/XP/level/ladder/weapons/loadout/daily board),
 js/cg.js            CrazyGames SDK v3 adapter with a standalone fallback (fake 1 s ad overlay, localStorage)
 js/audio.js         WebAudio-synthesized SFX + looping music, with mute handling for ads and SDK settings
 js/assets.js        image loading, sprite strips, hit-flash silhouettes
-assets/img          WebP sprite strips (enemies, bosses, wards, heroes, weapons, items, rivals), 4 map grounds, key art
+assets/img          WebP sprite strips: enemies + walk frame B, bosses + attack poses, wards, hero portraits + full-body sprites, skill cut-ins, weapons, items, rivals; 4 map grounds; key art
 assets/fonts        Titan One + Fredoka (SIL OFL, licence files included)
-assets/audio        music.mp3 (generated, loop-crossfaded)
+assets/audio        battle loop (music.mp3) + menu loop (menu.mp3), win/lose stingers, 6 sampled SFX, 8 hero voice barks (all generated). Synthesized WebAudio SFX are the fallback and cover everything else
 store/              covers, screenshots, description.md, ASSET_LOG.md
 tests/              Playwright + Node test scripts (see below)
 ```
@@ -64,7 +64,9 @@ These need a static server on port 8123 (see above). Chromium and Playwright are
 - `node tests/fullmatch.cjs both`: one full ladder **win** and one full **loss** through the real UI, checking the rewards and the ladder progress.
 - `node tests/perf.cjs`: a long soak test (Crimson Bay, 1× then 4×) that samples FPS and JS heap size.
 - `node tests/smoke.cjs`: load, title, hub, pre-match, match screenshots and a console-error check.
+- `node tests/layout.cjs`: checks that no board, HUD, spell strip or info panel overlaps another, across 1280x720, 1920x1080, 1366x768 and iPhone portrait/landscape, on all 4 maps. Saves screenshots.
 - `tests/glyphs.html`: a visual sheet of every letter, level and attack pose.
+- `node tests/store_shots.cjs`: regenerates the 1920×1080 store screenshots.
 
 ## Design notes & decisions
 - **Originality.** I reskinned the genre as a fantasy kingdom of letter soldiers. All names are new: Prince Pip, Princess Pom, the 9 rivals, the 8 heroes and the 4 maps. All art was generated fresh in one consistent storybook style, anchored on the key art. The title was checked on CrazyGames and no game uses it.
@@ -77,4 +79,5 @@ These need a static server on port 8123 (see above). Chromium and Playwright are
 - **Meta.** Coins, XP and level persist. Weapon drops come in five rarities, one weapon per hero: +damage, faster skill, and a skill upgrade at Epic and Legendary. Common to Rare weapons can be sold. The shop has 4 random offers that refresh after every battle, with a reroll for coins or a rewarded ad. The loadout holds 2 active and 3 passive items, and buying into a full loadout asks which item to discard. **Daily Duel**: the map, seed, buff and rival of the day come from a hash of the date. The day's buff also applies to all other battles that day. The best score per day is kept, along with a 14-day **local** board and personal bests per map. Nothing pretends to be an online leaderboard.
 - **Tutorial.** It uses a scripted summon order (S, S, then golden K-I-N-G). Waves are held until the player has summoned, deployed, merged and spelled their first hero, then the match continues against a passive practice rival for 6 waves.
 - **Input.** Desktop mouse first: hover highlights, tooltips for every unit and button, pointer and grab cursors, and drop-target colours (blue = move, green = merge). Touch works with the same drag flow. Keyboard shortcuts are optional.
-- **Layout.** Landscape puts the HUD in a side panel, scaled for short screens such as phones in landscape. Portrait puts the HUD at the bottom. The rival board is mirrored and smaller.
+- **Layout.** In landscape, the game tries both stacked and side-by-side arrangements of your board and the rival's mirrored, smaller board. It keeps whichever gives the biggest readable tiles. Leftover space becomes a duel panel with a live scoreboard and a next-wave preview of enemy icons. The HUD sits in a side panel drawn in its own design space, scaled 0.5×–1.5× so it fits phones in landscape and 1080p alike. Portrait puts the HUD at the bottom. `tests/layout.cjs` checks automatically that nothing overlaps.
+- **Juice.** Enemies alternate two walk frames, bosses switch to an attack pose when they use an ability, and heroes stand on the board as full-body sprites. Spelling a hero, and its first skill cast each 30 s, triggers a sliding cut-in splash plus an announcer voice shouting the hero's name. Music crossfades between the menu and battle tracks.
