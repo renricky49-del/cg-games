@@ -16,7 +16,7 @@ const OUT = __dirname + '/../store/screenshots/';
     ctl.update = dt => { const n = ctl.match.sides[0].stats.heroes; if (!ctl.paused) br.update(dt * ctl.speed); o(dt); if (ctl.match.sides[0].stats.heroes > n) window.__spelled = performance.now(); }; ctl.speed = 3; });
   console.log('match started'); // wait for a hero spell moment
   for (let i = 0; i < 90; i++) { await p.waitForTimeout(1000); const st = await p.evaluate(() => ({ s: window.__spelled, t: __LL.ctl.match.time | 0, fps: Math.round(window.__fps), h: __LL.ctl.match.sides[0].stats.heroes })); if (i % 5 === 0) console.log(JSON.stringify(st)); if (st.s > 0) break; }
-  await p.evaluate(() => { __LL.ctl.speed = 1; }); await p.waitForTimeout(650);
+  await p.evaluate(() => { __LL.ctl.speed = 1; }); await p.waitForTimeout(450);
   await p.screenshot({ path: OUT + '2_spell_hero.jpg', quality: 88 });
   await p.evaluate(() => { __LL.ctl.speed = 3; }); await p.waitForTimeout(25000);
   await p.evaluate(() => { __LL.ctl.speed = 1; }); await p.waitForTimeout(1200);

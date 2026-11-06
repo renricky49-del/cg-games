@@ -243,7 +243,7 @@ export class MatchView {
   cutin(h, label) { this.lastCut[h.id] = this.time; this.cuts = [{ h, label, t: 0, dur: 1.25 }]; }
   drawCutins(dt) {
     const im = IMG.cutins; if (!im || !this.cuts.length) return;
-    const g = this.g; const c = this.cuts[0]; c.t += dt; if (c.t > c.dur) { this.cuts.length = 0; return; }
+    const g = this.g; const c = this.cuts[0]; c.t += dt / ((this.ctl && this.ctl.speed) || 1); if (c.t > c.dur) { this.cuts.length = 0; return; }
     const p = c.t / c.dur; const geo = this.geo[0];
     const ph = clamp(geo.h * 0.42, 90, 260), pw = ph * 16 / 9 * 1.25;
     const cx = geo.x + geo.w / 2, cy = geo.y + geo.h * 0.38;
@@ -251,7 +251,7 @@ export class MatchView {
     const x = cx - pw / 2 + slide * (this.W * 0.8);
     g.save(); g.globalAlpha = p > 0.85 ? 1 - (p - 0.85) / 0.15 : 1;
     // dark band
-    g.fillStyle = 'rgba(10,6,24,0.55)'; g.fillRect(0, cy - ph / 2 - 8, this.W, ph + 16);
+    g.fillStyle = 'rgba(10,6,24,0.55)'; g.fillRect(geo.x - 8, cy - ph / 2 - 8, geo.w + 16, ph + 16);
     g.beginPath(); const sk = ph * 0.25;
     g.moveTo(x + sk, cy - ph / 2); g.lineTo(x + pw + sk, cy - ph / 2); g.lineTo(x + pw - sk, cy + ph / 2); g.lineTo(x - sk, cy + ph / 2); g.closePath();
     g.save(); g.clip();
