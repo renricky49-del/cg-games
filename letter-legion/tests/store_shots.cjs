@@ -15,8 +15,8 @@ const OUT = __dirname + '/../store/screenshots/';
   await p.evaluate(async () => { const mod = await import('./js/ai.js'); const ctl = __LL.ctl; const br = new mod.CpuBrain(ctl.match.sides[0], { think: 0.4, skill: 1, spell: 5, mistakes: 0 }); const o = ctl.update.bind(ctl); window.__spelled = 0; ctl.match.sides[0].script = ['S','gold:M','B','gold:A','S','L','gold:G','K','gold:E','B','S','gold:K','gold:I','L','gold:N','gold:G'];
     ctl.update = dt => { const n = ctl.match.sides[0].stats.heroes; if (!ctl.paused) br.update(dt * ctl.speed); o(dt); if (ctl.match.sides[0].stats.heroes > n) window.__spelled = performance.now(); }; ctl.speed = 3; });
   console.log('match started'); // wait for a hero spell moment
-  for (let i = 0; i < 90; i++) { await p.waitForTimeout(1000); const st = await p.evaluate(() => ({ s: window.__spelled, t: __LL.ctl.match.time | 0, fps: Math.round(window.__fps), h: __LL.ctl.match.sides[0].stats.heroes })); if (i % 5 === 0) console.log(JSON.stringify(st)); if (st.s > 0) break; }
-  await p.evaluate(() => { __LL.ctl.speed = 1; }); await p.waitForTimeout(450);
+  for (let i = 0; i < 900; i++) { await p.waitForTimeout(100); const st = await p.evaluate(() => ({ s: window.__spelled, t: __LL.ctl.match.time | 0, fps: Math.round(window.__fps), h: __LL.ctl.match.sides[0].stats.heroes })); if (i % 50 === 0) console.log(JSON.stringify(st)); if (st.s > 0) break; }
+  await p.evaluate(() => { __LL.ctl.speed = 1; }); await p.waitForTimeout(350);
   await p.screenshot({ path: OUT + '2_spell_hero.jpg', quality: 88 });
   await p.evaluate(() => { __LL.ctl.speed = 3; }); await p.waitForTimeout(25000);
   await p.evaluate(() => { __LL.ctl.speed = 1; }); await p.waitForTimeout(1200);
