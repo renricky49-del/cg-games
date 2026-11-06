@@ -42,6 +42,7 @@ export class CpuBrain {
         const lvl = onBoard.find(u => u.heroId === h.id)?.level || 0; if (lvl >= 3) continue;
         for (let i = 0; i + h.word.length <= run.length; i++) {
           const seg = run.slice(i, i + h.word.length);
+          if (seg.some(sc => sc.unit && sc.unit.kind === 'hero')) continue;
           let score = s.heroProgress(h) * 10 + seg.filter((sc, k) => sc.unit && sc.unit.kind === 'gold' && sc.unit.letter === h.word[k]).length * 4;
           score -= seg.filter(sc => sc.unit && sc.unit.kind === 'hero').length * 100;
           score -= seg.filter(sc => sc.unit && sc.unit.kind === 'basic').reduce((a, sc) => a + sc.unit.level, 0) * 0.6;
