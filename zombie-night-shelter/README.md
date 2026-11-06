@@ -38,7 +38,7 @@ js/main.js            App: boot, screens, save/progression, input (mouse/touch/k
 js/ui.js              HUD: resource pills, phase timer, boss card, action bar, build menu, info panels, tooltips, tutorial
 js/sim.js             Pure simulation (no DOM): survivors, rooms, doors, buildings, boss/minion AI, projectiles, results
 js/ai.js              Survivor AI: room picking + spending heuristics per personality
-js/map.js             3 apartment-floor layouts (8 rooms, some with 2 doors), tile queries
+js/map.js             3 apartment-floor layouts (4 big apartments, some with 2 doors), tile queries
 js/data.js            All tuning: economy curves, buildings, bosses, 12 nights, perks, skins, personalities
 js/render.js          Canvas renderer: pre-rendered floor layer, sprites, cracks, particles, floaters, night lighting, camera
 js/audio.js           WebAudio: music loop (file) + synthesized SFX
@@ -67,10 +67,18 @@ upgrading refills it. Repair = +35 % HP, cheap, 10 s cooldown.
 **Buildings (unlock night):** Night 1 already offers 4 weapons — Nail Gun, Crossbow (pierces armor), Fire Sprayer (burns
 everything in range), Mortar (long-range splash shells) — plus Generator, Chill Trap and Spike Trap. Vending Machine (2),
 Tesla Coil (3, chains, needs 2 power), Repair Bench (4), Signal Tower (5, fire-rate aura).
-Turret ranges are long (Nail 5.5, Crossbow 6.8, Mortar 9 tiles, +0.4/level) and each floor has 8 apartments, so your
-turrets usually reach the boss even while it attacks a neighbour (in-range 40–63 % of that time vs 9–15 % before;
+Turret ranges are long (Nail 5.5, Crossbow 6.8, Mortar 9 tiles, +0.4/level) and each floor has only 4 big apartments, so your
+turrets reach the bosses almost anywhere in the hallway (in-range 40–63 % of that time vs 9–15 % before;
 `node tools/engagement.mjs` measures it) — rooms whose doors
 are close together (shown as "close neighbours" when hovering a room in the rush) are the strongest picks.
+
+**Cooperation (4 survivors, 4 apartments):** click an ally's room to *send scrap* (35 % of yours), *repair their door*
+(+50 %, 6 game-s cooldown per door) or *reinforce their door* (pay their next door level). Survivors remember who helped
+them (`goodwill`) and pay it back by repairing that person's door when it is breaking; without goodwill each AI only gives
+one free favour per night to the player (two to other AIs), so a passive player is not carried. Allies in trouble show a
+red HELP! bubble. Every boss kill pays a team bounty (20 s of bed income to every living survivor) and patches all doors
+by 25 %. ★★ = everyone survives. `node tools/agency.mjs` compares a player who helps vs never helps: on Night 9 allies lost
+1.1 → 0.25, win 25 % → 60 %, ★★ 20 % → 60 %.
 
 **Bosses per night (count / start level):** N1 2/Lv1, N2 2/Lv2, N3 3/Lv1, N4 3/Lv2, N5 3/Lv3, N6 4/Lv1, N7 4/Lv2,
 N8 4/Lv3, N9 4/Lv4, N10 5/Lv1, N11 5/Lv2, N12 5/Lv3 (`count`, `lvl` in `NIGHTS`). Boss 1 is the night's boss, the others

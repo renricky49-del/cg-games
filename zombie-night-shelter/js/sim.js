@@ -1,6 +1,6 @@
 // Pure game simulation (no DOM). Runs in the browser and headless in Node for balance tests.
 import {
-  RUSH_TIME, GRACE_TIME, PACE, MAX_BED, MAX_DOOR, bedIncome, bedCost, bedDoorReq,
+  RUSH_TIME, GRACE_TIME, PACE, AI_COUNT, AID_FRAC, AID_FRAC_REPAIR, AID_CD, TEAM_BOUNTY_S, MAX_BED, MAX_DOOR, bedIncome, bedCost, bedDoorReq,
   doorMaxHp, doorCost, repairCost, REPAIR_FRAC, REPAIR_CD,
   BUILDINGS, upgradeCost, totalSpent, turretStats, BOSSES, bossBase, bossKinds, GROUP_HP, GROUP_DMG, HUNT_CHANCE, BOSS_LVL_HP, BOSS_LVL_DMG, bossXpNeed,
   PERSONALITIES, AI_NAMES,
@@ -49,14 +49,14 @@ export class Game {
 
     for (const r of this.map.rooms) {
       r.owner = null; r.alive = true; r.doorLvl = 1; r.bedLvl = 1; r.repairCd = 0;
-      r.buildings = []; r.hitT = 99; r.attackers = 0; r.flash = 0;
+      r.buildings = []; r.hitT = 99; r.attackers = 0; r.flash = 0; r.aidCd = 0;
       this._setDoorHpFull(r);
     }
     // survivors
     const names = AI_NAMES.filter((n) => n !== opts.playerName).sort(() => this.rng() - 0.5);
     const skins = ['s0', 's1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's10', 's11'].filter((s) => s !== (opts.skin || 's0')).sort(() => this.rng() - 0.5);
     const cx = this.map.W / 2;
-    const count = opts.aiCount != null ? opts.aiCount : 5;
+    const count = opts.aiCount != null ? opts.aiCount : AI_COUNT;
     const pers = PERSONALITIES.slice().sort(() => this.rng() - 0.5);
     for (let i = 0; i <= count; i++) {
       const isPlayer = i === 0;
@@ -179,6 +179,52 @@ export class Game {
     if (s.isPlayer) this.stats.repairs++;
     return c;
   }
+  // ---------------------------------------------------------- cooperation: helping another survivor's room
+  // kind: 'gift' (send scrap) | 'repair' (pay to patch their door) | 'reinforce' (pay their next door level)
+  canAid(s, room, kind) {
+    if (!s.room || s.state !== 'inroom' || !s.room.alive) return { ok: false, reason: 'Get to your room first' };
+    const o = room && room.owner;
+    if (!o || o === s || o.state === 'dead' || !room.alive) return { ok: false, reason: 'Nobody to help there' };
+    if (kind === 'gift') {
+      const amount = Math.max(20, Math.floor(s.scrap * AID_FRAC));
+      if (s.scrap < 20) return { ok: false, reason: 'Not enough scrap', cost: 20, poor: true };
+      return { ok: true, cost: amount, amount };
+    }
+    if (kind === 'repair') {
+      const cost = repairCost(room.doorLvl);
+      if (room.aidCd > 0) return { ok: false, reason: 'Cooling down', cost, cd: room.aidCd };
+      if (this.minDoorFrac(room) >= 0.999) return { ok: false, reason: 'Their door is full', cost, full: true };
+      if (s.scrap < cost) return { ok: false, reason: 'Not enough scrap', cost, poor: true };
+      return { ok: true, cost };
+    }
+    if (kind === 'reinforce') {
+      if (room.doorLvl >= MAX_DOOR) return { ok: false, reason: 'Max level', max: true };
+      const cost = doorCost(room.doorLvl);
+      if (s.scrap < cost) return { ok: false, reason: 'Not enough scrap', cost, poor: true };
+      return { ok: true, cost };
+    }
+    return { ok: false, reason: '?' };
+  }
+  aid(s, room, kind) {
+    const c = this.canAid(s, room, kind); if (!c.ok) return c;
+    const o = room.owner, d0 = room.doors[0];
+    s.scrap -= c.cost;
+    if (kind === 'gift') { o.scrap += c.amount; o.earned += c.amount; }
+    if (kind === 'repair') {
+      const m = this.doorMax(room); room.aidCd = AID_CD;
+      for (const d of room.doors) d.hp = Math.min(m, d.hp + m * AID_FRAC_REPAIR);
+    }
+    if (kind === 'reinforce') { room.doorLvl++; this._setDoorHpFull(room); }
+    // goodwill: survivors remember who helped them and return the favour
+    o.goodwill = o.goodwill || {};
+    o.goodwill[s.id] = (o.goodwill[s.id] || 0) + c.cost;
+    s.aidGiven = (s.aidGiven || 0) + 1;
+    if (s.isPlayer) this.stats.aid = (this.stats.aid || 0) + 1;
+    if (o.isPlayer) this.stats.aidReceived = (this.stats.aidReceived || 0) + 1;
+    this.emit('aid', { s, o, room, kind, cost: c.cost, x: d0.tx + 0.5, y: d0.ty + 0.5, bx: room.bed.x, by: room.bed.y });
+    return c;
+  }
+
   fullRepair(s = this.player) { // rewarded ad
     const r = s.room; if (!r || !r.alive) return;
     this._setDoorHpFull(r);
@@ -288,6 +334,7 @@ export class Game {
     for (const s of this.survivors) this._updSurvivor(s, dt);
     for (const r of this.map.rooms) {
       if (r.repairCd > 0) r.repairCd -= dt;
+      if (r.aidCd > 0) r.aidCd -= dt;
       r.hitT += dt; if (r.flash > 0) r.flash -= dt;
       for (const d of r.doors) { if (d.shake > 0) d.shake -= dt; }
       if (r.alive && r.owner && r.owner.state === 'inroom') {
@@ -802,6 +849,15 @@ export class Game {
       this.emit('kill', { e, x: e.x, y: e.y });
       if (e.kind === 'boss') {
         this.stats.bossesKilled = (this.stats.bossesKilled || 0) + 1;
+        // team bounty: every living survivor gets paid and every door gets patched
+        for (const sv of this.survivors) {
+          if (sv.state !== 'inroom' || !sv.room || !sv.room.alive) continue;
+          const n = Math.round(bedIncome(sv.room.bedLvl) * TEAM_BOUNTY_S);
+          sv.scrap += n; sv.earned += n; if (sv.isPlayer) this.stats.earned += n;
+          const m = this.doorMax(sv.room);
+          for (const d of sv.room.doors) d.hp = Math.min(m, d.hp + m * 0.25);
+          this.emit('teamBounty', { s: sv, n, x: sv.room.bed.x, y: sv.room.bed.y - 0.6 });
+        }
         if (this.bossesAlive().length === 0) {
           this.stats.bossKilled = true;
           if (this.endless) this._nextWave();
@@ -858,13 +914,14 @@ export class Game {
     let stars = 0;
     if (won) {
       stars = 1;
-      if (alive >= 4 || this.stats.bossKilled) stars = 2;
+      if (alive >= this.survivors.length || this.stats.bossKilled) stars = 2; // ★★ = nobody left behind
       if (this.stats.bossKilled) stars = 3;
     }
     return {
       won, stars, alive, killed: this.stats.bossKilled, earned: Math.floor(this.stats.earned),
       time: this.stats.timeSurvived, bossLvl: Math.max(...this.bosses.map((b) => b.lvl)), bossesKilled: this.stats.bossesKilled || 0, built: this.stats.built,
       wave: this.stats.wave, realTime: this.stats.realTime, minions: this.stats.minionsKilled, reason: this.lostReason,
+      aid: this.stats.aid || 0, aidReceived: this.stats.aidReceived || 0,
     };
   }
 }

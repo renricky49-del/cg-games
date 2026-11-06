@@ -230,6 +230,14 @@ export class Renderer {
       case 'howl': this.ring(ev.x, ev.y, '#c58cff', 3); this.shake(4); break;
       case 'chargeHit': this.shake(10); this.burst(ev.x, ev.y, 20, '#fff', 4, 0.5); break;
       case 'claim': this.ring(ev.room.doors[0].fx, ev.room.doors[0].fy, ev.s.isPlayer ? '#7dff8a' : '#fff'); break;
+      case 'aid': {
+        const col = ev.kind === 'gift' ? '#ffd84a' : '#7dff8a';
+        this.ring(ev.kind === 'gift' ? ev.bx : ev.x, ev.kind === 'gift' ? ev.by : ev.y, col, 1.6);
+        this.burst(ev.kind === 'gift' ? ev.bx : ev.x, ev.kind === 'gift' ? ev.by : ev.y, 10, '#ff6f9a', 2.5, 0.8, 'plus');
+        if (ev.s.isPlayer || ev.o.isPlayer) this.floatText(ev.x, ev.y - 0.6, ev.kind === 'gift' ? `♥ +${fmt(ev.cost)}` : ev.kind === 'repair' ? '♥ Repaired!' : '♥ Reinforced!', col, 1.1, true);
+        break;
+      }
+      case 'teamBounty': if (ev.s.isPlayer) { this.floatText(ev.x, ev.y, `TEAM +${fmt(ev.n)}`, '#ffd84a', 1.4, true); this.burst(ev.x, ev.y, 16, '#ffd84a', 3.5, 0.8, 'star'); } break;
       case 'continue': this.ring(g.player.x, g.player.y, '#7dff8a', 4); break;
     }
   }
@@ -256,11 +264,13 @@ export class Renderer {
     this.time += dt;
     const c = this.cam;
     if (c.tz != null) {
-      const k = Math.min(1, dt * 4);
+      const k = Math.min(1, dt * 4), px = c.x, py = c.y;
       c.z += (c.tz - c.z) * k;
       if (c.tx != null) { c.x += (c.tx - c.x) * k; c.y += (c.ty - c.y) * k; }
       this.clampCam();
-      if (Math.abs(c.tz - c.z) < 0.002) { c.tz = null; c.tx = null; }
+      // done when zoom has arrived and the position has arrived (or can't move further because of the map edge)
+      const still = Math.hypot(c.x - px, c.y - py) < 0.05;
+      if (Math.abs(c.tz - c.z) < 0.002 && (c.tx == null || still || Math.hypot(c.tx - c.x, c.ty - c.y) < 1.5)) { c.tz = null; c.tx = null; }
     }
     c.shake = Math.max(0, c.shake - dt * 40);
     for (const p of this.particles) {
@@ -663,6 +673,16 @@ export class Renderer {
         ctx.fillStyle = r.owner.isPlayer ? '#2a1a00' : dead ? '#ff8a8a' : '#fff';
         ctx.fillText(dead ? name + ' ✖' : name + '  Lv' + r.bedLvl, lx, ly + 1);
         if (!r.alive || dead) continue;
+        // an ally in trouble calls for help
+        if (!r.owner.isPlayer && r.hitT < 2.5 && g.minDoorFrac(r) < 0.5 && g.phase === 'night') {
+          const pulse = 1 + Math.sin(this.time * 9) * 0.08, hf = this.fpx(TS * 0.34, 14) * pulse;
+          ctx.font = `bold ${hf}px "Lilita One", Impact, sans-serif`;
+          const hw = ctx.measureText('HELP!').width + hf;
+          const hy = r.top ? ly + hf * 1.5 : ly - hf * 1.5;
+          ctx.fillStyle = '#ff3b30'; roundRect(ctx, lx - hw / 2, hy - hf * 0.7, hw, hf * 1.4, hf * 0.45); ctx.fill();
+          ctx.fillStyle = '#fff'; ctx.fillText('HELP!', lx, hy + 1);
+          ctx.font = `bold ${lf}px "Lilita One", Impact, sans-serif`;
+        }
         const m = g.doorMax(r);
         for (const d of r.doors) {
           const f = Math.max(0, d.hp / m);

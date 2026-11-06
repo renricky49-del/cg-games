@@ -111,6 +111,8 @@ img { -webkit-user-drag: none; }
 #info-panel .btns { display: flex; gap: 6px; margin-top: 8px; }
 #info-panel .btns button { flex: 1; padding: 8px 4px; border-radius: 10px; font-size: 15px; background: var(--green); color: #0f2a12; box-shadow: 0 3px 0 #2d7a37; }
 #info-panel .btns button.sell { background: #8a7bd0; color: #1b1530; box-shadow: 0 3px 0 #5b4ca0; flex: 0 0 70px; }
+#info-panel .btns.col { flex-direction: column; }
+#info-panel .btns.col button { flex: none; width: 100%; }
 #info-panel .btns button.off { background: #5a5470; color: #c9c3e0; box-shadow: 0 3px 0 #3a3550; cursor: not-allowed; }
 #info-panel .btns button:active:not(.off) { transform: translateY(2px); box-shadow: none; }
 #info-panel .x { position: absolute; right: 6px; top: 4px; background: none; font-size: 20px; color: var(--muted); }

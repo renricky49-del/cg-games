@@ -9,7 +9,7 @@ Grab an apartment, lock the door and build turrets! Survive the zombie boss unti
 ## Long description
 The zombies are coming and the whole apartment floor is running for cover!
 
-**Last Door Standing** is a cartoony idle tower defense game. When the night begins you and five other survivors have 22 seconds to dash down the hallway and claim an apartment. Once you're inside, the door slams shut — and that door is your life bar.
+**Last Door Standing** is a cartoony idle tower defense game. When the night begins you and three other survivors have 22 seconds to dash down the hallway and claim an apartment. Once you're inside, the door slams shut — and that door is your life bar.
 
 Lie down on your bed to earn scrap every second, then spend it wisely:
 
@@ -18,14 +18,14 @@ Lie down on your bed to earn scrap every second, then spend it wisely:
 - **Power up** with Generators, slow zombies with Chill Traps, earn passive scrap with a Vending Machine, auto-fix your door with a Repair Bench and more.
 - **Repair or upgrade your door** before the boss smashes through.
 
-Turret range grows with every level, so neighbouring rooms protect each other. But beware: a pack of bosses prowls the floor every night (2 at first, up to 5), one of them hunting you, and every door they break makes them stronger, and fallen survivors rise as zombies that join the hunt!
+Turrets cover the whole hallway, so neighbours protect each other, and you can send scrap to allies or pay to repair and reinforce their doors. Help them and they'll return the favour. But beware: a pack of bosses prowls the floor every night (2 at first, up to 5), one of them hunting you, and every door they break makes them stronger, and fallen survivors rise as zombies that join the hunt!
 
-Survive until dawn for a star, keep your neighbours alive for two, and destroy every boss for three. Collect medals to buy permanent upgrades, unlock new survivors, and take on 12 handcrafted nights with six different bosses — the Brute, the acid-spitting Spitter, the door-slamming Charger, the Howler, the armored Riot Tank and the Abomination. Then see how many waves you can last in **Endless mode**.
+Survive until dawn for a star, keep every ally alive for two, and destroy every boss for three. Collect medals to buy permanent upgrades, unlock new survivors, and take on 12 handcrafted nights with six different bosses — the Brute, the acid-spitting Spitter, the door-slamming Charger, the Howler, the armored Riot Tank and the Abomination. Then see how many waves you can last in **Endless mode**.
 
 ### Features
 - 12 nights + Endless mode, 2 to 5 bosses every night, 6 boss types with unique abilities
 - 11 buildings (5 weapon types), all upgradeable, plus bed and door upgrades
-- Smart AI survivors with different personalities who earn, build and fight alongside you (or get overrun)
+- Co-op with AI allies: send scrap, repair or reinforce their doors, and they help you back; team bounty for every boss kill
 - Boss levels up as it smashes doors — escalating tension every night
 - Interactive tutorial on Night 1
 - Permanent perks, 12 unlockable survivors, star ratings for every night

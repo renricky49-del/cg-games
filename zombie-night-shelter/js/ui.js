@@ -24,6 +24,7 @@ export class HUD {
   reset(g, tutorial) {
     this.closeMenus();
     this.tut = tutorial ? { step: 0, t: 0 } : null;
+    this.helpHinted = false; // nudge once per night
     $('tutorial').classList.add('hidden'); $('tut-arrow').classList.add('hidden');
     this.cache = {};
     this.lastScrap = 0;
@@ -51,7 +52,7 @@ export class HUD {
         const f = this.R.fitScale(); this.R.cam.fit = f; this.R.clampCam();
         // the action bar appearing changes the visible area: re-frame the player's room
         const pr = this.g.player.room;
-        if (pr && prev.bottom !== this.R.insets.bottom && !this.app.userPanned && this.R.cam.z > f * 1.1) this.R.focusRoom(pr);
+        if (pr && (prev.bottom !== this.R.insets.bottom || Math.abs(prev.top - this.R.insets.top) > 2) && !this.app.userPanned && this.R.cam.z > f * 1.1) this.R.focusRoom(pr);
       }
     });
   }
@@ -165,6 +166,7 @@ export class HUD {
     // banner
     if (this.bannerT > 0) { this.bannerT -= dt; if (this.bannerT <= 0) $('banner').classList.remove('show'); }
     this.updateTutorial(dt);
+    this.helpHint();
     // tutorial bubble: above the action bar, or under the top HUD when the thing it points at is in the lower half
     const tb = $('tutorial');
     if (!tb.classList.contains('hidden')) {
@@ -260,7 +262,7 @@ export class HUD {
       html = `<b>Your door Lv${room.doorLvl}</b><br>${fmt(Math.min(...room.doors.map((d) => d.hp)))} / ${fmt(g.doorMax(room))} HP`;
     } else if (r && r.owner && r !== room) {
       const o = r.owner;
-      html = o.state === 'dead' ? `<b>${o.name}'s room</b><br><span class="bad">Overrun…</span>` : `<b>${o.name}'s room</b><br>Bed Lv${r.bedLvl} · Door Lv${r.doorLvl} · ${r.buildings.filter((b) => BUILDINGS[b.type].kind === 'turret').length} turrets`;
+      html = o.state === 'dead' ? `<b>${o.name}'s room</b><br><span class="bad">Overrun…</span>` : `<b>${o.name}'s room</b><br>Door ${Math.round(100 * g.minDoorFrac(r))}% · Lv${r.doorLvl} · Bed Lv${r.bedLvl} · ${r.buildings.filter((b) => BUILDINGS[b.type].kind === 'turret').length} turrets${room && s.state === 'inroom' ? '<br><span class="good">Click to help: send scrap, repair or reinforce</span>' : ''}`;
     } else if (r && !r.owner && g.phase === 'rush' && s.state === 'corridor') {
       html = `<b>Room ${r.label}</b><br>${r.w}×${r.h} · ${r.doors.length} door${r.doors.length > 1 ? 's' : ''}${r.support > 3 ? ' · <span class="good">close neighbours</span>' : ''}<br>Click to claim!`;
     }
@@ -291,6 +293,7 @@ export class HUD {
       if (b) { this.openInfo({ kind: 'building', b }, sx, sy); return; }
       if (g.tileFree(room, tx, ty)) { this.openBuildMenu(tx, ty, sx, sy); return; }
     }
+    if (r && r !== room && r.owner && r.alive && r.owner.state === 'inroom' && room.alive) { this.openInfo({ kind: 'ally', room: r }, sx, sy); return; }
     this.closeMenus();
   }
 
@@ -399,6 +402,17 @@ export class HUD {
       html += stat('Income', fmt(bedIncome(room.bedLvl)) + '/s', c.max ? null : fmt(bedIncome(room.bedLvl + 1)) + '/s');
       if (c.req) html += `<div class="desc" style="color:#ff9c90">Needs Door Lv${c.req} first!</div>`;
       html += `<div class="btns">${btn('bed', c.max ? 'MAX' : `Upgrade · ${fmt(c.cost)}`, c.ok)}</div>`;
+    } else if (o.kind === 'ally') {
+      const ar = o.room, al = ar.owner;
+      if (!ar.alive || !al || al.state === 'dead') { this.closeMenus(); return; }
+      const cg = g.canAid(s, ar, 'gift'), cr = g.canAid(s, ar, 'repair'), cf = g.canAid(s, ar, 'reinforce');
+      const frac = g.minDoorFrac(ar);
+      key = `ally:${ar.id}:${cg.ok}:${cg.amount}:${cr.ok}:${Math.ceil((cr.cd || 0) / PACE)}:${cf.ok}:${ar.doorLvl}:${Math.round(frac * 20)}`;
+      if (key === this.infoKey) return;
+      const owes = al.goodwill && al.goodwill[s.id] ? ' <span style="color:#ff8fb1">♥</span>' : '';
+      html = `<button class="x" data-a="close">&times;</button><h3><img src="assets/img/${al.skin}.png" alt="">${al.name}${owes}</h3><div class="desc">Allies you help keep shooting the bosses, and they help you back when your door is in trouble.</div>`;
+      html += stat('Door', `${Math.round(frac * 100)}% · Lv${ar.doorLvl}`) + stat('Bed', 'Lv' + ar.bedLvl) + stat('Turrets', String(ar.buildings.filter((q) => BUILDINGS[q.type].kind === 'turret').length));
+      html += `<div class="btns col">${btn('gift', `Send scrap · ${fmt(cg.amount || 20)}`, cg.ok)}${btn('arepair', cr.cd ? `Repair their door · ${Math.ceil(cr.cd / PACE)}s` : cr.full ? 'Their door is full' : `Repair their door +50% · ${fmt(cr.cost || 0)}`, cr.ok)}${btn('reinforce', cf.max ? 'Door maxed' : `Reinforce door → Lv${ar.doorLvl + 1} · ${fmt(cf.cost || 0)}`, cf.ok)}</div>`;
     } else if (o.kind === 'door') {
       const c = g.canDoor(s), cr = g.canRepair(s);
       key = `door:${room.doorLvl}:${c.ok}:${cr.ok}`;
@@ -420,6 +434,9 @@ export class HUD {
         if (a === 'bed') r = g.upgradeBed(s);
         if (a === 'door') r = g.upgradeDoor(s);
         if (a === 'repair') r = g.repairDoor(s);
+        if (a === 'gift') r = g.aid(s, o.room, 'gift');
+        if (a === 'arepair') r = g.aid(s, o.room, 'repair');
+        if (a === 'reinforce') r = g.aid(s, o.room, 'reinforce');
         if (r && !r.ok) { Audio.play('error'); this.toast(r.reason, 'bad'); }
         this.infoKey = '';
       });
@@ -459,6 +476,11 @@ export class HUD {
       case 'howl': this.toast('The Howler called more zombies!', 'bad'); break;
       case 'acid': if (ev.b.room === g.player.room) this.toast('Acid! A gadget is jammed', 'bad'); break;
       case 'toast': this.toast(ev.text, 'bad'); break;
+      case 'aid':
+        if (ev.o.isPlayer) this.toast(`${ev.s.name} ${ev.kind === 'repair' ? 'repaired' : ev.kind === 'reinforce' ? 'reinforced' : 'sent scrap to'} your door! ♥`.replace(' your door! ♥', ev.kind === 'gift' ? ' you! ♥' : ' your door! ♥'), 'good');
+        else if (ev.s.isPlayer) this.toast(`You ${ev.kind === 'gift' ? `sent ${fmt(ev.cost)} scrap to` : ev.kind === 'repair' ? 'repaired' : 'reinforced'} ${ev.o.name}${ev.kind === 'gift' ? '' : "'s door"} ♥`, 'good');
+        break;
+      case 'teamBounty': if (ev.s.isPlayer) this.toast(`Team bounty! +${fmt(ev.n)} scrap, all doors patched`, 'good'); break;
       case 'waveCleared': this.toast(`Wave ${ev.wave} cleared! Next boss in ${Math.round(12 / PACE)}s`, 'good'); break;
     }
     if (this.tut) this.tutEvent(ev);
@@ -488,6 +510,13 @@ export class HUD {
     if (ev.type === 'bossWake' && T.step < 5) { T.step = 5; T.t = 0; }
     if ((ev.type === 'repair' || (ev.type === 'upgrade' && ev.what === 'door')) && ev.s && ev.s.isPlayer && T.step === 5) { T.step = 6; T.t = 0; }
   }
+  // one-time nudge the first time an ally is in trouble
+  helpHint() {
+    const g = this.g; if (!g || this.helpHinted || g.phase !== 'night') return;
+    const r = g.map.rooms.find((q) => q.owner && !q.owner.isPlayer && q.alive && q.owner.state === 'inroom' && q.hitT < 2.5 && g.minDoorFrac(q) < 0.5);
+    if (r && g.player.state === 'inroom') { this.helpHinted = true; this.banner(`${r.owner.name} NEEDS HELP!`, 'Click their room to repair their door or send scrap', 2.6); }
+  }
+
   updateTutorial(dt) {
     const T = this.tut, g = this.g;
     const box = $('tutorial'), arrow = $('tut-arrow');
@@ -519,7 +548,7 @@ export class HUD {
         }
         break;
       }
-      case 4: text = 'Nice! Turrets also shoot zombies attacking your <b>neighbours</b> — teamwork keeps everyone alive.'; break;
+      case 4: text = 'Nice! Your turrets also shoot bosses attacking your <b>allies</b>. Click an ally\'s room to <b>send scrap or repair their door</b>.'; break;
       case 4.5: text = 'Keep upgrading your bed, turrets and door. <b>The boss wakes up soon!</b>'; break;
       case 5: text = `The bosses are attacking doors! When yours gets hurt, <b>Repair (R)</b> or <b>Upgrade the door (U)</b>.`; el = $('act-repair'); break;
       case 6: text = 'Survive until <b>dawn</b> — or help shoot the boss down for 3 stars!'; break;

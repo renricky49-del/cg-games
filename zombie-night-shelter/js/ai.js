@@ -93,6 +93,42 @@ function chooseGoal(g, s) {
   return C.reduce((a, b) => (b.v > a.v ? b : a));
 }
 
+// Cooperation: pay to patch an ally's door when it is under attack and about to break.
+// More generous personalities help more; survivors who were helped by someone help that someone back.
+const GENEROSITY = { greedy: 0.25, turtle: 0.6, gunner: 0.45, balanced: 0.55, rookie: 0.35 };
+function aiHelpAllies(g, s) {
+  if (g.phase !== 'night') return false;
+  let best = null, bf = 1;
+  for (const r of g.map.rooms) {
+    if (r === s.room || !r.alive || !r.owner || r.owner.state !== 'inroom') continue;
+    if (r.hitT > 3 || r.aidCd > 0) continue;
+    const f = g.minDoorFrac(r);
+    if (f < 0.4 && f < bf) { bf = f; best = r; }
+  }
+  if (!best) return false;
+  if (s.isPlayer) {
+    // simulated engaged human (headless tests only): always patch a breaking ally door, reinforce weak ones
+    if (g.canAid(s, best, 'repair').ok) { g.aid(s, best, 'repair'); return true; }
+    const rc = g.canAid(s, best, 'reinforce');
+    if (rc.ok && best.doorLvl < s.room.doorLvl && s.scrap > rc.cost * 1.5) { g.aid(s, best, 'reinforce'); return true; }
+    return false;
+  }
+  const c = g.canAid(s, best, 'repair');
+  if (!c.ok || s.scrap < c.cost * 3) return false;
+  let p = GENEROSITY[s.pers.id] || 0.4;
+  const owed = (s.goodwill && s.goodwill[best.owner.id]) || 0;
+  // free favours are limited (1 per night to the player, 2 to other AIs); beyond that, only repay goodwill
+  s.freeHelps = s.freeHelps || 0;
+  if (owed <= 0 && s.freeHelps >= (best.owner.isPlayer ? 1 : 2)) return false;
+  if (owed > 0) p += 0.35;                 // return the favour
+  if (best.owner.isPlayer) p += 0.1;       // they like the player a bit more
+  if (g.rng() > p * 0.5) return false;     // checked about twice a second
+  g.aid(s, best, 'repair');
+  if (owed > 0) s.goodwill[best.owner.id] = Math.max(0, owed - c.cost * 2); // favours are returned at about half value
+  else s.freeHelps++;
+  return true;
+}
+
 export function aiUpdate(g, s, dt) {
   if (s.state === 'corridor') {
     if (g.phase !== 'rush' || s.path.length) return;
@@ -101,7 +137,7 @@ export function aiUpdate(g, s, dt) {
     if (s.panicT == null) {
       // sometimes a rookie freezes up in later nights (creates early minions)
       s.panicT = 0;
-      if (!s.isPlayer && g.night.n >= 3 && s.pers.id === 'rookie' && g.rng() < 0.3) { s.decideDelay = 25 + g.rng() * 6; return; }
+      // (no hallway panics any more: with 4 apartments everybody is meant to make it in)
     }
     const r = aiPickRoom(g, s);
     if (r) g.goToRoom(s, r);
@@ -119,6 +155,7 @@ export function aiUpdate(g, s, dt) {
   if (hit && frac < s.pers.repairAt && g.canRepair(s).ok) { g.repairDoor(s); return; }
   if (hit && frac < 0.3 && g.canDoor(s).ok) { g.upgradeDoor(s); s.goal = null; return; }
   if (frac < 0.85 && !hit && g.canRepair(s).ok && s.scrap > g.canRepair(s).cost * 6) { g.repairDoor(s); return; }
+  if (aiHelpAllies(g, s)) return;
   s.goalT = (s.goalT || 0) - (0.5 * s.pers.react);
   if (!s.goal || s.goalT <= 0) { s.goal = chooseGoal(g, s); s.goalT = 5; }
   const G = s.goal;

@@ -245,6 +245,8 @@ const App = {
         case 'death': Audio.play('death', 0.6); break;
         case 'claim': Audio.play('door_close', ev.s.isPlayer ? 1 : 0.3); break;
         case 'continue': Audio.startMusic('night'); break;
+        case 'aid': if (ev.s.isPlayer || ev.o.isPlayer) Audio.play(ev.kind === 'gift' ? 'coin' : 'repair'); break;
+        case 'teamBounty': if (ev.s.isPlayer) Audio.play('upgrade'); break;
         case 'lie': if (ev.s.isPlayer) Audio.play('lie'); break;
         case 'win': Audio.stopMusic(true); Audio.play('win'); CG.happytime(); break;
         case 'lose': Audio.stopMusic(true); Audio.play('lose'); break;
@@ -288,7 +290,7 @@ const App = {
     this.lastMedals = medals; this.doubled = false;
     $('res-title').textContent = g.endless ? 'The horde got you!' : r.won ? (r.killed ? 'BOSSES DOWN!' : 'You saw the dawn!') : 'Overrun!';
     $('res-title').className = r.won || g.endless ? '' : 'red';
-    $('res-sub').textContent = g.endless ? `Waves survived: ${r.wave - 1}  ·  Best: ${this.save.bestEndless}` : r.won ? (r.stars < 3 ? (r.stars < 2 ? 'Tip: keep 4+ survivors alive for ★★, kill all bosses for ★★★' : 'Kill all bosses for ★★★') : 'Perfect night!') : (r.reason || 'Your door was broken.');
+    $('res-sub').textContent = g.endless ? `Waves survived: ${r.wave - 1}  ·  Best: ${this.save.bestEndless}` : r.won ? (r.stars < 3 ? (r.stars < 2 ? 'Tip: keep every ally alive for ★★ (click their room to help), kill all bosses for ★★★' : 'Kill all bosses for ★★★') : 'Perfect night!') : (r.reason || 'Your door was broken.');
     const stars = $('res-stars').children;
     for (let i = 0; i < 3; i++) {
       stars[i].classList.remove('on');
@@ -303,6 +305,8 @@ const App = {
       ['Boss level', r.bossLvl],
       ['Bosses defeated', g.endless ? String(r.bossesKilled || 0) : `${r.bossesKilled || 0}/${g.bosses.length}`],
       ['Zombies defeated', r.minions],
+      ['Times you helped allies', r.aid],
+      ['Times allies helped you', r.aidReceived],
     ].map(([a, b]) => `<span>${a}</span><span>${b}</span>`).join('');
     $('res-medal-n').textContent = '+' + medals;
     $('btn-double').classList.toggle('hidden', medals <= 0);
