@@ -152,14 +152,18 @@ export function applyMove(cells, w, m) {
   return out;
 }
 
+const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+
 // Depth-first solver with memo of dead states. Returns { solution: [moves] | null, nodes, aborted }.
-export function solve(cells, w, h, maxNodes = 200000) {
+// maxMs (optional) is a wall-clock budget so in-game calls never freeze a frame for long.
+export function solve(cells, w, h, maxNodes = 200000, maxMs = Infinity) {
+  const deadline = now() + maxMs;
   const dead = new Set();
   let nodes = 0, aborted = false;
   const path = [];
   function rec(c) {
     if (tileCount(c) === 0) return true;
-    if (++nodes > maxNodes) { aborted = true; return false; }
+    if (++nodes > maxNodes || ((nodes & 63) === 0 && now() > deadline)) { aborted = true; return false; }
     const key = c.join(',');
     if (dead.has(key)) return false;
     const moves = directMatches(c, w, h);
@@ -241,22 +245,47 @@ export function generateBoard({ w, h, pairs, types, stones = 0, typeOffset = 0, 
   return { w, h, cells };
 }
 
-// Re-arrange the remaining tile types over the current tile positions so a solution exists.
-export function shuffleBoard(cells, w, h, rnd, maxTries = 40) {
-  const pos = [];
-  const types = [];
-  for (let i = 0; i < cells.length; i++) if (cells[i] >= 0) { pos.push(i); types.push(cells[i]); }
-  let fallback = null;
-  for (let t = 0; t < maxTries; t++) {
-    shuffleArr(types, rnd);
-    const nc = cells.slice();
-    pos.forEach((p, k) => { nc[p] = types[k]; });
-    if (!hasMove(nc, w, h)) continue;
-    if (!fallback) fallback = nc;
-    const s = solve(nc, w, h, 20000);
-    if (s.solution) return nc;
+// Re-arrange the remaining tiles so the board can be played on. Guarantees at least one move whenever
+// 2+ tiles remain, and prefers a layout the solver proves clearable, within a time budget (~150 ms).
+// 1) permute faces over the current positions; 2) if that can't work (e.g. the last pair is stuck on
+// fixed cells) scatter the tiles over all free cells; 3) last resort: place one pair side by side.
+export function shuffleBoard(cells, w, h, rnd, maxTries = 40, budgetMs = 150) {
+  const t0 = now();
+  const pos = [], types = [], free = [];
+  for (let i = 0; i < cells.length; i++) {
+    if (cells[i] >= 0) { pos.push(i); types.push(cells[i]); }
+    if (cells[i] !== STONE) free.push(i);
   }
-  return fallback || cells.slice();
+  if (types.length < 2) return cells.slice();
+  let fallback = null;
+  const attempt = (nc) => {
+    if (!hasMove(nc, w, h)) return false;
+    if (!fallback) fallback = nc;
+    const left = budgetMs - (now() - t0);
+    return left > 5 && !!solve(nc, w, h, 6000, Math.min(40, left)).solution;
+  };
+  for (let t = 0; t < maxTries && now() - t0 < budgetMs; t++) {
+    const scatter = t >= maxTries / 2 || t >= 8 && !fallback;
+    shuffleArr(types, rnd);
+    const nc = cells.map((v) => (v === STONE ? STONE : EMPTY));
+    const where = scatter ? shuffleArr(free.slice(), rnd).slice(0, types.length) : pos;
+    where.forEach((p, k) => { nc[p] = types[k]; });
+    if (attempt(nc)) return nc;
+  }
+  if (fallback) return fallback;
+  // guaranteed move: put two identical tiles next to each other
+  const nc = cells.map((v) => (v === STONE ? STONE : EMPTY));
+  const byFace = {};
+  types.forEach((f) => { byFace[f] = (byFace[f] || 0) + 1; });
+  const f0 = +Object.keys(byFace).find((f) => byFace[f] >= 2);
+  let pair = null;
+  for (const i of free) { const x = i % w; if (x + 1 < w && cells[i + 1] !== STONE) { pair = [i, i + 1]; break; } if (i + w < cells.length && cells[i + w] !== STONE) { pair = [i, i + w]; break; } }
+  if (!pair) return cells.slice();
+  nc[pair[0]] = f0; nc[pair[1]] = f0;
+  const rest = types.slice(); rest.splice(rest.indexOf(f0), 1); rest.splice(rest.indexOf(f0), 1);
+  const spots = shuffleArr(free.filter((i) => i !== pair[0] && i !== pair[1]), rnd);
+  rest.forEach((f, k) => { nc[spots[k]] = f; });
+  return nc;
 }
 
 // Level string encoding: rows joined by '/', cells: '.' empty, '#' stone, 'a'..'z','A'..'Z' types 0..51

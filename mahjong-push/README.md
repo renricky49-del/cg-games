@@ -44,8 +44,8 @@ store/              covers (JPG), screenshots (JPG), description.md, ASSET_LOG.m
   - *Why auto-remove instead of asking for a tap:* it is one gesture with immediate payoff, it can't leave the board in a half-state, and it matches what the solver models.
   - Only the dragged tile is checked, not every tile in the chain. This keeps the rule easy to explain, and a chained tile that now lines up can simply be matched next turn.
 - **Dead board:** no direct match and no committable push. The game detects this after every move and offers Shuffle, Undo, or a rewarded-ad shuffle. "Give up" is the loss path, followed by Retry or Map.
-- **Boosters:** Hint shows the solver's next move, including an animated arrow for push moves, and falls back to any legal move. Shuffle redistributes the remaining faces over the same positions until the solver finds a solution. Undo restores the previous tile state. They are limited (start: 3 / 2 / 3) and can be refilled with coins or a rewarded ad. Hint and Shuffle cost a star on that level; Undo does not.
-- **Stars:** 3, minus 1 if your time is over par (20 s + 4.2 s per pair), minus 1 if you used Hint or Shuffle. The minimum is 1. Only stars above your previous best on a level are added to the spendable star bank.
+- **Boosters:** Hint shows the solver's next move, including an animated arrow for push moves. If the solver proves the position can no longer be cleared, Hint is not charged and suggests Undo/Shuffle instead. Shuffle first permutes the remaining faces; if that can't help (e.g. the last pair is stuck behind stones) it scatters the tiles over free cells, and as a last resort places a pair side by side, so **a shuffle always leaves at least one move** and prefers a solver-proven clearable layout (time budget about 150 ms). Undo restores the previous tile state and is disabled in Endless (it would allow re-scoring matches). Boosters start at 3 / 2 / 3; refills cost coins or a rewarded ad, and every restored area gives +1 Hint and +1 Shuffle. Hint and Shuffle cost a star on that level; Undo does not.
+- **Stars:** 3, minus 1 if your time is over par, minus 1 if you used Hint or Shuffle (minimum 1). Par = 20 s + pairs × (3.5 + 4 × (1 − bot win rate)) s, rounded to 5 s, so harder boards get more thinking time (level 3: 40 s, level 30: 105 s, level 60: 200 s). Only stars above your previous best on a level are added to the spendable star bank.
 
 ## Level generation and difficulty
 
@@ -63,7 +63,7 @@ store/              covers (JPG), screenshots (JPG), description.md, ASSET_LOG.m
 
 ## Meta
 
-There are 7 areas × 5 restorations (Courtyard Gate, Tea Room, Koi Pond, Blossom Meadow, Moon Terrace, Tea Terraces, Winter Courtyard), with costs of 2–8 stars. Chapter *n+1* unlocks when chapter *n*'s last level is cleared **and** area *n* is fully restored. Per-chapter costs (17 / 22 / 24 / 26 / 29 / 31 / 34 stars) fit inside the 36 stars a chapter offers. Surplus from the early chapters and the daily puzzle carry players through the pricier late areas. Each area has an AI-generated **neglected "before" background** (same composition) that cross-fades into the restored one in fifths as tasks complete. Every restoration plays a drop-in animation with sparkles, a build fanfare and a tea-pour sound. Unrestored items show as silhouettes, so the "after" is always teased. Lanterns glow, koi swim, sky lanterns float, and each area has its own ambient layer (dust motes, petals, fireflies on the Moon Terrace, snow in the Winter Courtyard).
+There are 7 areas × 5 restorations (Courtyard Gate, Tea Room, Koi Pond, Blossom Meadow, Moon Terrace, Tea Terraces, Winter Courtyard), with costs of 2–8 stars. Chapter *n+1* unlocks when chapter *n*'s last level is cleared **and** area *n* is fully restored. Area costs are 20 / 24 / 25 / 25 / 25 / 24 / 26 stars. `tools/economy.mjs` models casual, average and skilled players from each level's difficulty: even the casual profile never runs short at a chapter gate (about 10–16 stars spare), so nobody has to grind replays to continue (`store/economy_report.txt`). Restoring a whole area also gives 100 coins, +1 Hint and +1 Shuffle. Each area has an AI-generated **neglected "before" background** (same composition) that cross-fades into the restored one in fifths as tasks complete. Every restoration plays a drop-in animation with sparkles, a build fanfare and a tea-pour sound. Unrestored items show as silhouettes, so the "after" is always teased. Lanterns glow, koi swim, sky lanterns float, and each area has its own ambient layer (dust motes, petals, fireflies on the Moon Terrace, snow in the Winter Courtyard).
 
 **Momo**, an original red-panda teahouse keeper, guides the tutorial and reacts on result screens: pointing, cheering on 3 stars and area restores, and sad when you're out of moves.
 
@@ -88,7 +88,12 @@ Start a static server in `mahjong-push/` on port 8123, then:
 node tests/play.cjs      # full play-through: tutorials + level 3 by real mouse input, failed push revert,
                          # hint/pause, forced loss, teahouse restore, daily, endless, save reload, mobile
 node tests/perf.cjs      # 25 s auto-played endless (fps), 80 level starts/clears (heap growth)
-node tests/areas.cjs     # renders each restored area for placement review (OUT=<dir>)
+node tests/areas.cjs     # renders each area before/after for placement review (OUT=<dir>)
+node tests/fuzz.cjs      # ~2.7k random clicks/drags/keys/pauses/resizes + real moves on 35 sessions; checks
+                         # no overlap/out-of-bounds/odd pair counts/NaN, never wedged without a dialog
+node tests/trap.cjs      # regression: last pair trapped behind stones -> stuck dialog -> Shuffle rescues it
+node tools/stress.mjs    # rule properties on 500 random mid-game states + worst-case hint/shuffle time
+node tools/economy.mjs   # star economy vs teahouse costs for three player profiles
 node tools/balance.mjs   # difficulty curve via the casual bot
 ```
 

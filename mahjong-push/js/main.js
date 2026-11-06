@@ -123,13 +123,15 @@ function insets() {
   return { top, bottom, left: lr, right: lr };
 }
 
-function parFor(pairs) { return Math.round(20 + pairs * 4.2); }
+// 3-star par time: base + seconds per pair, more thinking time on harder boards (win = casual-bot win
+// rate measured at build time). Rounded to 5 s so targets read cleanly.
+function parFor(pairs, win = 0.6) { return Math.round((20 + pairs * (3.5 + 4 * (1 - win))) / 5) * 5; }
 
 function startLevel(n) {
   const def = LEVELS[n - 1];
   const b = L.decode(def.s);
   const pairs = L.tileCount(b.cells) / 2;
-  G = { mode: 'level', level: n, t: 0, used: 0, paused: false, adPaused: false, par: def.tut ? 9999 : parFor(pairs), pairs, tut: def.tut || null, done: false, reserve: !!(def.tut || TIPS[n]) };
+  G = { mode: 'level', level: n, t: 0, used: 0, paused: false, adPaused: false, par: def.tut ? 9999 : parFor(pairs, def.win ?? 0.6), pairs, tut: def.tut || null, done: false, reserve: !!(def.tut || TIPS[n]) };
   hideTutorial();
   $('#g-label').textContent = `Level ${n}`;
   $('#g-target').innerHTML = def.tut ? 'Tutorial' : `${icon('star')}${icon('star')}${icon('star')} under ${fmt(G.par)}`;
@@ -230,7 +232,7 @@ function onStuck() {
     board.shuffle(Math.random);
     return;
   }
-  G.paused = true; board.paused = true; CG.gameplayStop();
+  G.paused = true; board.paused = true; board.cancelInput(); CG.gameplayStop();
   Audio.play('lose');
   const card = modal(`${mascot(2)}
     <h2>No moves left!</h2>
@@ -272,12 +274,21 @@ function levelFailed() {
 
 // ---------------- boosters ----------------
 function booster(kind) {
-  if (!G || G.done || G.paused) return;
-  if (kind === 'undo') return useUndo(false);
+  if (!G || G.done || G.paused || modalOpen() || board.busy()) return;
+  if (kind === 'undo') {
+    if (G.mode === 'endless') { toast('Undo is off in Endless — keep moving!'); return; }
+    return useUndo(false);
+  }
   if (S.boosters[kind] <= 0) return buyBooster(kind);
   if (kind === 'hint') {
     const m = board.findHint();
     if (!m) { toast('No moves left — try Shuffle'); return; }
+    if (board.lastHintDead) {
+      // don't charge for a hint that can't help: the position can no longer be cleared
+      toast(board.canUndo() ? 'This layout can\u2019t be cleared any more — Undo or Shuffle!' : 'This layout can\u2019t be cleared any more — try Shuffle!', 2600);
+      Audio.play('deny');
+      return;
+    }
     S.boosters.hint--; G.used++;
     board.showHint(m);
   } else if (kind === 'shuffle') {
@@ -323,7 +334,7 @@ function buyBooster(kind) {
 // ---------------- pause / settings ----------------
 function pauseGame() {
   if (!G || G.done || modalOpen()) return;
-  G.paused = true; board.paused = true; CG.gameplayStop();
+  G.paused = true; board.paused = true; board.cancelInput(); CG.gameplayStop();
   const card = modal(`
     <h2>Paused</h2>
     ${settingsHtml()}
@@ -375,7 +386,7 @@ function openSettings() {
   card.querySelector('#s-reset').onclick = () => {
     const c2 = modal(`<h2>Reset progress?</h2><p>All stars, coins and teahouse restorations will be lost.</p><div class="btns"><button class="btn" id="r-no">Cancel</button><button class="btn red" id="r-yes">Reset</button></div>`);
     c2.querySelector('#r-no').onclick = closeModal;
-    c2.querySelector('#r-yes').onclick = () => { const st = S.settings; S = DEFAULT_SAVE(); S.settings = st; save(); closeModal(); openTitle(); toast('Progress reset'); };
+    c2.querySelector('#r-yes').onclick = () => { const st = S.settings; S = DEFAULT_SAVE(); S.settings = st; applySettings(); save(); closeModal(); openTitle(); toast('Progress reset'); };
   };
 }
 function openSkins(back) {
@@ -508,9 +519,14 @@ function genBoard(P, seed, maxTries = 60) {
     const pool = L.shuffleArr(all.slice(), rnd).slice(0, P.types);
     const b = L.generateBoard({ ...P, typePool: pool }, seed + k * 104729);
     if (!L.hasMove(b.cells, b.w, b.h)) continue;
-    if (L.solve(b.cells, b.w, b.h, 20000).solution) return b;
+    if (L.solve(b.cells, b.w, b.h, 20000, 40).solution) return b;
   }
-  return L.generateBoard({ ...P, types: 3 }, seed);
+  // fallback: progressively easier boards until the solver proves one (always terminates quickly)
+  for (let k = 0; k < 200; k++) {
+    const b = L.generateBoard({ ...P, pairs: Math.max(4, P.pairs - 1 - (k >> 2)), types: Math.max(3, P.types - 2), stones: 0 }, seed + 999 + k);
+    if (L.hasMove(b.cells, b.w, b.h) && L.solve(b.cells, b.w, b.h, 20000).solution) return b;
+  }
+  return L.decode('a.a./b..b/cc..');
 }
 function openDaily() {
   const done = S.daily.last === todayStr();
@@ -527,7 +543,7 @@ function openDaily() {
 function startDaily() {
   const day = todayStr();
   const b = genBoard({ w: 8, h: 7, pairs: 18, types: 10, stones: 3 }, L.hashString('daily:' + day));
-  G = { mode: 'daily', t: 0, used: 0, paused: false, par: parFor(18), pairs: 18, done: false, day };
+  G = { mode: 'daily', t: 0, used: 0, paused: false, par: parFor(18, 0.5), pairs: 18, done: false, day };
   $('#g-label').textContent = 'Daily';
   $('#g-target').textContent = day;
   $('#g-tip').classList.add('hidden');
@@ -722,13 +738,13 @@ function restoreTask(c, k) {
   renderHouse(k);
   sparkleScene(t);
   if (areaDone(c)) {
-    S.coins += 100; save(); refreshWallet();
+    S.coins += 100; S.boosters.hint++; S.boosters.shuffle++; save(); refreshWallet();
     CG.happytime();
     setTimeout(() => {
       Audio.play('win'); Audio.play('chime');
       const nextC = c + 1;
       const card = modal(`${mascot(1)}<h2>${AREAS[c].name} restored!</h2>
-        <p>The teahouse grows more beautiful. You earned <b>100 coins</b>.</p>
+        <p>The teahouse grows more beautiful. You earned <b>100 coins</b>, <b>+1 Hint</b> and <b>+1 Shuffle</b>.</p>
         ${nextC < AREAS.length ? `<p><b>${AREAS[nextC].chapter}</b> is now open!</p>` : '<p><b>The whole teahouse is restored!</b> Thank you for playing — keep enjoying the Daily Puzzle and Endless mode.</p>'}
         <div class="btns">${nextC < AREAS.length ? `<button class="btn primary big" id="ad-go">${icon('play')} Play chapter ${nextC + 1}</button>` : '<button class="btn primary" id="ad-ok">Wonderful</button>'}</div>`);
       const go = card.querySelector('#ad-go'); if (go) go.onclick = () => { closeModal(); openMap(nextC); };
@@ -777,7 +793,11 @@ function bindUi() {
     if (a === 'play') { const n = nextLevel(); if (!cleared(1)) startLevel(1); else openMap(chapterOf(n)); }
     else if (a === 'home') openTitle();
     else if (a === 'back') houseBack === 'map' ? openMap(houseArea) : openTitle();
-    else if (a === 'teahouse') openHouse(current === 's-map' ? Math.min(Math.max(0, mapCh - (chapterUnlocked(mapCh) ? 0 : 1)), AREAS.length - 1) : null);
+    else if (a === 'teahouse') {
+      let c = null;
+      if (current === 's-map') { c = Math.min(mapCh, AREAS.length - 1); while (c > 0 && !areaUnlocked(c)) c--; }
+      openHouse(c);
+    }
     else if (a === 'settings') openSettings();
     else if (a === 'daily') openDaily();
     else if (a === 'endless') startEndless();
@@ -811,7 +831,7 @@ function preload(srcs, onProgress) {
 async function boot() {
   const fill = $('#load-fill');
   await CG.init({
-    pause: () => { Audio.adPause(true); if (G) G.adPaused = true; if (board) board.paused = true; },
+    pause: () => { Audio.adPause(true); if (G) G.adPaused = true; if (board) { board.paused = true; board.cancelInput(); } },
     resume: () => { Audio.adPause(false); if (G) { G.adPaused = false; if (!G.paused) board.paused = false; } },
     muteChange: (m) => Audio.setSdkMute(m),
   });

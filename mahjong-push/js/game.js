@@ -143,7 +143,8 @@ export class BoardView {
     const cv = this.cv;
     const pos = (e) => ({ x: e.clientX, y: e.clientY });
     cv.addEventListener('pointerdown', (e) => {
-      if (!this.active || this.paused || this.locked || this.over) return;
+      // ignore extra fingers / buttons while a press is in progress
+      if (!this.active || this.paused || this.locked || this.over || this.press || (e.button != null && e.button > 0)) return;
       Audio.unlock();
       const p = pos(e);
       const cell = this.hit(p.x, p.y);
@@ -166,8 +167,9 @@ export class BoardView {
       if (!this.drag && Math.hypot(dx, dy) > DRAG_THRESHOLD) this._beginDrag(dx, dy);
       if (this.drag) this._moveDrag(dx, dy);
     });
+    window.addEventListener('blur', () => this.cancelInput());
     const up = (e) => {
-      if (!this.press) return;
+      if (!this.press || (this.press.id != null && e.pointerId !== this.press.id)) return;
       const pr = this.press; this.press = null;
       if (this.drag) this._endDrag();
       else this._click(pr.t);
@@ -322,14 +324,25 @@ export class BoardView {
     return true;
   }
 
+  // True while the player is pressing / dragging (boosters and undo must wait).
+  busy() { return !!(this.press || this.drag); }
+  // Abort any press or drag in progress (pause, ads, window blur) and slide the chain back.
+  cancelInput() {
+    if (this.drag) this._cancelDrag();
+    this.press = null;
+  }
+
   // Finds a good next move (solver first, any legal move as fallback). Returns the move or null.
+  // Sets this.lastHintDead when the solver proved that the board can no longer be cleared.
   findHint() {
+    this.lastHintDead = false;
     const cells = this.cells();
     const key = cells.join(',');
     let move = null;
     if (this.solCache && this.solCache.keys[0] === key) move = this.solCache.moves[0];
     if (!move) {
-      const r = L.solve(cells, this.w, this.h, 25000);
+      const r = L.solve(cells, this.w, this.h, 12000, 120);
+      if (!r.solution && !r.aborted) this.lastHintDead = true;
       if (r.solution && r.solution.length) {
         const keys = []; let c = cells;
         for (const mv of r.solution) { keys.push(c.join(',')); c = L.applyMove(c, this.w, mv); }
@@ -362,7 +375,9 @@ export class BoardView {
     this.history = []; this._clearSel(); this.hint = null; this.solCache = null;
     Audio.play('shuffle');
     setTimeout(() => this.tiles.forEach((t) => { t.lift = 0; }), 450);
-    return L.hasMove(nc, this.w, this.h);
+    const ok = L.hasMove(nc, this.w, this.h);
+    if (!ok && this.remaining() > 0) setTimeout(() => this.cb.onStuck && this.cb.onStuck(), 600);
+    return ok;
   }
 
   // ---------- effects ----------
