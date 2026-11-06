@@ -167,6 +167,11 @@ export class Side {
     for (const ch of h.word) { const i = held.indexOf(ch); if (i >= 0) { held.splice(i, 1); n++; } }
     return n / h.word.length;
   }
+  // golden letters only make sense while some unlocked hero can still be spelled or levelled up
+  goldUseful() {
+    const onBoard = this.heroesOnBoard();
+    return this.unlockedHeroes().some(h => (onBoard.find(u => u.heroId === h.id)?.level || 0) < HERO_MAX_LEVEL);
+  }
   rollGoldLetter() {
     const onBoard = this.heroesOnBoard();
     const heroes = this.unlockedHeroes().filter(h => (onBoard.find(u => u.heroId === h.id)?.level || 0) < HERO_MAX_LEVEL);
@@ -201,13 +206,15 @@ export class Side {
       if (sc === 'shovel') item = { kind: 'shovel' };
       else if (sc.startsWith('gold:')) item = this.makeGold(sc.slice(5));
       else item = this.makeBasic(sc);
-    } else if (this.cloverLeft > 0) {
+    } else if (this.cloverLeft > 0 && this.goldUseful()) {
       this.cloverLeft--; item = this.makeGold(this.rollGoldLetter());
     } else {
       const r = this.rng.next();
+      const canGold = this.goldUseful();
       const shovelChance = this.lockedCells().length > this.shovels ? 0.05 : 0;
-      if (r < shovelChance) item = { kind: 'shovel' };
-      else if (r < shovelChance + this.mods.gold || this.sinceGold >= 5) item = this.makeGold(this.rollGoldLetter());
+      if (canGold && (this.sinceGold || 0) >= 5) item = this.makeGold(this.rollGoldLetter()); // pity: never 6 summons in a row without one
+      else if (r < shovelChance) item = { kind: 'shovel' };
+      else if (canGold && r < shovelChance + this.mods.gold) item = this.makeGold(this.rollGoldLetter());
       else item = this.makeBasic(BASIC_LETTERS[this.rng.int(4)]);
     }
     this.sinceGold = item.kind === 'gold' ? 0 : (this.sinceGold || 0) + 1;
@@ -593,6 +600,7 @@ export class Match {
     this.sides = [new Side(this, 0, player), new Side(this, 1, rival)];
     this.tutorialHold = false; // tutorial can pause wave progression
     this.plan = {}; // pre-rolled waves so the next one can be previewed
+    this.otLeaks = [false, false];
     this.events = [];
   }
   get finalWave() { return this.mapDef.waves; }
@@ -603,10 +611,8 @@ export class Match {
   previewWave() { const w = this.wave + 1; if (w > this.finalWave) return null; return this.getPlan(w); }
   timeToNextWave() { return this.curWave ? Math.max(0, this.curWave.dur - this.waveT) : Math.max(0, -this.waveT); }
   onLeak(side) {
-    if (this.overtime > 0 && this.state === 'running') {
-      // sudden death: first leak loses
-      this.finish(1 - side.idx, 'Sudden death!');
-    }
+    // sudden death: first leak loses — decided at the end of the tick so neither side is favoured by update order
+    if (this.overtime > 0 && this.state === 'running') this.otLeaks[side.idx] = true;
   }
   finish(winner, reason) {
     if (this.state !== 'running') return;
@@ -648,8 +654,14 @@ export class Match {
         } else if (this.waveT >= this.curWave.dur) this.startWave();
       }
     }
+    this.otLeaks = [false, false];
     for (const s of this.sides) s.update(dt);
     const [a, b] = this.sides;
+    if (this.otLeaks[0] || this.otLeaks[1]) {
+      if (this.otLeaks[0] && this.otLeaks[1]) this.finish(a.stats.dmg >= b.stats.dmg ? 0 : 1, 'Sudden death tie — more damage wins');
+      else this.finish(this.otLeaks[0] ? 1 : 0, 'Sudden death!');
+      return;
+    }
     if (a.dead && b.dead) this.finish(a.stats.dmg >= b.stats.dmg ? 0 : 1, 'Both wards fell — more damage wins');
     else if (a.dead) this.finish(1, 'Your ward fell');
     else if (b.dead) this.finish(0, "The rival's ward fell");

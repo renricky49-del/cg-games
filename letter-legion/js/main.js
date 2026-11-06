@@ -6,7 +6,7 @@ import { MatchView } from './render.js';
 import { MatchController } from './game.js';
 import { P, loadProfile, saveProfile, unlockedHeroIds, addXp, rollWeapon, equippedWeapons, refreshShop, dailyInfo } from './save.js';
 import { initUI, show, hideUI, toast, pauseMenu, spellbookModal, resultsScreen } from './ui.js';
-import { RIVALS, TUTOR_RIVAL, HEROES, MAP_BY_ID } from './data.js';
+import { RIVALS, TUTOR_RIVAL, HEROES, MAP_BY_ID, RARITIES } from './data.js';
 import { RNG } from './rng.js';
 import { FONT } from './glyphs.js';
 
@@ -34,17 +34,22 @@ function setHint(html) {
 const hooks = {
   onEnd: res => endMatch(res),
   pause: () => openPause(),
-  spellbook: () => { if (!ctl) return; ctl.paused = true; CG.gameplayStop(); spellbookModal(() => { ctl.paused = false; CG.gameplayStart(); }); },
+  spellbook: () => { const c = ctl; if (!c || c.ended) return; c.hold('book'); syncGameplay(); spellbookModal(() => { c.release('book'); syncGameplay(); }); },
   toast: t => toast(t, 1400),
   hint: setHint,
   cursor: c => { canvas.style.cursor = c; },
   setFast: on => { P.settings.fast = on; saveProfile(); },
 };
 
+// tell the SDK whether the player is actively playing right now
+function syncGameplay() { if (ctl && !ctl.ended && !ctl.paused) CG.gameplayStart(); else CG.gameplayStop(); }
 function openPause() {
-  if (!ctl || ctl.ended || pauseModal) return;
-  ctl.paused = true; CG.gameplayStop();
-  pauseModal = pauseMenu(() => { pauseModal = null; ctl.paused = false; CG.gameplayStart(); }, () => { pauseModal = null; ctl.paused = false; ctl.match.finish(1, 'You forfeited the match'); });
+  const c = ctl;
+  if (!c || c.ended || pauseModal || adActive) return; // an ad already pauses the match
+  c.hold('menu'); syncGameplay();
+  pauseModal = pauseMenu(() => { pauseModal = null; c.release('menu'); syncGameplay(); },
+    () => { pauseModal = null; c.release('menu'); if (c.ended) return; c.match.forfeit = true; c.match.finish(1, c.tutorial ? 'Tutorial skipped' : 'You forfeited the match'); },
+    c.tutorial ? 'Skip tutorial' : 'Forfeit match');
 }
 
 function startMatch(o) {
@@ -70,21 +75,26 @@ function computeRewards(res) {
   const o = res.opts; const tutorial = o.tutorial;
   const ri = Math.max(0, o.rivalIndex ?? 0);
   let coins, xp;
-  if (tutorial) { coins = 100; xp = 60; }
+  const firstTutorial = tutorial && !P.tutorialDone;
+  if (res.forfeit) { coins = 0; xp = 0; } // forfeits never pay (no reward farming)
+  else if (tutorial) { coins = firstTutorial && res.won ? 100 : 0; xp = firstTutorial && res.won ? 60 : 0; }
   else if (res.won) { coins = 60 + 22 * ri + res.wave * 3; xp = 45 + 10 * ri + res.wave * 4; }
-  else { coins = 15 + res.wave * 2; xp = 15 + res.wave * 3; }
+  else if (res.wave >= 3) { coins = 10 + res.wave * 2; xp = 12 + res.wave * 3; } // a real attempt still earns a little
+  else { coins = 0; xp = 5; }
   if (o.mode === 'daily' && res.won && P.daily.wins < 3) coins = Math.round(coins * 1.5);
   coins = Math.round(coins * (res.coinsMult || 1));
   const rng = new RNG((Date.now() & 0x7fffffff) ^ res.score);
   let weapon = null;
-  if (!tutorial && (res.won || rng.next() < 0.25)) {
-    weapon = rollWeapon(rng, res.won ? ri * 0.18 : 0);
-    if (!res.won && (weapon.rarity !== 'white' && weapon.rarity !== 'green')) weapon.rarity = 'green';
-    if (P.weapons.length >= 40) { // auto-sell the weakest sellable weapon to make room
-      const idx = P.weapons.findIndex(w => (w.rarity === 'white') && !Object.values(P.equipped).includes(w.uid));
-      if (idx >= 0) { P.coins += 15; P.weapons.splice(idx, 1); } else weapon = null;
+  if (!tutorial && !res.forfeit && (res.won || (res.wave >= 5 && rng.next() < 0.25))) {
+    weapon = rollWeapon(rng, res.won ? ri * 0.18 : 0, null, res.won ? 4 : 1); // losses drop Common/Uncommon only
+    if (P.weapons.length >= 40) { // make room: auto-sell the weakest unequipped sellable weapon
+      const order = ['white', 'green', 'blue'];
+      let idx = -1;
+      for (const r of order) { idx = P.weapons.findIndex(w => w.rarity === r && !Object.values(P.equipped).includes(w.uid)); if (idx >= 0) break; }
+      if (idx >= 0) { const sold = P.weapons.splice(idx, 1)[0]; P.coins += RARITIES.find(r => r.id === sold.rarity).sell; }
+      // if nothing could be sold, keep the drop anyway (inventory may exceed 40 slightly)
     }
-    if (weapon) P.weapons.push(weapon);
+    P.weapons.push(weapon);
   }
   // ladder progress
   let ladderUp = null;
@@ -103,12 +113,16 @@ function computeRewards(res) {
   const unlocks = unlockedHeroIds().filter(h => !before.includes(h));
   P.stats.matches++; if (res.won) P.stats.wins++; P.stats.heroes += res.stats.heroes; P.stats.kills += res.stats.kills;
   if (tutorial) P.tutorialDone = true;
-  refreshShop(false);
+  if (!res.forfeit) refreshShop(false);
   saveProfile(true);
   return { coins, xp, weapon, ladderUp, newBest, levelUps, unlocks };
 }
 
 function endMatch(res) {
+  // close anything still open over the battle (pause menu, spellbook)
+  if (pauseModal) { pauseModal.close(); pauseModal = null; }
+  document.querySelectorAll('#modals .modal-bg').forEach(m => m.remove());
+  if (ctl) ctl.dispose();
   const rewards = computeRewards(res);
   if (res.won) CG.happytime();
   if (rewards.levelUps.length) Audio.play('levelup'); else if (rewards.weapon) Audio.play('drop');
@@ -132,6 +146,7 @@ canvas.addEventListener('pointercancel', () => { if (ctl) { view.drag = null; vi
 canvas.addEventListener('pointerleave', () => { if (ctl) { view.tip = null; } });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 window.addEventListener('keydown', e => {
+  if (adActive) { e.preventDefault(); return; }
   if (ctl && !pauseModal && document.querySelector('#modals').children.length === 0) { ctl.key(e.key); if (e.key === ' ') e.preventDefault(); }
   else if (e.key === 'Escape' && pauseModal) { /* resume via button */ }
 });
@@ -139,8 +154,8 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) { if 
 window.addEventListener('pointerdown', () => Audio.unlock(), { capture: true });
 
 // ---------------- ads ----------------
-CG.onAdStart(() => { adActive = true; Audio.setAdMuted(true); if (ctl) ctl.paused = true; CG.gameplayStop(); });
-CG.onAdEnd(() => { adActive = false; Audio.setAdMuted(false); if (ctl && !ctl.ended && !pauseModal) { ctl.paused = false; CG.gameplayStart(); } });
+CG.onAdStart(() => { adActive = true; Audio.setAdMuted(true); if (ctl) ctl.hold('ad'); CG.gameplayStop(); });
+CG.onAdEnd(() => { adActive = false; Audio.setAdMuted(false); if (ctl) ctl.release('ad'); syncGameplay(); });
 
 // ---------------- loop ----------------
 let last = performance.now();

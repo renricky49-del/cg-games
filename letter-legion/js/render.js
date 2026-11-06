@@ -49,7 +49,8 @@ export class MatchView {
       return { x: Math.round(rect.x + (rect.w - w) / 2), y: Math.round(rect.y + padTop + extra + (rect.h - padTop - padBot - extra - h) / 2), ts, w, h, cols: map.cols, rows: map.rows, mirror };
     };
     if (land) {
-      const k = clamp(Math.min(H / 720, W / 1280), 0.5, 1.5);
+      // HUD design space needs ~610 px of height; shrink further on very short screens so nothing overlaps
+      const k = Math.min(clamp(Math.min(H / 720, W / 1280), 0.5, 1.5), H / 610);
       const hudW = clamp(W * 0.22, 150, 310 * Math.max(1, k));
       const areaW = W - hudW;
       const stripH = clamp(H * 0.07, 34, 50);
@@ -385,7 +386,9 @@ export class MatchView {
     if (side.dead) { g.save(); rr(g, geo.x, geo.y, geo.w, geo.h, 10); g.fillStyle = 'rgba(0,0,0,0.45)'; g.fill(); g.restore(); }
     if (si === 1) { // label
       g.font = `bold ${clamp(ts * 0.3, 11, 16)}px ${FONT2}`; g.textAlign = 'left'; g.textBaseline = 'top';
-      const lbl = `CPU RIVAL · ${this.ctl.rival.name}`; const tw = g.measureText(lbl).width;
+      let lbl = `CPU RIVAL · ${this.ctl.rival.name}`; let tw = g.measureText(lbl).width;
+      if (tw > geo.w * 0.62) { lbl = `CPU · ${this.ctl.rival.name.split(' ')[0]}`; tw = g.measureText(lbl).width; }
+      if (tw > geo.w * 0.62) { lbl = 'CPU'; tw = g.measureText(lbl).width; }
       const lx = geo.x + geo.w - tw - 10;
       rr(g, lx - 8, geo.y - 6, tw + 16, 22, 8); g.fillStyle = 'rgba(120,20,30,0.85)'; g.fill();
       g.fillStyle = '#fff'; g.fillText(lbl, lx, geo.y - 2);
@@ -742,16 +745,16 @@ export class MatchView {
     }
     // ad buttons
     const adOk = !ctl.tutorial;
-    this.btn(B('adSummon'), { col: '#2e9b58', enabled: adOk && !me.adSummonUsed && me.freeTraySlot() >= 0, label: this.land ? '▶ Free Summon' : '▶', sub: this.land ? '' : 'Summon' });
-    this.btn(B('adShovel'), { col: '#2e9b58', enabled: adOk && !me.adShovelUsed && me.lockedCells().length > 0, label: this.land ? '▶ Free Shovel' : '▶', sub: this.land ? '' : 'Shovel' });
+    this.btn(B('adSummon'), { col: '#2e9b58', enabled: ctl.adSummonOk(), label: this.land ? '▶ Free Summon' : '▶', sub: this.land ? '' : 'Summon' });
+    this.btn(B('adShovel'), { col: '#2e9b58', enabled: ctl.adShovelOk(), label: this.land ? '▶ Free Shovel' : '▶', sub: this.land ? '' : 'Shovel' });
     if (this.oddsPanel) {
       const r = this.oddsPanel; this.panel(r);
-      const locked = me.lockedCells().length > me.shovels; const gold = Math.min(1, me.mods.gold); const sh = locked ? 0.05 : 0;
+      const locked = me.lockedCells().length > me.shovels; const useful = me.goldUseful(); const gold = useful ? Math.min(1, me.mods.gold) : 0; const sh = locked ? 0.05 : 0;
       g.textAlign = 'left'; g.textBaseline = 'top'; g.font = `bold 12px ${FONT2}`; g.fillStyle = '#c8d0ff';
       g.fillText('SUMMON ODDS', r.x + 10, r.y + 7);
       const rows = [['Letter S·L·B·K', 1 - gold - sh, '#e8e8f0'], ['Golden hero letter', gold, '#ffd24a'], ['Shovel', sh, '#ffd88a']];
       rows.forEach(([n, v, c], i) => { const yy = r.y + 24 + i * 17; if (yy + 14 > r.y + r.h) return; g.fillStyle = c; g.fillText(n, r.x + 10, yy); g.textAlign = 'right'; g.fillText(Math.round(v * 100) + '%', r.x + r.w - 10, yy); g.textAlign = 'left'; });
-      if (r.h > 86) { const left = Math.max(1, 6 - (me.sinceGold || 0)); g.fillStyle = '#ffe9a8'; g.fillText(left <= 1 ? 'Next summon: golden letter guaranteed!' : `Golden letter guaranteed within ${left} summons`, r.x + 10, r.y + r.h - 18); }
+      if (r.h > 86 && useful) { const left = Math.max(1, 6 - (me.sinceGold || 0)); g.fillStyle = '#ffe9a8'; g.fillText(left <= 1 ? 'Next summon: golden letter guaranteed!' : `Golden letter guaranteed within ${left} summons`, r.x + 10, r.y + r.h - 18); }
     }
     // tray
     this.trayAnim = this.trayAnim.map(v => Math.max(0, v - dt * 1.6));

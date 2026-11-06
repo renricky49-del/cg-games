@@ -354,7 +354,7 @@ function settings() {
 }
 
 // ---------------- in-match overlays ----------------
-export function pauseMenu(onResume, onQuit) {
+export function pauseMenu(onResume, onQuit, quitLabel = 'Forfeit match') {
   const s = P.settings;
   const m = modal(`<h2>Paused</h2>
     <div class="col">
@@ -362,7 +362,7 @@ export function pauseMenu(onResume, onQuit) {
       <button class="btn" id="book">Spellbook</button>
       <label class="toggle"><input type="checkbox" id="music" ${s.music ? 'checked' : ''}><span>Music</span></label>
       <label class="toggle"><input type="checkbox" id="sfx" ${s.sfx ? 'checked' : ''}><span>Sound effects</span></label>
-      <button class="btn red small" id="quit">Forfeit match</button>
+      <button class="btn red small" id="quit">${quitLabel}</button>
     </div>`, 'pause');
   const q = x => m.el.querySelector(x);
   q('#resume').onclick = () => { m.close(); onResume(); };

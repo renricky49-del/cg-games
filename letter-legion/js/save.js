@@ -1,6 +1,6 @@
 // Persistent player profile (CrazyGames data module with localStorage fallback)
 import { CG } from './cg.js';
-import { HEROES, RIVALS, MAPS, ITEMS, ITEM_PRICES, SHOP_RARITY_WEIGHTS, RARITIES, WEAPON_BASES, WEAPON_ADJ, DAILY_BUFFS, xpForLevel } from './data.js';
+import { HEROES, RIVALS, MAPS, ITEMS, ITEM_BY_ID, ITEM_PRICES, SHOP_RARITY_WEIGHTS, RARITIES, WEAPON_BASES, WEAPON_ADJ, DAILY_BUFFS, xpForLevel } from './data.js';
 import { RNG, hashStr, todayKey } from './rng.js';
 
 const KEY = 'letterlegion_save_v1';
@@ -21,11 +21,29 @@ export let P = defaultProfile();
 export function loadProfile() {
   try {
     const raw = CG.getItem(KEY);
-    if (raw) { const d = JSON.parse(raw); P = Object.assign(defaultProfile(), d); P.settings = Object.assign(defaultProfile().settings, d.settings || {}); P.daily = Object.assign(defaultProfile().daily, d.daily || {}); }
+    if (raw) {
+      const d = JSON.parse(raw); const def = defaultProfile();
+      P = Object.assign(def, d);
+      for (const k of ['settings', 'daily', 'stats', 'loadout']) P[k] = Object.assign(defaultProfile()[k], d[k] || {});
+      sanitize();
+    }
   } catch (e) { console.warn('save load failed', e); P = defaultProfile(); }
   rolloverDaily();
   if (!P.shop) refreshShop(false);
   return P;
+}
+// drop anything an older/corrupted save references that no longer exists
+function sanitize() {
+  const okItem = it => it && ITEM_BY_ID[it.id] && Number.isInteger(it.r) && it.r >= 0 && it.r < RARITIES.length;
+  P.loadout.active = (Array.isArray(P.loadout.active) ? P.loadout.active : []).filter(it => okItem(it) && ITEM_BY_ID[it.id].type === 'active').slice(0, 2);
+  P.loadout.passive = (Array.isArray(P.loadout.passive) ? P.loadout.passive : []).filter(it => okItem(it) && ITEM_BY_ID[it.id].type === 'passive').slice(0, 3);
+  if (!P.shop || !Array.isArray(P.shop.offers) || !P.shop.offers.every(okItem)) P.shop = null;
+  P.weapons = (Array.isArray(P.weapons) ? P.weapons : []).filter(w => w && WEAPON_BASES[w.hero] && RARITIES.some(r => r.id === w.rarity));
+  for (const [h, uid] of Object.entries(P.equipped || {})) if (!P.weapons.some(w => w.uid === uid && w.hero === h)) delete P.equipped[h];
+  P.nextUid = Math.max(P.nextUid || 1, ...P.weapons.map(w => w.uid + 1));
+  for (const k of ['coins', 'xp', 'level', 'ladder']) if (!Number.isFinite(P[k]) || P[k] < 0) P[k] = defaultProfile()[k];
+  P.level = Math.max(1, Math.floor(P.level)); P.ladder = Math.min(Math.floor(P.ladder), RIVALS.length);
+  if (!Array.isArray(P.daily.history)) P.daily.history = [];
 }
 let saveTimer = null;
 export function saveProfile(now = false) {
@@ -85,10 +103,10 @@ export function refreshShop(paid) {
 export const REROLL_COST = 40;
 
 // ---------- weapons ----------
-export function rollWeapon(rng, tierBoost = 0, heroPool = null) {
+export function rollWeapon(rng, tierBoost = 0, heroPool = null, maxRarity = 4) {
   const pool = heroPool || unlockedHeroIds();
   const hero = pool[rng.int(pool.length)];
-  const w = RARITIES.map((r, i) => r.weight * (i >= 2 ? 1 + tierBoost : 1) * (i >= 3 ? 1 + tierBoost : 1));
+  const w = RARITIES.map((r, i) => i > maxRarity ? 0 : r.weight * (i >= 2 ? 1 + tierBoost : 1) * (i >= 3 ? 1 + tierBoost : 1));
   const ri = rng.weighted(w);
   const rar = RARITIES[ri];
   const adj = WEAPON_ADJ[rar.id][rng.int(3)];
