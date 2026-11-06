@@ -36,7 +36,7 @@ async function until(p, fn, ms = 90000) { const t = Date.now(); while (Date.now(
   await until(p, () => window.__app.game.phase === 'night' && window.__app.game.stats.timeSurvived > 80 || window.__app.isOver(), 120000);
   await p.evaluate(() => { window.__app.speed = 1; });
   await sleep(1200);
-  await frameBoss(p); await sleep(400);
+  await p.evaluate(() => { const A = window.__app; A.userPanned = false; A.renderer.focusRoom(A.game.player.room); }); await sleep(1500);
   await p.screenshot({ path: OUT + '/06_late.png' });
   await p.evaluate(() => { window.__app.toggleZoom(); }); await sleep(1500);
   await p.screenshot({ path: OUT + '/09_overview.png' });

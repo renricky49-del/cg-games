@@ -68,10 +68,16 @@ export class Renderer {
     this.clampCam();
   }
   focus(wx, wy, z) { this.cam.tx = wx; this.cam.ty = wy; this.cam.tz = z; }
+  // Box that must stay fully visible when framing a room: the whole room, its door wall and the corridor in front.
+  roomBox(room) {
+    const x0 = room.x - 0.35, x1 = room.x + room.w + 0.35;
+    return room.top ? { x0, x1, y0: room.y - 0.35, y1: 10.15 } : { x0, x1, y0: 6.85, y1: room.y + room.h + 0.35 };
+  }
   focusRoom(room) {
-    const z = Math.max(this.cam.fit, Math.min(Math.max(this.cam.fit * 2.4, 30 / TS), 66 / TS, (this.vh - this.insets.top - this.insets.bottom) / (TS * 10.5)));
-    const d = room.doors[0];
-    this.focus((room.x + room.w / 2) * TS, ((room.top ? room.y + 2.5 : room.y + 2.5) + (d.fy)) / 2 * TS, z);
+    const b = this.roomBox(room), M = 10;
+    const availW = this.vw - 2 * M, availH = this.vh - this.insets.top - this.insets.bottom - 2 * M;
+    const z = Math.max(this.cam.fit, Math.min(66 / TS, availW / ((b.x1 - b.x0) * TS), availH / ((b.y1 - b.y0) * TS)));
+    this.focus((b.x0 + b.x1) / 2 * TS, (b.y0 + b.y1) / 2 * TS, z);
   }
   clampCam() {
     const g = this.g; if (!g) return;
