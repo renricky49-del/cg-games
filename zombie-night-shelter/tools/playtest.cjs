@@ -10,6 +10,7 @@ function watch(page) {
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
 }
 async function worldClick(page, x, y) {
+  for (let i = 0; i < 40 && await page.evaluate(() => window.__app.renderer.cam.tz != null); i++) await sleep(100);
   const p = await page.evaluate(([x, y]) => window.__app.renderer.worldToScreen(x, y), [x, y]);
   await page.mouse.click(p.x, p.y);
 }
@@ -33,7 +34,7 @@ async function waitFor(page, fn, ms = 60000) {
   await page.click('#btn-start');
   await sleep(400);
   // pick the room with best neighbour support
-  const room = await page.evaluate(() => { const g = window.__app.game; const r = g.map.rooms.slice().sort((a, b) => b.support - a.support)[0]; return { x: r.x + r.w / 2, y: r.y + 2.5, id: r.id }; });
+  const room = await page.evaluate(() => { const g = window.__app.game, p = g.player; const r = g.map.rooms.filter((r) => !r.owner && !g.survivors.some((o) => o.targetRoom === r)).sort((a, b) => Math.abs(a.doors[0].fx - p.x) - Math.abs(b.doors[0].fx - p.x))[0]; return { x: r.doors[0].ix, y: r.doors[0].iy, id: r.id }; });
   await worldClick(page, room.x, room.y);
   await waitFor(page, () => window.__app.game.player.state === 'inroom');
   const bed = await page.evaluate(() => { const r = window.__app.game.player.room; return { x: r.bed.x, y: r.bed.y }; });

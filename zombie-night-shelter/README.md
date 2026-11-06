@@ -4,7 +4,7 @@ Cartoony idle tower defense for CrazyGames: grab an apartment during the room ru
 build turrets and gadgets, and keep your door standing against a levelling-up zombie boss until dawn.
 
 Plain HTML5 + Canvas 2D + vanilla ES modules. No build step, no runtime dependencies except the CrazyGames SDK v3 script.
-Total size ≈ 1.6 MB (sprites 0.45 MB, music 0.68 MB, title art 0.3 MB).
+Total size ≈ 3.3 MB (sprites/textures ≈ 1.5 MB, music + stings + SFX ≈ 1.4 MB, title art 0.3 MB).
 
 ## Run locally
 ```bash
@@ -97,9 +97,15 @@ earnings) Nights 7–12 become 75–100 % survivable. The game expects players t
 
 ## Decisions made (autonomously)
 - Title **"Last Door Standing"** — searched CrazyGames, no existing game with that name. The folder keeps the working title.
-- Door damage states are drawn procedurally (crack lines + red tint at <33 %) instead of separate sprites, to save credits.
-- One generated music loop (ElevenLabs, 3.84 credits) is used for both menu and game; all SFX are synthesized.
+- Doors have 3 painted states per tier (intact / damaged < 66 % / almost broken < 33 %, plus a pulsing red tint).
+- Camera: closer default zoom (≈44 px tiles during the rush centred on you, ≈56–66 px on your room after you claim it);
+  Z / the button toggles a whole-floor overview. In-world labels never render below ~12–13 px.
+- Two generated music loops (calm menu track, tense night track), generated victory/defeat stings and roar/door-smash/groan
+  samples; the rest of the SFX (shots, coins, UI) are synthesized with WebAudio.
+- Boss frames: walk A/B while moving, attack frame on each hit; minions alternate two walk frames.
+- Rooms get 1–3 pieces of furniture on back-wall tiles (not buildable) plus small clutter that disappears under buildings.
 - Room rush allows click-to-claim *and* WASD walking; the tutorial night requires clicking the bed, later nights
   auto-rest on arrival to reduce friction.
 - Speed toggle (x1/x2) added for idle-style players.
-- On small screens the camera starts zoomed on the player and follows them during the rush; drag/pinch to look around.
+- The camera follows the player during the rush until they pan manually; drag/pinch/wheel to look around.
+- 12 survivor skins (6 extra generated in the polish pass), unlocked by total stars (max 36).

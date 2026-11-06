@@ -19,10 +19,11 @@ const OUT = process.argv[2] || '.';
   // click the nearest free room
   const pt = await page.evaluate(() => {
     const A = window.__app, g = A.game, p = g.player;
-    const r = g.map.rooms.filter((r) => !r.owner).sort((a, b) => Math.abs(a.x - p.x) - Math.abs(b.x - p.x))[0];
-    return A.renderer.worldToScreen(r.x + r.w / 2, r.y + 2.5);
+    const r = g.map.rooms.filter((r) => !r.owner && !g.survivors.some((o) => o.targetRoom === r)).sort((a, b) => Math.abs(a.x - p.x) - Math.abs(b.x - p.x))[0];
+    const d = r.doors[0]; return A.renderer.worldToScreen(d.ix, d.iy);
   });
   await page.mouse.click(pt.x, pt.y);
+  console.log('after click', await page.evaluate(() => { const p = window.__app.game.player; return JSON.stringify({ target: p.targetRoom && p.targetRoom.label, path: p.path.length }); }));
   await page.waitForTimeout(3500);
   await page.screenshot({ path: OUT + '/04_inroom.png' });
   console.log(await page.evaluate(() => { const g = window.__app.game; return JSON.stringify({ phase: g.phase, state: g.player.state, scrap: g.player.scrap }); }));

@@ -37,8 +37,14 @@ export class HUD {
       const top = $('hud-top').getBoundingClientRect();
       const bot = $('hud-bottom');
       const bh = bot.classList.contains('hidden') ? 8 : window.innerHeight - bot.getBoundingClientRect().top + 4;
+      const prev = this.R.insets;
       this.R.insets = { top: top.bottom + 2, bottom: Math.max(bh, 8) };
-      if (this.g) { const f = this.R.fitScale(); this.R.cam.fit = f; this.R.clampCam(); }
+      if (this.g) {
+        const f = this.R.fitScale(); this.R.cam.fit = f; this.R.clampCam();
+        // the action bar appearing changes the visible area: re-frame the player's room
+        const pr = this.g.player.room;
+        if (pr && prev.bottom !== this.R.insets.bottom && !this.app.userPanned && this.R.cam.z > f * 1.1) this.R.focusRoom(pr);
+      }
     });
   }
 
@@ -421,7 +427,7 @@ export class HUD {
       case 'claim':
         if (ev.s.isPlayer) {
           this.toast(`Room ${ev.room.label} is yours!`, 'good');
-          if (this.R.vw < 900 || this.R.cam.fit < 0.55) this.R.focusRoom(ev.room);
+          if (!this.app.userPanned) this.R.focusRoom(ev.room);
         }
         break;
       case 'kill': if (ev.e.kind === 'boss') this.banner(g.endless ? 'BOSS DOWN!' : 'BOSS DEFEATED!', g.endless ? 'Another one is coming…' : 'You win the night!', 2.6); break;

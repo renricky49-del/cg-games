@@ -36,7 +36,7 @@ export class Renderer {
   }
 
   setGame(g) {
-    this.g = g;
+    this.g = g; this.brick = null;
     this.particles.length = 0; this.floaters.length = 0; this.zaps.length = 0; this.rings.length = 0;
     this.buildStatic();
     this.fitCamera(true);
@@ -50,7 +50,7 @@ export class Renderer {
     this.cv.width = Math.round(w * dpr); this.cv.height = Math.round(h * dpr);
     this.cv.style.width = w + 'px'; this.cv.style.height = h + 'px';
     this.light.width = Math.ceil(w / 4); this.light.height = Math.ceil(h / 4);
-    if (this.g) this.fitCamera(false);
+    if (this.g) { this.cam.fit = this.fitScale(); this.clampCam(); }
   }
 
   fitScale() {
@@ -69,7 +69,7 @@ export class Renderer {
   }
   focus(wx, wy, z) { this.cam.tx = wx; this.cam.ty = wy; this.cam.tz = z; }
   focusRoom(room) {
-    const z = Math.max(this.cam.fit, Math.min(Math.max(this.cam.fit * 2.4, 30 / TS), (this.vh - this.insets.top - this.insets.bottom) / (TS * 10)));
+    const z = Math.max(this.cam.fit, Math.min(Math.max(this.cam.fit * 2.4, 30 / TS), 66 / TS, (this.vh - this.insets.top - this.insets.bottom) / (TS * 10.5)));
     const d = room.doors[0];
     this.focus((room.x + room.w / 2) * TS, ((room.top ? room.y + 2.5 : room.y + 2.5) + (d.fy)) / 2 * TS, z);
   }
@@ -103,28 +103,40 @@ export class Renderer {
   // ------------------------------------------------------------------ static layer
   buildStatic() {
     const g = this.g, m = g.map;
+    const SS = this.staticScale = Math.min(2, Math.max(1, this.dpr * 1.25));
     const c = document.createElement('canvas');
-    c.width = m.W * TS; c.height = m.H * TS;
+    c.width = Math.round(m.W * TS * SS); c.height = Math.round(m.H * TS * SS);
     const x = c.getContext('2d');
+    x.scale(SS, SS);
     const rnd = mul(m.W * 7 + m.rooms.length);
-    x.fillStyle = '#1b1c26'; x.fillRect(0, 0, c.width, c.height);
+    x.fillStyle = '#1b1c26'; x.fillRect(0, 0, m.W * TS, m.H * TS);
+    const pat = (name, tiles) => {
+      const im = IMG[name]; if (!im) return null;
+      const p = x.createPattern(im, 'repeat');
+      try { p.setTransform(new DOMMatrix().scale((tiles * TS) / im.width)); } catch (e) { return null; }
+      return p;
+    };
+    const ROOM_TEX = ['t_wood', 't_tile', 't_green', 't_parquet', 't_purple', 't_beige'];
     // floors
     m.rooms.forEach((r, i) => {
       const F = FLOORS[(i * 3 + m.W) % FLOORS.length];
       r.floor = F;
-      drawFloor(x, r.x * TS, r.y * TS, r.w * TS, r.h * TS, F, rnd);
+      const P = pat(ROOM_TEX[(i * 5 + m.W) % ROOM_TEX.length], ROOM_TEX[(i * 5 + m.W) % ROOM_TEX.length] === 't_tile' ? 2 : 2.5);
+      if (P) { x.fillStyle = P; x.fillRect(r.x * TS, r.y * TS, r.w * TS, r.h * TS); }
+      else drawFloor(x, r.x * TS, r.y * TS, r.w * TS, r.h * TS, F, rnd);
     });
     // corridor linoleum
-    for (let ty = 7; ty < 10; ty++) for (let tx = 1; tx < m.W - 1; tx++) {
+    const HP = pat('t_hall', 2);
+    if (HP) { x.fillStyle = HP; x.fillRect(TS, 7 * TS, (m.W - 2) * TS, 3 * TS); }
+    else for (let ty = 7; ty < 10; ty++) for (let tx = 1; tx < m.W - 1; tx++) {
       x.fillStyle = (tx + ty) % 2 ? '#a9b0b8' : '#959ca6';
       x.fillRect(tx * TS, ty * TS, TS, TS);
-      x.fillStyle = 'rgba(255,255,255,0.05)'; x.fillRect(tx * TS + 2, ty * TS + 2, TS - 4, 4);
     }
     // corridor runner carpet
     x.fillStyle = '#7b3b3b'; x.fillRect(6 * TS, 8.25 * TS, (m.W - 7) * TS, TS * 0.5);
     x.fillStyle = '#9b4c4a'; x.fillRect(6 * TS, 8.3 * TS, (m.W - 7) * TS, TS * 0.06); x.fillRect(6 * TS, 8.64 * TS, (m.W - 7) * TS, TS * 0.06);
     // lair: dark concrete + stairs
-    x.fillStyle = '#3a3d3a'; x.fillRect(1 * TS, 1 * TS, 4 * TS, 15 * TS);
+    x.fillStyle = pat('t_concrete', 3) || '#3a3d3a'; x.fillRect(1 * TS, 1 * TS, 4 * TS, 15 * TS);
     for (let i = 0; i < 40; i++) {
       x.fillStyle = `rgba(${rnd() < 0.5 ? '20,40,20' : '60,20,20'},${0.15 + rnd() * 0.2})`;
       x.beginPath(); x.ellipse((1 + rnd() * 4) * TS, (1 + rnd() * 15) * TS, 6 + rnd() * 16, 4 + rnd() * 10, rnd() * 3, 0, TAU); x.fill();
@@ -138,7 +150,7 @@ export class Renderer {
     // walls
     for (let ty = 0; ty < m.H; ty++) for (let tx = 0; tx < m.W; tx++) {
       const k = tileKind(m, tx, ty);
-      if (k === 'wall' || k === 'door') drawWall(x, tx, ty, m);
+      if (k === 'wall' || k === 'door') drawWall(x, tx, ty, m, this.brick || (this.brick = pat('t_brick', 1.5)));
     }
     // inner shadows along walls
     x.fillStyle = 'rgba(0,0,0,0.18)';
@@ -203,6 +215,8 @@ export class Renderer {
       case 'continue': this.ring(g.player.x, g.player.y, '#7dff8a', 4); break;
     }
   }
+  // world-space font size that never renders smaller than minScreen css px
+  fpx(world, minScreen = 13) { return Math.round(Math.max(world, minScreen / this.cam.z)); }
   shake(a) { if (this.noShake) return; this.cam.shake = Math.min(18, Math.max(this.cam.shake, a)); }
   burst(x, y, n, color, spd, life, kind) {
     if (this.particles.length > 600) return;
@@ -259,7 +273,7 @@ export class Renderer {
     ctx.scale(c.z, c.z);
     ctx.translate(-c.x, -c.y);
     ctx.imageSmoothingEnabled = true;
-    ctx.drawImage(this.staticLayer, 0, 0);
+    ctx.drawImage(this.staticLayer, 0, 0, g.map.W * TS, g.map.H * TS);
     this.drawRooms(ctx);
     this.drawHover(ctx);
     this.drawBuildings(ctx);
@@ -290,6 +304,11 @@ export class Renderer {
         const im = IMG[d.kind]; if (!im) continue;
         const s = d.kind === 'rug' ? 0.95 : 0.7;
         drawSprite(ctx, im, (d.tx + 0.5) * TS, (d.ty + 0.5) * TS, TS * s, d.rot);
+      }
+      for (const f of r.furniture || []) {
+        const im = IMG[f.kind]; if (!im) continue;
+        ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fillRect(f.tx * TS + 5, f.ty * TS + 7, TS - 6, TS - 6);
+        drawSprite(ctx, im, (f.tx + 0.5) * TS, (f.ty + 0.5) * TS, TS * 0.98, f.flip);
       }
       // bed
       const bimg = IMG[bedSprite(r.bedLvl)];
@@ -373,8 +392,9 @@ export class Renderer {
       }
       // level pip
       if (b.lvl > 1) {
-        ctx.fillStyle = '#1d1d28'; ctx.beginPath(); ctx.arc(cx + TS * 0.32, cy + TS * 0.32, TS * 0.16, 0, TAU); ctx.fill();
-        ctx.fillStyle = '#ffd84a'; ctx.font = `bold ${TS * 0.2}px "Lilita One", Impact, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        const pr = Math.max(TS * 0.16, 8 / this.cam.z);
+        ctx.fillStyle = '#1d1d28'; ctx.beginPath(); ctx.arc(cx + TS * 0.32, cy + TS * 0.32, pr, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#ffd84a'; ctx.font = `bold ${this.fpx(TS * 0.2, 11)}px "Lilita One", Impact, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.fillText(b.lvl, cx + TS * 0.32, cy + TS * 0.33);
       }
     }
@@ -391,6 +411,14 @@ export class Renderer {
         const r = s.room;
         const hy = r.top ? (r.bed.ty + 0.85) * TS : (r.bed.ty + 1.15) * TS;
         const breathe = 1 + Math.sin(t * 2 + s.id) * 0.03;
+        const zi = IMG['z' + s.skin.slice(1)];
+        if (zi) {
+          drawSprite(ctx, zi, (r.bed.tx + 0.5) * TS, (r.bed.ty + 1) * TS + (r.top ? 2 : -2), TS * 1.62 * (1 + Math.sin(t * 2 + s.id) * 0.012), r.top ? 0 : Math.PI);
+          const zx = (r.bed.tx + 0.85) * TS, zy = (r.top ? r.bed.ty + 0.15 : r.bed.ty + 1.3) * TS - ((t * 14 + s.id * 7) % 18);
+          ctx.globalAlpha = 0.75; ctx.fillStyle = '#fff'; ctx.font = `bold ${this.fpx(TS * 0.3, 11)}px "Lilita One", Impact, sans-serif`;
+          ctx.fillText('z', zx, zy); ctx.globalAlpha = 1;
+          continue;
+        }
         drawSprite(ctx, im, cx, hy, TS * 0.8 * breathe, r.top ? 0 : Math.PI);
         // blanket fold over the body
         ctx.fillStyle = 'rgba(0,0,0,0.12)';
@@ -422,13 +450,16 @@ export class Renderer {
           continue;
         }
         if (r.rubble) { const im = IMG.rubble; if (im) drawSprite(ctx, im, cx, cy, TS * 0.9, d.tx); continue; }
-        const im = IMG[doorSprite(r.doorLvl)]; if (!im) continue;
+        const frac0 = r.owner ? d.hp / g.doorMax(r) : 1;
+        const dn = doorSprite(r.doorLvl) + (frac0 < 0.33 ? '_d2' : frac0 < 0.66 ? '_d1' : '');
+        const im = IMG[dn] || IMG[doorSprite(r.doorLvl)]; if (!im) continue;
         const sh = d.shake > 0 ? (Math.random() - 0.5) * 6 : 0;
         const w = TS * 1.12, h = w * im.height / im.width;
         ctx.drawImage(im, cx - w / 2 + sh, cy - h / 2, w, h);
         if (r.owner) {
           const frac = d.hp / g.doorMax(r);
-          drawCracks(ctx, cx + sh, cy, w, h, frac, d.tx * 13 + d.ty);
+          if (!IMG[dn]) drawCracks(ctx, cx + sh, cy, w, h, frac, d.tx * 13 + d.ty);
+          else if (frac < 0.33) { ctx.fillStyle = `rgba(255,40,20,${0.12 + 0.1 * Math.sin(this.time * 8)})`; ctx.fillRect(cx - w / 2, cy - h / 2, w, h); }
           if (r.flash > 0) { ctx.fillStyle = `rgba(255,60,40,${r.flash * 3})`; ctx.fillRect(cx - w / 2, cy - h / 2, w, h); }
         }
       }
@@ -440,12 +471,20 @@ export class Renderer {
     const list = g.enemies.slice().sort((a, b) => a.y - b.y);
     for (const e of list) {
       if (!e.alive) continue;
-      const im = IMG[e.sprite]; if (!im) continue;
+      const walking = e.state === 'walk' || e.state === 'retreat' || e.state === 'idle';
+      let fname = e.sprite;
+      if (e.kind === 'boss') {
+        const f = e.lunge > 0 ? 2 : walking ? Math.floor(e.walkT * 1.6) % 2 : (e.state === 'attack' ? 0 : Math.floor(t * 1.2 + e.id) % 2);
+        if (IMG[e.sprite + '_' + f]) fname = e.sprite + '_' + f;
+      } else {
+        const f = walking ? Math.floor(e.walkT * 2.2) % 2 : (e.lunge > 0 ? 1 : 0);
+        if (IMG[e.sprite + (f ? '_b' : '_a')]) fname = e.sprite + (f ? '_b' : '_a');
+      }
+      const im = IMG[fname]; if (!im) continue;
       const size = (e.kind === 'boss' ? TS * 2.0 * (e.r / 0.8) : TS * 0.9);
       let cx = e.x * TS, cy = e.y * TS;
       if (e.lunge > 0) { e.lunge -= 1 / 60; cx += Math.cos(e.dir) * 6; cy += Math.sin(e.dir) * 6; }
-      const walking = e.state === 'walk' || e.state === 'retreat';
-      const wob = walking ? Math.sin(e.walkT * 5) * 0.08 : Math.sin(t * 2 + e.id) * 0.02;
+      const wob = walking ? Math.sin(e.walkT * 5) * 0.04 : Math.sin(t * 2 + e.id) * 0.02;
       const alpha = e.rise > 0 ? Math.max(0.2, 1 - e.rise) : 1;
       ctx.globalAlpha = alpha;
       ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(cx, cy + size * 0.25, size * 0.36, size * 0.18, 0, 0, TAU); ctx.fill();
@@ -458,7 +497,7 @@ export class Renderer {
       } else {
         drawSprite(ctx, im, cx, cy, size, rot);
       }
-      if (e.hitFlash > 0) { ctx.globalAlpha = 0.6; drawSprite(ctx, white(e.sprite), cx, cy, size, rot); ctx.globalAlpha = 1; }
+      if (e.hitFlash > 0) { ctx.globalAlpha = 0.6; drawSprite(ctx, white(fname), cx, cy, size, rot); ctx.globalAlpha = 1; }
       if (e.slow > 0) { ctx.globalAlpha = 0.35; ctx.fillStyle = '#9fe2ff'; ctx.beginPath(); ctx.arc(cx, cy, size * 0.42, 0, TAU); ctx.fill(); }
       if (e.charging) { ctx.globalAlpha = 0.5; ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; for (let i = 1; i < 4; i++) { ctx.beginPath(); ctx.moveTo(cx - Math.cos(e.dir) * TS * i * 0.5 - 10, cy - Math.sin(e.dir) * TS * i * 0.5); ctx.lineTo(cx - Math.cos(e.dir) * TS * i * 0.5 + 10, cy - Math.sin(e.dir) * TS * i * 0.5); ctx.stroke(); } }
       if (e.state === 'heal') { ctx.globalAlpha = 0.5 + 0.3 * Math.sin(t * 6); ctx.fillStyle = '#7dff8a'; ctx.font = `bold ${TS * 0.5}px sans-serif`; ctx.textAlign = 'center'; ctx.fillText('+', cx + Math.sin(t * 3) * TS * 0.5, cy - size * 0.5 - (t * 20 % 20)); }
@@ -536,8 +575,8 @@ export class Renderer {
     if (g.phase === 'rush') dark = 0.25;
     else if (g.phase === 'grace') dark = 0.25 + 0.2 * (1 - g.phaseT / 30);
     else if (g.phase === 'night' || g.phase === 'lost') {
-      dark = 0.48;
-      if (!g.endless && g.nightLeft < 25) { dark = 0.48 * (g.nightLeft / 25); tint = '40,20,10'; }
+      dark = 0.4;
+      if (!g.endless && g.nightLeft < 25) { dark = 0.4 * (g.nightLeft / 25); tint = '40,20,10'; }
     } else if (g.phase === 'won') { dark = 0; }
     this.darkness += (dark - this.darkness) * 0.05;
     if (g.phase === 'won' && !g.stats.bossKilled) {
@@ -588,10 +627,11 @@ export class Renderer {
         const dead = r.owner.state === 'dead';
         const lx = (r.x + r.w / 2) * TS, ly = (r.top ? r.y + 0.3 : r.y + r.h - 0.3) * TS;
         const name = r.owner.isPlayer ? 'YOU' : r.owner.name;
-        ctx.font = `bold ${TS * 0.3}px "Lilita One", Impact, sans-serif`;
-        const tw = ctx.measureText(name + '  Lv' + r.bedLvl).width + 16;
+        const lf = this.fpx(TS * 0.3, 13);
+        ctx.font = `bold ${lf}px "Lilita One", Impact, sans-serif`;
+        const tw = ctx.measureText(name + '  Lv' + r.bedLvl).width + lf * 0.9;
         ctx.fillStyle = dead ? 'rgba(80,0,0,0.75)' : r.owner.isPlayer ? 'rgba(255,190,40,0.92)' : 'rgba(20,22,34,0.78)';
-        roundRect(ctx, lx - tw / 2, ly - TS * 0.2, tw, TS * 0.4, 8); ctx.fill();
+        roundRect(ctx, lx - tw / 2, ly - lf * 0.68, tw, lf * 1.36, lf * 0.4); ctx.fill();
         ctx.fillStyle = r.owner.isPlayer ? '#2a1a00' : dead ? '#ff8a8a' : '#fff';
         ctx.fillText(dead ? name + ' ✖' : name + '  Lv' + r.bedLvl, lx, ly + 1);
         if (!r.alive || dead) continue;
@@ -604,7 +644,7 @@ export class Renderer {
           ctx.fillStyle = f > 0.6 ? '#62d26f' : f > 0.3 ? '#f2c23a' : '#ff4b3a';
           ctx.fillRect(bx, by, bw * f, TS * 0.16);
           if (r.owner.isPlayer) {
-            ctx.font = `bold ${TS * 0.22}px "Lilita One", Impact, sans-serif`;
+            ctx.font = `bold ${this.fpx(TS * 0.22, 12)}px "Lilita One", Impact, sans-serif`;
             ctx.fillStyle = '#fff'; ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.lineWidth = 3;
             const txt = fmt(d.hp) + '/' + fmt(m);
             const ty = by + (r.top ? TS * 0.36 : -TS * 0.22);
@@ -615,7 +655,7 @@ export class Renderer {
     }
     // survivor names during rush
     if (g.phase === 'rush') {
-      ctx.font = `bold ${TS * 0.26}px "Lilita One", Impact, sans-serif`;
+      ctx.font = `bold ${this.fpx(TS * 0.26, 12)}px "Lilita One", Impact, sans-serif`;
       for (const s of g.survivors) {
         if (s.state !== 'corridor' && s.state !== 'entering') continue;
         ctx.fillStyle = s.isPlayer ? '#ffd84a' : '#fff'; ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.lineWidth = 3;
@@ -634,10 +674,11 @@ export class Renderer {
       ctx.fillRect(bx, by, bw * Math.max(0, e.hp / e.maxHp), e.kind === 'boss' ? 10 : 6);
       if (e.kind === 'boss') {
         // level badge
-        ctx.fillStyle = '#ffd84a'; ctx.beginPath(); ctx.arc(bx - 10, by + 5, 14, 0, TAU); ctx.fill();
+        const br = Math.max(14, 10 / this.cam.z);
+        ctx.fillStyle = '#ffd84a'; ctx.beginPath(); ctx.arc(bx - br * 0.7, by + 5, br, 0, TAU); ctx.fill();
         ctx.strokeStyle = '#2a1a00'; ctx.lineWidth = 3; ctx.stroke();
-        ctx.fillStyle = '#2a1a00'; ctx.font = `bold 15px "Lilita One", Impact, sans-serif`;
-        ctx.fillText(e.lvl, bx - 10, by + 6);
+        ctx.fillStyle = '#2a1a00'; ctx.font = `bold ${this.fpx(15, 13)}px "Lilita One", Impact, sans-serif`;
+        ctx.fillText(e.lvl, bx - br * 0.7, by + 6);
       }
     }
   }
@@ -648,7 +689,7 @@ export class Renderer {
       const a = Math.min(1, f.life / f.max * 2.5);
       const pop = f.life > f.max - 0.15 ? 1 + (f.life - (f.max - 0.15)) * 3 : 1;
       ctx.globalAlpha = a;
-      ctx.font = `${f.bold ? 'bold ' : ''}${Math.round(TS * 0.34 * f.size * pop)}px "Lilita One", Impact, sans-serif`;
+      ctx.font = `${f.bold ? 'bold ' : ''}${Math.round(this.fpx(TS * 0.34 * f.size, 13 * f.size) * pop)}px "Lilita One", Impact, sans-serif`;
       ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.75)';
       let x = f.x * TS;
       if (f.coin && IMG.i_scrap) { const s = TS * 0.3 * f.size; ctx.drawImage(IMG.i_scrap, x - s - ctx.measureText(f.text).width / 2 - 2, f.y * TS - s / 2, s, s); }
@@ -711,8 +752,15 @@ function drawFloor(x, px, py, w, h, F, rnd) {
     x.globalAlpha = 1;
   }
 }
-function drawWall(x, tx, ty, m) {
+function drawWall(x, tx, ty, m, brick) {
   const px = tx * TS, py = ty * TS;
+  if (brick) {
+    x.fillStyle = brick; x.fillRect(px, py, TS, TS);
+    x.fillStyle = 'rgba(70,76,110,0.35)'; x.fillRect(px, py, TS, TS);
+    x.fillStyle = 'rgba(120,130,170,0.35)'; x.fillRect(px, py, TS, 4);
+    x.fillStyle = 'rgba(0,0,0,0.3)'; x.fillRect(px, py + TS - 6, TS, 6);
+    return;
+  }
   x.fillStyle = '#3b3f55'; x.fillRect(px, py, TS, TS);
   x.fillStyle = '#4c516c'; x.fillRect(px, py, TS, TS * 0.7);
   x.fillStyle = '#5d6383'; x.fillRect(px, py, TS, 4);

@@ -145,7 +145,7 @@ img { -webkit-user-drag: none; }
 .title-inner { position: relative; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
 #title-logo { width: min(560px, 86vw); max-height: 38vh; object-fit: contain; filter: drop-shadow(0 6px 10px rgba(0,0,0,0.6)); animation: logoin 0.6s cubic-bezier(.2,1.6,.4,1); }
 @keyframes logoin { from { transform: scale(0.5) rotate(-6deg); opacity: 0; } }
-.tagline { font-size: 18px; text-shadow: 0 2px 0 #000, 0 0 12px #000; max-width: 90vw; background: rgba(20,12,40,0.55); padding: 4px 14px; border-radius: 10px; }
+.tagline { font-size: 19px; color: #fff3cf; text-shadow: 0 2px 0 #000; max-width: 90vw; background: rgba(16,10,34,0.88); border: 2px solid rgba(255,216,74,0.45); padding: 7px 20px; border-radius: 999px; box-shadow: 0 4px 14px rgba(0,0,0,0.5); }
 .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 .btn { position: relative; background: linear-gradient(#ffe066, #f5a623); color: #3a1f00; font-size: 20px; padding: 10px 22px; border-radius: 14px; box-shadow: 0 5px 0 #a8590d, 0 8px 14px rgba(0,0,0,0.35); transition: transform 0.08s, filter 0.1s; }
 .btn:hover { filter: brightness(1.1); transform: translateY(-2px); }

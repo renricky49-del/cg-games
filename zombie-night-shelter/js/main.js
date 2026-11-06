@@ -60,6 +60,7 @@ const App = {
     this.show('title');
     $('hud').classList.add('hidden');
     this.game = null; this.renderer.g = null;
+    Audio.startMusic('menu');
     this.updateBadges();
     CG.gameplayStop();
   },
@@ -171,7 +172,7 @@ const App = {
     $('hud').classList.remove('hidden');
     this.hud.layout();
     this.paused = false;
-    Audio.startMusic();
+    Audio.startMusic('night');
     CG.gameplayStart();
     this.sessionNights++;
     this.save.nightsPlayed++;
@@ -205,7 +206,7 @@ const App = {
     if (g) {
       // zoomed-in camera follows the player while they run for a room (until the user pans manually)
       const pl = g.player;
-      if (!this.userPanned && (pl.state === 'corridor' || pl.state === 'entering') && R.cam.z > R.cam.fit * 1.15 && R.cam.tz == null) {
+      if (!this.userPanned && pl.state === 'corridor' && R.cam.z > R.cam.fit * 1.15 && R.cam.tz == null) {
         const k = Math.min(1, dt * 3);
         R.cam.x += (pl.x * TS - R.cam.x) * k; R.cam.y += (pl.y * TS - R.cam.y) * k; R.clampCam();
       }
@@ -240,9 +241,11 @@ const App = {
         case 'kill': Audio.play(ev.e.kind === 'boss' ? 'bossDie' : 'kill', near(ev.x, ev.y) ? 1 : 0.4); break;
         case 'death': Audio.play('death', 0.6); break;
         case 'claim': Audio.play('door_close', ev.s.isPlayer ? 1 : 0.3); break;
+        case 'continue': Audio.startMusic('night'); break;
         case 'lie': if (ev.s.isPlayer) Audio.play('lie'); break;
-        case 'win': Audio.play('win'); CG.happytime(); break;
-        case 'lose': Audio.play('lose'); break;
+        case 'win': Audio.stopMusic(true); Audio.play('win'); CG.happytime(); break;
+        case 'lose': Audio.stopMusic(true); Audio.play('lose'); break;
+        case 'minionSpawn': if (near(ev.x, ev.y)) Audio.play('groan'); break;
         case 'chargeHit': Audio.play('doorHit', 1); break;
       }
     }
@@ -305,6 +308,8 @@ const App = {
     $('btn-retry').textContent = r.won ? 'Replay' : 'Retry';
     this.show('results');
     this.updateBadges();
+    clearTimeout(this.resMusicT);
+    this.resMusicT = setTimeout(() => { if (this.screen === 'results') Audio.startMusic('menu'); }, 6500);
   },
 
   // ---------------------------------------------------------------- rewarded ads
@@ -361,34 +366,36 @@ const App = {
     click('btn-pause', () => this.pause());
     click('btn-resume', () => this.resume());
     click('btn-restart', () => { this.startNight(this.nightIdx, true); });
-    click('btn-quit', () => { Audio.stopMusic(); this.showTitle(); });
+    click('btn-quit', () => { this.showTitle(); });
     click('btn-speed', () => { this.speed = this.speed === 1 ? 2 : 1; $('btn-speed').textContent = 'x' + this.speed; });
     click('btn-zoom', () => this.toggleZoom());
     click('btn-continue', () => this.rewarded('continue'));
     click('btn-giveup', () => this.showResults());
     click('btn-double', () => this.rewarded('double'));
-    click('btn-res-menu', () => { Audio.stopMusic(); this.showTitle(); });
+    click('btn-res-menu', () => { this.showTitle(); });
     click('btn-retry', () => this.startNight(this.nightIdx));
     click('btn-next', () => this.startNight(this.nightIdx + 1));
   },
 
-  // On tall/narrow screens the whole floor is tiny: start zoomed in on the player (drag to pan).
+  // Default camera: close enough that characters and labels are readable, centred on the player.
+  // (Z / the zoom button toggles a whole-floor overview; wheel/pinch/drag still work.)
   portraitCam() {
     const R = this.renderer, g = this.game;
     requestAnimationFrame(() => {
       if (!g) return;
-      let z;
-      if (R.vw / R.vh <= 1.25) z = Math.min(R.cam.fit * 2.3, (R.vh - R.insets.top - R.insets.bottom) / (TS * 11));
-      else if (R.cam.fit * TS < 24) z = 26 / TS; // tiny tiles on short landscape screens
-      else return;
-      R.cam.z = Math.max(R.cam.fit, z); R.cam.x = g.player.x * TS; R.cam.y = 8.5 * TS; R.cam.tz = null; R.clampCam();
+      const availH = R.vh - R.insets.top - R.insets.bottom;
+      let tile;
+      if (R.vw / R.vh <= 1.25) tile = Math.min(R.cam.fit * TS * 2.3, availH / 11);
+      else tile = Math.max(30, Math.min(56, availH / 14)); // rush: most of the floor visible, still readable
+      R.cam.z = Math.max(R.cam.fit, tile / TS); R.cam.x = g.player.x * TS; R.cam.y = 8.5 * TS; R.cam.tz = null; R.clampCam();
     });
   },
 
   toggleZoom() {
     const R = this.renderer, g = this.game; if (!g) return;
-    if (R.cam.z > R.cam.fit * 1.15 || !g.player.room) R.fitCamera(false);
-    else R.focusRoom(g.player.room);
+    if (R.cam.z > R.cam.fit * 1.15) R.fitCamera(false);
+    else if (g.player.room) R.focusRoom(g.player.room);
+    else this.portraitCam();
   },
 
   // ---------------------------------------------------------------- input

@@ -144,12 +144,18 @@ export const PERKS = [
 ];
 
 export const SKINS = [
-  { id: 's0', name: 'Rook',  stars: 0 },
-  { id: 's1', name: 'Dash',  stars: 3 },
+  { id: 's0', name: 'Rook', stars: 0 },
+  { id: 's1', name: 'Dash', stars: 3 },
+  { id: 's6', name: 'Bun', stars: 5 },
   { id: 's2', name: 'Sarge', stars: 8 },
-  { id: 's3', name: 'Ivy',   stars: 14 },
+  { id: 's7', name: 'Chef Remy', stars: 10 },
+  { id: 's3', name: 'Ivy', stars: 14 },
+  { id: 's8', name: 'Hardhat', stars: 17 },
   { id: 's4', name: 'Flash', stars: 20 },
+  { id: 's9', name: 'Spike', stars: 24 },
   { id: 's5', name: 'Drizzle', stars: 27 },
+  { id: 's10', name: 'Granny Mae', stars: 30 },
+  { id: 's11', name: 'Cosmo', stars: 36 },
 ];
 
 export const AI_NAMES = ['Dash', 'Sarge', 'Ivy', 'Flash', 'Drizzle', 'Rook', 'Mo', 'Pip', 'Juno', 'Ozzy', 'Tess', 'Kit'];

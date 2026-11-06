@@ -57,6 +57,19 @@ export function buildMap(index, rng) {
       room.bed = { tx: best, ty: by, x: best + 0.5, y: by + 1 };
       const reserved = new Set([`${best},${by}`, `${best},${by + 1}`]);
       for (const d of room.doors) reserved.add(`${d.tx},${isTop ? 5 : 11}`);
+      // furniture: 1-3 pieces along the back wall / far corners (not buildable, keeps the door side free)
+      room.furniture = [];
+      const backY = isTop ? 1 : 15, sideY = isTop ? 2 : 14;
+      const cand = [];
+      for (let cx = x; cx < x + w; cx++) if (!reserved.has(`${cx},${backY}`) && Math.abs(cx - best) > 1) cand.push({ tx: cx, ty: backY });
+      for (const cx of [x, x + w - 1]) if (!reserved.has(`${cx},${sideY}`) && Math.abs(cx - best) > 0) cand.push({ tx: cx, ty: sideY });
+      const nF = Math.min(cand.length, w >= 6 ? 3 : w >= 5 ? 2 : 1);
+      const FURN = ['f_fridge', 'f_shelf', 'f_desk', 'f_couch', 'f_wardrobe', 'f_kitchen', 'f_tv', 'f_armchair', 'f_table', 'f_lamp', 'f_pizza', 'f_laundry'];
+      for (let k = 0; k < nF && cand.length; k++) {
+        const t = cand.splice(Math.floor(rng() * cand.length), 1)[0];
+        room.furniture.push({ tx: t.tx, ty: t.ty, kind: FURN[Math.floor(rng() * FURN.length)], flip: isTop ? 0 : Math.PI });
+        reserved.add(`${t.tx},${t.ty}`);
+      }
       for (let ty = y; ty < y + h; ty++) {
         for (let tx = x; tx < x + w; tx++) {
           if (!reserved.has(`${tx},${ty}`)) room.tiles.push({ tx, ty });

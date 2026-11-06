@@ -1,5 +1,5 @@
 """Slice Higgsfield sprite sheets into individual trimmed, resized PNGs.
-usage: python3 -I tools/slice.py <raw_dir> <out_dir>"""
+usage: python3 -I tools/slice.py <raw_dir> <out_dir> [sheet ...]"""
 import sys, os
 from PIL import Image, ImageFilter
 raw, out = sys.argv[1], sys.argv[2]
@@ -15,7 +15,20 @@ SHEETS = {
   'beds':      (3, 2, ['bed1','bed2','bed3','bed4','bed5','bed6'], 200, 40),
   'icons':     (4, 3, ['i_scrap','i_power','i_door','i_star','i_medal','i_repair','i_up','i_lock','i_clock','i_skull','i_ad','i_moon'], 96, 40),
   'doors':     (3, 3, ['door1','door2','door3','rug','plant','boxes','lamp','chair','rubble'], 128, 40),
+  # --- polish pass ---
+  'bf_brute':   (3, 1, ['boss_brute_0', 'boss_brute_1', 'boss_brute_2'], 208, 40),
+  'bf_spitter': (3, 1, ['boss_spitter_0', 'boss_spitter_1', 'boss_spitter_2'], 208, 40),
+  'bf_charger': (3, 1, ['boss_charger_0', 'boss_charger_1', 'boss_charger_2'], 208, 40),
+  'bf_howler':  (3, 1, ['boss_howler_0', 'boss_howler_1', 'boss_howler_2'], 208, 40),
+  'bf_tank':    (3, 1, ['boss_tank_0', 'boss_tank_1', 'boss_tank_2'], 208, 40),
+  'bf_abom':    (3, 1, ['boss_abom_0', 'boss_abom_1', 'boss_abom_2'], 208, 40),
+  'minion_frames': (4, 2, ['minion0_a', 'minion1_a', 'minion2_a', 'minion3_a', 'minion0_b', 'minion1_b', 'minion2_b', 'minion3_b'], 104, 110),
+  'sleeping':  (3, 2, ['z0', 'z1', 'z2', 'z3', 'z4', 'z5'], 160, 40),
+  'doordmg':   (3, 3, ['door1', 'door2', 'door3', 'door1_d1', 'door2_d1', 'door3_d1', 'door1_d2', 'door2_d2', 'door3_d2'], 128, 40),
+  'skins2':    (3, 2, ['s6', 's7', 's8', 's9', 's10', 's11'], 112, 40),
+  'furniture': (4, 3, ['f_fridge', 'f_shelf', 'f_desk', 'f_couch', 'f_wardrobe', 'f_kitchen', 'f_tv', 'f_armchair', 'f_table', 'f_lamp', 'f_pizza', 'f_laundry'], 128, 40),
 }
+ONLY = set(sys.argv[3:])
 def runs(profile, gap=6):
     best=None; start=None; last=None
     for i,v in enumerate(profile+[0]*(gap+1)):
@@ -40,7 +53,7 @@ def main_run_bbox(mask):
 
 for sheet, (cols, rows, names, maxs, cut) in SHEETS.items():
     p = os.path.join(raw, sheet + '.png')
-    if not os.path.exists(p):
+    if (ONLY and sheet not in ONLY) or not os.path.exists(p):
         continue
     im = Image.open(p).convert('RGBA')
     W, H = im.size

@@ -54,7 +54,7 @@ export class Game {
     }
     // survivors
     const names = AI_NAMES.filter((n) => n !== opts.playerName).sort(() => this.rng() - 0.5);
-    const skins = ['s0', 's1', 's2', 's3', 's4', 's5'].filter((s) => s !== (opts.skin || 's0'));
+    const skins = ['s0', 's1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's10', 's11'].filter((s) => s !== (opts.skin || 's0')).sort(() => this.rng() - 0.5);
     const cx = this.map.W / 2;
     const count = opts.aiCount != null ? opts.aiCount : 5;
     const pers = PERSONALITIES.slice().sort(() => this.rng() - 0.5);
@@ -605,7 +605,7 @@ export class Game {
   _hitDoor(e, t, dmg) {
     const r = t.room;
     t.door.hp -= dmg; t.door.shake = 0.25; r.hitT = 0; r.flash = 0.15;
-    e.lunge = 0.18;
+    e.lunge = 0.3;
     this.emit('doorHit', { room: r, door: t.door, dmg, e, x: t.door.tx + 0.5, y: t.door.ty + 0.5, player: r.owner && r.owner.isPlayer });
     if (e.kind === 'boss') { e.xp += 1; this._checkLevel(e); }
     // spikes reflect

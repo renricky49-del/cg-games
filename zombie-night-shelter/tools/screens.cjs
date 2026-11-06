@@ -2,6 +2,8 @@
 const { chromium } = require('playwright');
 const OUT = 'store/screenshots';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// frame the camera on the boss (or the player's room) at a readable zoom
+const frameBoss = (p) => p.evaluate(() => { const A = window.__app, R = A.renderer, g = A.game, b = g.boss; R.cam.tz = null; R.cam.z = 1.12; R.cam.x = (b.alive ? b.x : g.player.x) * 48; R.cam.y = 8.5 * 48; R.clampCam(); });
 async function until(p, fn, ms = 90000) { const t = Date.now(); while (Date.now() - t < ms) { if (await p.evaluate(fn)) return; await sleep(200); } throw new Error('timeout ' + fn); }
 (async () => {
   const b = await chromium.launch();
@@ -23,7 +25,9 @@ async function until(p, fn, ms = 90000) { const t = Date.now(); while (Date.now(
   await until(p, () => window.__app.game.phase === 'night' && window.__app.game.stats.timeSurvived > 35);
   await p.evaluate(() => { const A = window.__app; A.speed = 1; A.game.autoPlayer = false; });
   await sleep(1500);
+  await frameBoss(p); await sleep(400);
   await p.screenshot({ path: OUT + '/04_night.png' });
+  await p.evaluate(() => { const A = window.__app; A.renderer.focusRoom(A.game.player.room); }); await sleep(1200);
   const t = await p.evaluate(() => { const A = window.__app, g = A.game, r = g.player.room; const q = r.tiles.find((q) => g.tileFree(r, q.tx, q.ty)); return q ? A.renderer.worldToScreen(q.tx + 0.5, q.ty + 0.5) : null; });
   if (t) { await p.mouse.click(t.x, t.y); await sleep(200); await p.hover('.bm-item[data-type="bow"]'); await sleep(300); await p.screenshot({ path: OUT + '/05_build.png' }); await p.keyboard.press('Escape'); }
   // late game night 8 with tesla
@@ -32,7 +36,10 @@ async function until(p, fn, ms = 90000) { const t = Date.now(); while (Date.now(
   await until(p, () => window.__app.game.phase === 'night' && window.__app.game.stats.timeSurvived > 80 || window.__app.isOver(), 120000);
   await p.evaluate(() => { window.__app.speed = 1; });
   await sleep(1200);
+  await frameBoss(p); await sleep(400);
   await p.screenshot({ path: OUT + '/06_late.png' });
+  await p.evaluate(() => { window.__app.toggleZoom(); }); await sleep(1500);
+  await p.screenshot({ path: OUT + '/09_overview.png' });
   await p.evaluate(() => { window.__app.speed = 8; });
   await until(p, () => window.__app.screen === 'results' || window.__app.screen === 'continue', 160000);
   if (await p.evaluate(() => window.__app.screen === 'continue')) await p.click('#btn-giveup');
