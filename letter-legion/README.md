@@ -81,6 +81,7 @@ These need a static server on port 8123 (see above). Chromium and Playwright are
 - `node tests/analyze.mjs 6 [early]`: balance analyzer. Reports damage share by source (each letter, golden tiles, each hero's attacks and skills), heroes spelled per match, how matches end, and per-map win rate and length.
 - `node tests/layout.cjs`: checks that no board, HUD, spell strip or info panel overlaps another, and that no two HUD controls overlap. Runs across 1280x720, 1920x1080, 1366x768, iPhone portrait/landscape, 568x270, 640x360 and 360x640, on all 4 maps. Saves screenshots.
 - `node tests/features.cjs`: the v1.1 mechanics through the real UI: the blessing draft pauses the battle, reroll and key picks work, the Hex button sends a Brute, a CPU hex lands on your road, a ★ completes MAGE, quick merges pay a combo, and quests can be claimed.
+- `node tests/edge_cases.mjs`: regression checks for review findings. A draft that opens on the match's final tick is void. A Hex fired as the final wave clears still lands. Shields block a sudden-death leak. Gilded Quill gives exactly 3 free summons. Stacked blessings stay within their floors.
 - `tests/glyphs.html`: a visual sheet of every letter, level and attack pose.
 - `node tests/store_shots.cjs`: regenerates the 1920×1080 store screenshots.
 
@@ -115,6 +116,12 @@ These need a static server on port 8123 (see above). Chromium and Playwright are
   - Known property: on Crimson Bay (9 lives, a long spiral road) a decent player almost never leaks before the final wave, so most Bay duels end in sudden death. This was already true in v1.0. The faster overtime keeps those duels at about 8.5 minutes.
   - CPU strength was retuned for the new mechanics. A decent player with the expected gear now beats the ladder at about 100 / 98 / 75 / 73 / 50 / 45 / 45 / 35 / 25% (40 simulated duels per rival, so each number is ±8%). Average battle length: Ember Plains about 4 min, Misty Marsh 6, Iron Gate Pass 6, Crimson Bay 8.5. Sir Bumble got a little sturdier so the first real duel lasts long enough to reach the first blessing draft.
   - Blessings and Hex are disabled in the tutorial. The first charged Hex and the first ★ letter each show a one-time hint.
+  - Review fixes:
+    - Ending a match clears any open draft.
+    - The draft pause tells the SDK the gameplay stopped and restarts it after the pick.
+    - A Brute that is still about to spawn counts as "board not clear" at the final judgement.
+    - Draft cards ignore keys and clicks in the first 0.7 s, so mashing 1–3 to deploy can't pick an unseen card.
+    - A CPU that never spells doesn't value the spelling blessings.
 - **Tutorial.** It uses a scripted summon order (S, S, then golden K-I-N-G). Waves are held until the player has summoned, deployed, merged and spelled their first hero, then the match continues against a passive practice rival for 6 waves.
 - **Input.** Desktop mouse first: hover highlights, tooltips for every unit and button, pointer and grab cursors, and drop-target colours (blue = move, green = merge). Touch works with the same drag flow. Keyboard shortcuts are optional.
 - **Layout.** In landscape, the game tries both stacked and side-by-side arrangements of your board and the rival's mirrored, smaller board. It keeps whichever gives the biggest readable tiles. Leftover space becomes a duel panel with a live scoreboard and a next-wave preview of enemy icons. The HUD sits in a side panel drawn in its own design space, scaled 0.5×–1.5× so it fits phones in landscape and 1080p alike. Portrait puts the HUD at the bottom. `tests/layout.cjs` checks automatically that nothing overlaps.

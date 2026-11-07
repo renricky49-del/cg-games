@@ -422,12 +422,13 @@ export function pauseMenu(onResume, onQuit, quitLabel = 'Forfeit match', boons =
 export function draftModal(ctl) {
   const m = modal('', 'draft'); m.el.classList.add('draft-bg');
   const box = m.el.querySelector('.modal');
-  let done = false;
+  let done = false; const openedAt = performance.now();
   const pick = i => {
-    if (done || !ctl.me.offers || !ctl.me.offers[i]) return;
+    if (performance.now() - openedAt < 700) return; // a key mashed for deploying, or a stray click, shouldn't choose an unseen card
+    if (done || ctl.ended || !ctl.me.offers || !ctl.me.offers[i]) return;
     done = true; window.removeEventListener('keydown', onKey, true);
     const card = box.querySelector(`[data-i="${i}"]`); if (card) card.classList.add('chosen');
-    setTimeout(() => { m.close(); ctl.pickBoon(i); }, 260);
+    setTimeout(() => { m.close(); if (!ctl.ended) ctl.pickBoon(i); }, 260);
   };
   const onKey = e => {
     if (!document.body.contains(m.el)) { window.removeEventListener('keydown', onKey, true); return; }
@@ -435,7 +436,7 @@ export function draftModal(ctl) {
     if (['1', '2', '3'].includes(e.key)) { e.preventDefault(); e.stopPropagation(); pick(+e.key - 1); }
     else if (e.key === 'r' || e.key === 'R') { e.preventDefault(); e.stopPropagation(); reroll(); }
   };
-  const reroll = () => { if (done) return; if (ctl.rerollBoons()) render(); };
+  const reroll = () => { if (done || ctl.ended || performance.now() - openedAt < 700) return; if (ctl.rerollBoons()) render(); };
   const render = () => {
     const offers = ctl.me.offers || []; const d = ctl.match.draft || { w: ctl.match.wave, picks: {} };
     const rp = BOON_BY_ID[d.picks?.[1]];

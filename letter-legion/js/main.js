@@ -36,6 +36,7 @@ const hooks = {
   onEnd: res => endMatch(res),
   pause: () => openPause(),
   draft: c => draftModal(c),
+  sync: () => syncGameplay(),
   spellbook: () => { const c = ctl; if (!c || c.ended) return; c.hold('book'); syncGameplay(); spellbookModal(() => { c.release('book'); syncGameplay(); }); },
   toast: t => toast(t, 1400),
   hint: setHint,

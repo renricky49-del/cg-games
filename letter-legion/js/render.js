@@ -827,13 +827,13 @@ export class MatchView {
       g.font = `bold 14px ${FONT2}`; g.fillStyle = me.lives <= 1 ? '#ff4d5e' : '#ff9aa6'; g.fillText(`♥ ${me.lives}/${me.maxLives}  lives`, r.x + 64, r.y + r.h * 0.84);
     } else if (this.playerInfo) {
       const r = this.playerInfo; g.textAlign = 'left'; g.textBaseline = 'middle';
-      g.font = `16px ${FONT}`; g.fillStyle = '#7fd7ff'; g.fillText(`${fmt(me.ink)} ink`, r.x, r.y + 10);
-      g.fillStyle = '#ff9aa6'; g.fillText(`♥ ${me.lives}`, r.x + 110, r.y + 10);
-      // rival lives (shortened so it never runs under the summon button)
-      const sb0 = B('summon'); const maxX = (sb0 ? sb0.x : r.x + r.w) - 6; g.font = `bold 12px ${FONT2}`; g.fillStyle = '#ffb3bb';
-      let rl = `${ctl.rival.name}: ♥ ${riv.lives}`; if (r.x + 160 + g.measureText(rl).width > maxX) rl = `CPU ♥ ${riv.lives}`;
-      g.fillText(rl, r.x + 160, r.y + 10);
-      if (me.shovels) { g.fillStyle = '#ffd88a'; g.fillText(`⛏ ${me.shovels}`, Math.min(r.x + r.w - 40, maxX - 30), r.y + 10); }
+      // one row, left to right; anything that would run under the summon button is shortened or dropped
+      const sb0 = B('summon'); const maxX = (sb0 ? sb0.x : r.x + r.w) - 6; let x = r.x;
+      const put = (txt, font, col, gap = 12) => { g.font = font; const w = g.measureText(txt).width; if (x + w > maxX) return false; g.fillStyle = col; g.fillText(txt, x, r.y + 10); x += w + gap; return true; };
+      put(`${fmt(me.ink)} ink`, `16px ${FONT}`, '#7fd7ff', 16);
+      put(`♥ ${me.lives}${me.shield ? ' +' + me.shield : ''}`, `16px ${FONT}`, '#ff9aa6');
+      if (me.shovels) put(`⛏${me.shovels}`, `bold 13px ${FONT2}`, '#ffd88a');
+      put(`${ctl.rival.name}: ♥ ${riv.lives}`, `bold 12px ${FONT2}`, '#ffb3bb') || put(`CPU ♥ ${riv.lives}`, `bold 12px ${FONT2}`, '#ffb3bb');
     }
     // hex button: charges from kills; send a Hexed Brute down the rival's road
     const hb = B('hex');

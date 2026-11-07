@@ -374,6 +374,7 @@ export class Side {
   }
   // CPU / auto-pick heuristic: weigh each offer against the current board
   boonScore(id) {
+    if (this.cfg.cpuSpell === 0 && (id === 'wild' || id === 'gilded' || id === 'tempo')) return 0; // a CPU that never spells
     const cnt = { S: 0, L: 0, B: 0, K: 0 }; let tot = 0;
     for (const c of this.cells) if (c.unit && c.unit.kind === 'basic') { const v = Math.pow(2, c.unit.level - 1); cnt[c.unit.letter] += v; tot += v; }
     const share = L => tot ? cnt[L] / tot : 0.25;
@@ -777,6 +778,7 @@ export class Match {
   finish(winner, reason) {
     if (this.state !== 'running') return;
     this.state = 'over'; this.winner = winner; this.endReason = reason;
+    this.draft = null; for (const s of this.sides) s.offers = null; // a draft opened on the final tick is void
     this.events.push({ t: 'end', winner, reason });
   }
   startWave() {
@@ -798,7 +800,7 @@ export class Match {
   }
   pickBoon(idx, choice) {
     const s = this.sides[idx];
-    if (!this.draft || !s.offers || !s.offers[choice]) return false;
+    if (this.state !== 'running' || !this.draft || !s.offers || !s.offers[choice]) return false;
     const id = s.offers[choice]; s.offers = null;
     s.applyBoon(id); this.draft.picks[idx] = id;
     if (this.sides.every(x => !x.offers)) this.draft = null;
@@ -806,7 +808,7 @@ export class Match {
   }
   rerollBoons(idx) {
     const s = this.sides[idx];
-    if (!this.draft || !s.offers || s.rerolls <= 0) return false;
+    if (this.state !== 'running' || !this.draft || !s.offers || s.rerolls <= 0) return false;
     s.rerolls--; s.offers = s.rollOffers(s.offers);
     return true;
   }
@@ -830,7 +832,7 @@ export class Match {
         const allSpawned = this.spawnIdx >= this.curWave.list.length;
         if (this.wave >= this.finalWave && allSpawned) {
           // after the final wave: wait for the boards to clear, then judge
-          const clear = this.sides.every(s => s.dead || !s.enemies.some(e => e.hp > 0));
+          const clear = this.sides.every(s => s.dead || (!s.enemies.some(e => e.hp > 0) && !s.pendingSpawns.length));
           if (clear) {
             const [a, b] = this.sides;
             if (a.lives !== b.lives) this.finish(a.lives > b.lives ? 0 : 1, 'Survived the final wave with more lives');

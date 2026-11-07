@@ -15,6 +15,7 @@ function check(m, tag) {
     if (!Number.isFinite(s.ink) || s.ink < -1e-6) fail('bad ink', `${tag} ink=${s.ink}`);
     if (!Number.isFinite(s.hex) || s.hex < 0 || s.hex > s.hexNeed() + 1e-6) fail('bad hex', `${tag} hex=${s.hex}/${s.hexNeed()}`);
     if (s.offers && !m.draft) fail('offers without a draft', tag);
+    if (m.state !== 'running' && (m.draft || s.offers)) fail('draft left open after the match ended', tag);
     if (s.boons.length !== s.stats.boons) fail('boon count mismatch', tag);
     if (!(s.shield >= 0) || !(s.freeLeft >= 0) || !(s.wildLeft >= 0) || !(s.cloverLeft >= 0)) fail('negative counter', `${tag} shield=${s.shield} free=${s.freeLeft} wild=${s.wildLeft}`);
     if (s.letterQueue.some(L => !'SLBK'.includes(L))) fail('bad letter queue', tag);

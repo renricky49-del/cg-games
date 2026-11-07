@@ -18,7 +18,7 @@ export class MatchController {
     this.match = new Match({
       mapId: opts.mapId, seed: opts.seed, tutorial: this.tutorial,
       player: { unlockedHeroes: unlocked, passives: opts.passives, actives: opts.actives, weapons: opts.weapons, dailyBuff: opts.dailyBuff, script: this.tutorial ? ['S', 'S', 'gold:K', 'gold:I', 'gold:N', 'gold:G', 'B', 'K', 'S', 'L'] : null },
-      rival: { unlockedHeroes: rivalHeroes, cpuBonus: this.rival.power, dailyBuff: opts.dailyBuff, cpuSkill: this.rival.skill },
+      rival: { unlockedHeroes: rivalHeroes, cpuBonus: this.rival.power, dailyBuff: opts.dailyBuff, cpuSkill: this.rival.skill, cpuSpell: this.rival.spell },
     });
     if (this.tutorial) { this.match.mapDef = { ...this.match.mapDef, waves: 4 }; this.match.tutorialHold = true; }
     else if (opts.headStart) { const me = this.match.sides[0]; me.ink += 60; me.shovels += 1; }
@@ -102,7 +102,7 @@ export class MatchController {
         if (!this.tipWild && this.me.heldGold().includes('*')) { this.tipWild = true; this.oneTimeHint('wild', 'A <b>★ wild letter</b>! It counts as <b>any</b> letter — drop it into the gap of a hero name.'); }
       }
       // blessing draft: the match is frozen until the player picks one of three cards
-      if (this.match.draft && this.me.offers && !this.me.autoPick && !this.draftOpen) { this.draftOpen = true; this.hold('draft'); this.hooks.draft(this); }
+      if (this.match.state === 'running' && this.match.draft && this.me.offers && !this.me.autoPick && !this.draftOpen) { this.draftOpen = true; this.hold('draft'); this.hooks.sync?.(); this.hooks.draft(this); }
     }
     {
       if (this.match.state === 'over' && !this.ended) {
@@ -117,10 +117,14 @@ export class MatchController {
     if (this.tipT > 0.25 && v.tip && !v.drag && !this.paused) { this.tipT = 0; this.pointerMove(v.pointer.x, v.pointer.y); }
     this.view.draw(this.paused ? 0 : realDt * this.speed);
   }
-  oneTimeHint(id, html) { if (!this.hooks.tipOnce || !this.hooks.tipOnce(id)) return; this.hooks.hint(html); this.later(() => this.hooks.hint(null), 7000); }
+  oneTimeHint(id, html) {
+    if (!this.hooks.tipOnce || !this.hooks.tipOnce(id)) return;
+    this.hintId = id; this.hooks.hint(html);
+    this.later(() => { if (this.hintId === id) { this.hintId = null; this.hooks.hint(null); } }, 7000);
+  }
   pickBoon(i) {
     if (!this.match.pickBoon(0, i)) return false;
-    this.draftOpen = false; this.release('draft');
+    this.draftOpen = false; this.release('draft'); this.hooks.sync?.();
     return true;
   }
   rerollBoons() { const ok = this.match.rerollBoons(0); Audio.play(ok ? 'summon' : 'error'); return ok; }
@@ -143,7 +147,14 @@ export class MatchController {
     if (id === 'book') return this.hooks.spellbook();
     if (id === 'summon') return this.doSummon();
     if (id === 'callWave') { this.match.callWave(0); return; }
-    if (id === 'hex') { if (!me.sendHex()) { Audio.play('error'); this.toast(me.hexReady() ? 'The rival\'s ward has already fallen' : `Hex charging: ${Math.floor(me.hex)}/${me.hexNeed()} — defeat enemies to fill it`); } return; }
+    if (id === 'hex') {
+      if (!me.sendHex()) {
+        Audio.play('error');
+        const foe = this.match.sides[1];
+        this.toast(!me.hexReady() ? `Hex charging: ${Math.floor(me.hex)}/${me.hexNeed()} — defeat enemies to fill it` : this.match.draft ? 'Choose a blessing first' : foe.dead ? 'The rival\'s ward has already fallen' : 'Not right now');
+      }
+      return;
+    }
     if (id.startsWith('train')) { const L = ['S', 'L', 'B', 'K'][+id.slice(5)]; if (!me.doTrain(L)) { Audio.play('error'); this.toast(me.trainCost(L) === Infinity ? 'Fully trained' : 'Not enough ink to train'); } else this.view.banner(`${UNITS[L].name}s trained! (+${me.train[L]})`, UNITS[L].color, 1.2, 0); return; }
     if (id.startsWith('item')) { const i = +id.slice(4); if (!me.useItem(i)) Audio.play('error'); return; }
   }
