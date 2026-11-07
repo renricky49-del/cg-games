@@ -1,7 +1,7 @@
 // Match controller: wires the sim, the CPU brain, the renderer and player input together.
 import { Match } from './sim.js';
 import { CpuBrain } from './ai.js';
-import { UNITS, HERO_BY_ID, HEROES, MAP_BY_ID, ITEM_BY_ID, RARITIES, LEVEL_NAMES, GOLD_TILE } from './data.js';
+import { UNITS, HERO_BY_ID, HEROES, MAP_BY_ID, ITEM_BY_ID, RARITIES, LEVEL_NAMES, GOLD_TILE, BOON_BY_ID } from './data.js';
 import { Audio } from './audio.js';
 import { CG } from './cg.js';
 
@@ -16,9 +16,9 @@ export class MatchController {
     // CPU knows heroes appropriate to its tier
     const rivalHeroes = HEROES.filter((h, i) => i < 3 + Math.floor((opts.rivalIndex ?? 0) * 0.7)).map(h => h.id);
     this.match = new Match({
-      mapId: opts.mapId, seed: opts.seed,
+      mapId: opts.mapId, seed: opts.seed, tutorial: this.tutorial,
       player: { unlockedHeroes: unlocked, passives: opts.passives, actives: opts.actives, weapons: opts.weapons, dailyBuff: opts.dailyBuff, script: this.tutorial ? ['S', 'S', 'gold:K', 'gold:I', 'gold:N', 'gold:G', 'B', 'K', 'S', 'L'] : null },
-      rival: { unlockedHeroes: rivalHeroes, cpuBonus: this.rival.power, dailyBuff: opts.dailyBuff },
+      rival: { unlockedHeroes: rivalHeroes, cpuBonus: this.rival.power, dailyBuff: opts.dailyBuff, cpuSkill: this.rival.skill },
     });
     if (this.tutorial) { this.match.mapDef = { ...this.match.mapDef, waves: 4 }; this.match.tutorialHold = true; }
     else if (opts.headStart) { const me = this.match.sides[0]; me.ink += 60; me.shovels += 1; }
@@ -96,6 +96,15 @@ export class MatchController {
         for (let i = 0; i < 2; i++) { const s = this.match.sides[i]; if (s.events.length) { if (i === 0 && this.tut) for (const ev of s.events) this.tutEvent(ev); this.view.consume(i, s.events); s.events.length = 0; } }
       }
       if (this.tut) this.tutGuard();
+      // first-time explanations for the duel mechanics the tutorial doesn't cover
+      if (!this.tutorial && !this.ended) {
+        if (!this.tipHex && this.me.canHex()) { this.tipHex = true; this.oneTimeHint('hex', 'Your <b>Hex</b> is charged! Click the purple orb (or press <b>H</b>) to send a <b>Hexed Brute</b> down the rival\'s road.'); }
+        if (!this.tipWild && this.me.heldGold().includes('*')) { this.tipWild = true; this.oneTimeHint('wild', 'A <b>★ wild letter</b>! It counts as <b>any</b> letter — drop it into the gap of a hero name.'); }
+      }
+      // blessing draft: the match is frozen until the player picks one of three cards
+      if (this.match.draft && this.me.offers && !this.me.autoPick && !this.draftOpen) { this.draftOpen = true; this.hold('draft'); this.hooks.draft(this); }
+    }
+    {
       if (this.match.state === 'over' && !this.ended) {
         this.ended = true; this.timers.forEach(clearTimeout); this.timers.length = 0;
         setTimeout(() => this.hooks.onEnd(this.result()), 1200);
@@ -103,8 +112,18 @@ export class MatchController {
         CG.gameplayStop();
       }
     }
+    // keep a hover tooltip current (charges, costs) without waiting for the mouse to move
+    const v = this.view; this.tipT = (this.tipT || 0) + realDt;
+    if (this.tipT > 0.25 && v.tip && !v.drag && !this.paused) { this.tipT = 0; this.pointerMove(v.pointer.x, v.pointer.y); }
     this.view.draw(this.paused ? 0 : realDt * this.speed);
   }
+  oneTimeHint(id, html) { if (!this.hooks.tipOnce || !this.hooks.tipOnce(id)) return; this.hooks.hint(html); this.later(() => this.hooks.hint(null), 7000); }
+  pickBoon(i) {
+    if (!this.match.pickBoon(0, i)) return false;
+    this.draftOpen = false; this.release('draft');
+    return true;
+  }
+  rerollBoons() { const ok = this.match.rerollBoons(0); Audio.play(ok ? 'summon' : 'error'); return ok; }
   result() {
     const m = this.match, me = m.sides[0];
     return { won: m.winner === 0, forfeit: !!m.forfeit, reason: m.endReason, wave: m.wave, lives: me.lives, stats: me.stats, score: m.score(0), mapId: m.mapId, coinsMult: me.mods.coins, opts: this.opts };
@@ -124,6 +143,7 @@ export class MatchController {
     if (id === 'book') return this.hooks.spellbook();
     if (id === 'summon') return this.doSummon();
     if (id === 'callWave') { this.match.callWave(0); return; }
+    if (id === 'hex') { if (!me.sendHex()) { Audio.play('error'); this.toast(me.hexReady() ? 'The rival\'s ward has already fallen' : `Hex charging: ${Math.floor(me.hex)}/${me.hexNeed()} — defeat enemies to fill it`); } return; }
     if (id.startsWith('train')) { const L = ['S', 'L', 'B', 'K'][+id.slice(5)]; if (!me.doTrain(L)) { Audio.play('error'); this.toast(me.trainCost(L) === Infinity ? 'Fully trained' : 'Not enough ink to train'); } else this.view.banner(`${UNITS[L].name}s trained! (+${me.train[L]})`, UNITS[L].color, 1.2, 0); return; }
     if (id.startsWith('item')) { const i = +id.slice(4); if (!me.useItem(i)) Audio.play('error'); return; }
   }
@@ -160,7 +180,11 @@ export class MatchController {
       if (u) v.tip = { x, y, ...this.unitTip(u) };
       else if (v.hoverCell && v.hoverCell.locked) v.tip = { x, y, lines: ['Locked cell', me.shovels ? 'Click to dig with a shovel' : 'Summon a Shovel to unlock'], col: '#ffd88a' };
       else if (v.hover) v.tip = this.buttonTip(v.hover, x, y);
-      else if (v.stripHits) { const h = v.stripHits.find(s => x >= s.x && x < s.x + s.w && y >= s.y && y < s.y + s.h); if (h) v.tip = { x, y, lines: [`${h.hero.word} — ${h.hero.skill}`, h.hero.skillDesc, 'Place golden letters in a row, left→right'], col: h.hero.color }; }
+      else if (v.stripHits) {
+        const h = v.stripHits.find(s => x >= s.x && x < s.x + s.w && y >= s.y && y < s.y + s.h);
+        if (h && h.boon) v.tip = { x, y, lines: [`Blessing: ${h.boon.name}`, h.boon.desc], col: h.boon.col };
+        else if (h) v.tip = { x, y, lines: [`${h.hero.word} — ${h.hero.skill}`, h.hero.skillDesc, 'Place golden letters in a row, left→right'], col: h.hero.color };
+      }
     }
     const interactive = (v.hover && (v.hover.id !== 'callWave' || this.match.canCallWave(0))) || (v.hoverTray >= 0 && this.me.tray[v.hoverTray]) || (v.hoverCell && (v.hoverCell.unit || (v.hoverCell.locked && this.me.shovels) || v.selected));
     this.hooks.cursor(v.drag && v.drag.moved ? 'grabbing' : interactive ? 'pointer' : 'default');
@@ -205,11 +229,13 @@ export class MatchController {
     else if (k === 'w' || k === 'W') this.button('item1');
     else if (k === 'f' || k === 'F') this.button('speed');
     else if (k === 'n' || k === 'N') this.button('callWave');
+    else if ((k === 'h' || k === 'H') && !this.tutorial) this.button('hex');
     else if (['1', '2', '3'].includes(k)) { const i = +k - 1; if (this.me.tray[i]) this.autoPlace({ tray: i }); }
   }
   unitTip(u) {
     const me = this.me;
     if (u.kind === 'basic') { const d = UNITS[u.letter]; return { lines: [`${d.name} (${u.letter}) · Lv ${u.level} ${LEVEL_NAMES[u.level - 1]}`, `${d.role} · dmg ${Math.round(me.unitDamage(u))} · ${me.unitRate(u).toFixed(1)}/s`, d.desc, u.level < 7 ? 'Merge with same letter & level to upgrade' : 'Max level!'], col: d.color }; }
+    if (u.kind === 'gold' && u.letter === '*') return { lines: ['★ Wild letter', 'Counts as ANY letter when spelling a hero', 'Put it in the gap of a hero name (row, left → right)', `Weak attack: ${Math.round(me.unitDamage(u))} dmg`], col: '#e0a8ff' };
     if (u.kind === 'gold') { const words = me.unlockedHeroes().filter(h => h.word.includes(u.letter)).map(h => h.word); return { lines: [`Golden letter "${u.letter}"`, words.length ? 'Spells: ' + words.join(', ') : 'Not used by your heroes yet', 'Drop on an identical gold letter to transmute', `Weak attack: ${Math.round(me.unitDamage(u))} dmg`], col: '#ffd24a' }; }
     const h = HERO_BY_ID[u.heroId]; const w = me.mods.weapons[u.heroId];
     return { lines: [`${h.word} · ${h.title} ★${u.level}`, `${h.skill}: ${h.skillDesc}`, `dmg ${Math.round(me.unitDamage(u))} · skill every ${(u.skillMax || h.cd).toFixed(1)}s`, w ? `Weapon: +${Math.round(w.dmg * 100)}% dmg${w.upgrade ? ' · skill upgraded' : ''}` : 'Spell it again to level up (max ★3)'], col: h.color };
@@ -220,6 +246,7 @@ export class MatchController {
       summon: ['Summon (Space)', 'Random letter, golden hero letter or shovel', 'Each summon costs more than the last'],
       callWave: this.match.canCallWave(0) ? ['Call the next wave now (N)', 'Your board is clear — skip the wait', this.match.curWave ? `+${this.match.callWaveBonus()} bonus ink` : 'Start the first wave right away'] : ['Next wave timer', 'Clear your board to call the next wave early for bonus ink'],
       pause: ['Pause (Esc)'], speed: ['Game speed (F)'], book: ['Spellbook — all heroes & skills'],
+      hex: me.canHex() ? ['HEX READY! (H)', 'Curse the rival: a tough Hexed Brute marches down THEIR road', 'Defeating Brutes sent at you charges your own Hex'] : ['Hex (H)', `Charge ${Math.floor(me.hex)}/${me.hexNeed()} — defeat enemies to fill it (bosses & Brutes count extra)`, 'When full, send a Hexed Brute down the rival\'s road'],
     };
     if (b.id.startsWith('train')) { const L = ['S', 'L', 'B', 'K'][+b.id.slice(5)]; return { x, y, lines: [`Train ${UNITS[L].name}s`, `+18% damage for every ${L} on your board`, `Rank ${me.train[L]}/5`], col: UNITS[L].color }; }
     if (b.id.startsWith('item')) { const it = me.mods.actives[+b.id.slice(4)]; if (!it) return { x, y, lines: ['Empty item slot', 'Buy active items in the Shop'] }; const d = ITEM_BY_ID[it.id]; return { x, y, lines: [`${d.name} (${RARITIES[it.r].name}) — ${b.id === 'item0' ? 'Q' : 'W'}`, d.desc(d.vals[it.r]), it.used ? 'Already used this match' : 'Once per match'], col: RARITIES[it.r].color }; }

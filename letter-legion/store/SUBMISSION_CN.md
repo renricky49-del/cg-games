@@ -10,15 +10,15 @@
 
 | 用途 | 文件（在 `letter-legion/` 下） | 规格 |
 |---|---|---|
-| **游戏包** | `release/letter-legion-v1.0.zip` | 3.6 MB；53 个文件；`index.html` 在 zip 根目录 |
+| **游戏包** | `release/letter-legion-v1.1.zip` | 3.6 MB；53 个文件；`index.html` 在 zip 根目录 |
 | 横版封面 16:9 | `store/cover_1920x1080.jpg` | 1920×1080，画面里只有游戏标题文字 |
 | 竖版封面 2:3 | `store/cover_800x1200.jpg` | 800×1200 |
 | 方形封面 1:1 | `store/cover_800x800.jpg` | 800×800 |
-| 横版预览视频（必填） | `store/video/preview_landscape_1920x1080.mp4` | 1080p，18.5 秒，无声，6.8 MB，第一帧就是封面 |
-| 竖版预览视频（必填） | `store/video/preview_portrait_1080x1620.mp4` | 1080×1620（2:3），18.5 秒，无声，6.5 MB |
-| 截图（如需要） | `store/screenshots/*.jpg` | 1920×1080，9 张 |
+| 横版预览视频（必填） | `store/video/preview_landscape_1920x1080.mp4` | 1080p，18.5 秒，无声，6.4 MB，第一帧就是封面 |
+| 竖版预览视频（必填） | `store/video/preview_portrait_1080x1620.mp4` | 1080×1620（2:3），18.5 秒，无声，6.2 MB |
+| 截图（如需要） | `store/screenshots/*.jpg` | 1920×1080，10 张（`10_blessings.jpg` 是新的祝福三选一界面） |
 
-以后改了代码要重新打包：在 `letter-legion/` 下运行 `./build_release.sh 1.1`，会生成 `release/letter-legion-v1.1.zip`。
+以后改了代码要重新打包：在 `letter-legion/` 下运行 `./build_release.sh 1.2`，会生成 `release/letter-legion-v1.2.zip`。
 
 ---
 
@@ -70,15 +70,20 @@ Duel a computer-controlled rival on mirrored battlefields. Spend Ink to summon b
 
 Lucky summons bring golden hero letters. Line them up left to right in one row to spell a hero's name: KING, MAGE, MONK, HAWK, NINJA, DRUID, TITAN or SAINT. The letters fuse into a hero with a spectacular special skill: meteors, arrow storms, shadow flurries, quake shouts and more.
 
+Every few waves the battle pauses and you choose 1 of 3 blessings, so no two battles build the same way. Defeat enemies to charge your Hex, then curse your rival with a Hexed Brute. Watch out: the rival can hex you too!
+
 Outlast your rival: whoever keeps their ward safe the longest wins.
 
 Features:
 - Random-summon merge tower defense with a word-spelling twist
+- 18 blessings to draft during each battle, plus Hex attacks that send cursed Brutes at your rival
+- Wild ★ letters, merge combos and lucky summons
 - 8 heroes with unique skills that level up when you spell them again
 - 4 hand-crafted maps: Ember Plains, Misty Marsh, Crimson Bay and Iron Gate Pass
 - A ladder of 9 CPU rivals, each with their own personality
 - Weapon drops in five rarities, an item shop and a limited loadout
 - Daily Duel with the map, seed and buff of the day, plus your personal best board
+- Three new daily quests every day
 - 1-minute tutorial, 1x/2x speed, mouse and touch support
 
 All rivals are computer-controlled. No account needed: your progress is saved automatically.
@@ -91,7 +96,8 @@ Drop a letter on the same letter of the same level to merge them.
 Place golden letters in one row, left to right, to spell heroes.
 Drag a letter onto the X bin to sell it. Click a locked cell while holding a shovel to dig it.
 When your board is clear, click the wave bar to call the next wave early for bonus Ink.
-Keyboard (optional): Space = summon, 1-3 = auto-place a recruit, N = next wave, Q/W = items, F = speed, Esc = pause
+When your Hex is charged, click the purple orb to send a Hexed Brute at the rival.
+Keyboard (optional): Space = summon, 1-3 = auto-place a recruit (or pick a blessing), H = send Hex, N = next wave, Q/W = items, F = speed, Esc = pause
 ```
 
 **以下几项按你自己的情况填**：
@@ -101,7 +107,7 @@ Keyboard (optional): Space = summon, 1-3 = auto-place a recruit, N = next wave, 
 
 ---
 
-## 三、CrazyGames 要求核对（2026-11-06 对照官方文档）
+## 三、CrazyGames 要求核对（2026-11-06 对照官方文档；v1.1 加入新玩法后 2026-11-07 重新跑过全部测试）
 
 依据的文档：requirements/technical、gameplay、ads、game-covers、quality 等页面。✅ = 已满足并实测；⚠️ = 需要你在官方预览工具里再确认一次。
 
@@ -145,6 +151,7 @@ Keyboard (optional): Space = summon, 1-3 = auto-place a recruit, N = next wave, 
 | 同一个关卡间隙里不能既有激励广告又有插屏广告 | ✅ 结算页看过"双倍金币"后，本次不再播放 midgame，模拟 SDK 测过 |
 | 插屏广告每 3 分钟最多 1 次，开局时不播 | ✅ |
 | 广告期间游戏暂停 | ✅ |
+| 新玩法不碰广告 | ✅ 祝福三选一、诅咒、每日任务都没有广告或激励按钮 |
 | 只在广告真正开始后静音 | ✅ |
 | 不惩罚装了广告拦截的玩家，被挡的功能有提示 | ✅ 检测到拦截时显示 "Ad bonus unavailable (ad blocker)"，金币选项照常可用 |
 
@@ -154,7 +161,7 @@ Keyboard (optional): Space = summon, 1-3 = auto-place a recruit, N = next wave, 
 | 三张封面尺寸 | ✅ 1920×1080、800×1200、800×800 |
 | 封面无边框、只有游戏名文字、没有 Play Now 或图标 | ✅ |
 | 横竖两个 1080p 预览视频（必填） | ✅ |
-| 视频 15–20 秒、≤ 50 MB | ✅ 18.5 秒，6.8 / 6.5 MB |
+| 视频 15–20 秒、≤ 50 MB | ✅ 18.5 秒，6.4 / 6.2 MB |
 | 视频无声、不快进、没有鼠标指针、没有黑屏过渡 | ✅ 按真实速度逐帧录制，没有音轨 |
 | 视频第一帧和封面一致 | ✅ 开头 1 秒是封面，再淡入实际游戏画面 |
 

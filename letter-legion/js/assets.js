@@ -36,10 +36,17 @@ export async function loadAll(onProgress) {
     const g = c.getContext('2d'); g.drawImage(im, 0, 0); g.globalCompositeOperation = 'source-atop'; g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
     IMG['flash_' + k] = c;
   }
+  // purple-cursed versions of the regular enemies (Hexed Brutes)
+  for (const k of ['enemies', 'enemies_b']) {
+    const im = IMG['strip_' + k]; if (!im) continue;
+    const c = document.createElement('canvas'); c.width = im.width; c.height = im.height;
+    const g = c.getContext('2d'); g.drawImage(im, 0, 0); g.globalCompositeOperation = 'source-atop'; g.fillStyle = 'rgba(140,50,230,0.5)'; g.fillRect(0, 0, c.width, c.height);
+    IMG['hex_' + k] = c;
+  }
 }
 // draw sprite i of a strip centered at (x,y) with height h (keeps aspect: square cells)
-export function drawStrip(ctx, strip, i, x, y, h, { flip = false, anchor = 'center', alpha = 1, flash = false } = {}) {
-  const s = STRIPS[strip]; const im = flash ? IMG['flash_' + strip] : IMG['strip_' + strip]; if (!im) return false;
+export function drawStrip(ctx, strip, i, x, y, h, { flip = false, anchor = 'center', alpha = 1, flash = false, hex = false } = {}) {
+  const s = STRIPS[strip]; const im = (flash ? IMG['flash_' + strip] : hex ? IMG['hex_' + strip] : null) || IMG['strip_' + strip]; if (!im) return false;
   const sz = s.size;
   ctx.save();
   if (alpha !== 1) ctx.globalAlpha *= alpha;

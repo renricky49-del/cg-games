@@ -5,7 +5,7 @@ import { MAPS, RIVALS, HEROES } from '../js/data.js';
 const runs = +process.argv[2] || 4;
 const allHeroes = HEROES.map(h => h.id);
 function duel(mapId, pa, pb, seed, cfgA = {}, cfgB = {}) {
-  const m = new Match({ mapId, seed, fx: false, player: { unlockedHeroes: allHeroes, ...cfgA }, rival: { unlockedHeroes: allHeroes, ...cfgB } });
+  const m = new Match({ mapId, seed, fx: false, player: { unlockedHeroes: allHeroes, ...cfgA }, rival: { unlockedHeroes: allHeroes, ...cfgB } }); m.sides[0].autoPick = true;
   const A = new CpuBrain(m.sides[0], pa), B = new CpuBrain(m.sides[1], pb);
   const dt = 1 / 30; let guard = 0;
   const deathWave = [null, null];
@@ -16,7 +16,7 @@ function duel(mapId, pa, pb, seed, cfgA = {}, cfgB = {}) {
   return { winner: m.winner, wave: m.wave, lives: m.sides.map(s => s.lives), time: m.time | 0, heroes: m.sides.map(s => s.stats.heroes), maxLvl: m.sides.map(s => s.stats.maxLevel), reason: m.endReason, sum: m.sides.map(s=>s.summons) };
 }
 function solo(mapId, pa, seed) {
-  const m = new Match({ mapId, seed, fx: false, player: { unlockedHeroes: allHeroes }, rival: {} });
+  const m = new Match({ mapId, seed, fx: false, player: { unlockedHeroes: allHeroes }, rival: {} }); m.sides[0].autoPick = true;
   m.sides[1].lives = 1e9; m.mapDef = { ...m.mapDef, waves: 999 };
   const A = new CpuBrain(m.sides[0], pa); const dt = 1 / 30; let g = 0;
   while (m.state === 'running' && g++ < 30 * 60 * 30) { A.update(dt); m.update(dt); m.sides[0].events.length = 0; m.sides[1].events.length = 0; m.sides[1].enemies.length = 0; }
@@ -33,7 +33,7 @@ if (mode === 'ladder') {
     const gear = ri < 2 ? {} : ri < 5 ? { passives: [{ id: 'quills', r: 1 }, { id: 'ring', r: 1 }], weapons: { KING: { rarity: 'green' }, MAGE: { rarity: 'green' } } }
       : { passives: [{ id: 'quills', r: 2 }, { id: 'ring', r: 2 }, { id: 'goldink', r: 2 }], weapons: { KING: { rarity: 'blue' }, MAGE: { rarity: 'blue' }, MONK: { rarity: 'green' }, HAWK: { rarity: 'blue' } } };
     const rivalHeroes = HEROES.filter((h, i) => i < 3 + Math.floor(ri * 0.7)).map(h => h.id);
-    for (let i = 0; i < runs; i++) { const res = duel(r.map, human, r, 100 + i, process.argv[4] === 'nogear' ? {} : gear, { cpuBonus: r.power, unlockedHeroes: rivalHeroes }); if (res.winner === 0) w++; waves += res.wave; t += res.time; }
+    for (let i = 0; i < runs; i++) { const res = duel(r.map, human, r, 100 + i, { ...(process.argv[4] === 'nogear' ? {} : gear), cpuSkill: 0.8 }, { cpuBonus: r.power, unlockedHeroes: rivalHeroes, cpuSkill: r.skill }); if (res.winner === 0) w++; waves += res.wave; t += res.time; }
     console.log(r.name.padEnd(18), r.map.padEnd(6), `human win ${w}/${runs}`, 'avg wave', (waves / runs).toFixed(1), 'avg time', (t / runs / 60).toFixed(1) + 'm');
   }
 } else if (mode === 'solo') {

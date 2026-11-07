@@ -13,6 +13,9 @@ const fail = (msg, ctx) => { failures++; if (failures <= 25) console.log('FAIL:'
 function check(m, tag) {
   for (const s of m.sides) {
     if (!Number.isFinite(s.ink) || s.ink < -1e-6) fail('bad ink', `${tag} ink=${s.ink}`);
+    if (!Number.isFinite(s.hex) || s.hex < 0 || s.hex > s.hexNeed() + 1e-6) fail('bad hex', `${tag} hex=${s.hex}/${s.hexNeed()}`);
+    if (s.offers && !m.draft) fail('offers without a draft', tag);
+    if (s.boons.length !== s.stats.boons) fail('boon count mismatch', tag);
     if (!Number.isInteger(s.lives) || s.lives < 0 || s.lives > s.maxLives) fail('bad lives', `${tag} lives=${s.lives}/${s.maxLives}`);
     if (s.shovels < 0) fail('negative shovels', tag);
     const seen = new Set();
@@ -43,6 +46,10 @@ function randomAction(s, rng) {
   else if (r < 0.8) s.doTrain(['S', 'L', 'B', 'K', 'X'][rng.int(5)]);
   else if (r < 0.83) s.useItem(rng.int(4) - 1);
   else if (r < 0.85) s.shovels += 1;
+  else if (r < 0.88) s.sendHex();
+  else if (r < 0.9) s.match.rerollBoons(s.idx);
+  else if (r < 0.95) s.match.pickBoon(s.idx, rng.int(4) - 0);
+  else if (r < 0.96) s.match.callWave(s.idx);
 }
 
 let totalWaves = 0, overtimes = 0, t0 = Date.now();
@@ -55,12 +62,14 @@ for (let i = 0; i < N; i++) {
   // mix: side 0 random monkey (sometimes with a brain), side 1 brain or monkey
   const brainA = i % 3 === 0 ? new CpuBrain(m.sides[0], RIVALS[8]) : null;
   const brainB = i % 2 === 0 ? new CpuBrain(m.sides[1], RIVALS[i % RIVALS.length]) : null;
+  if (i % 4 === 1) m.sides[0].autoPick = true; // otherwise the monkey must pick its blessings itself
+  if (i % 5 === 2) m.sides[1].autoPick = false;
   let steps = 0;
   try {
     while (m.state === 'running' && steps < 60 * 60 * 30) {
       const dt = 1 / 60;
       for (let k = 0; k < 2; k++) if (rng.next() < 0.3) randomAction(m.sides[0], rng);
-      if (!brainB && rng.next() < 0.3) randomAction(m.sides[1], rng);
+      if ((!brainB || !m.sides[1].autoPick) && rng.next() < 0.3) randomAction(m.sides[1], rng);
       if (brainA) brainA.update(dt);
       if (brainB) brainB.update(dt);
       m.update(dt);

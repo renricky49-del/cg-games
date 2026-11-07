@@ -86,9 +86,18 @@ const SFX = {
   win: () => { [60, 64, 67, 72, 67, 72, 76, 79].forEach((n, i) => tone(N(n + 12), 0.3, { type: 'triangle', vol: 0.15, delay: i * 0.11 })); },
   lose: () => { [67, 64, 60, 55].forEach((n, i) => tone(N(n), 0.4, { type: 'triangle', vol: 0.15, delay: i * 0.2 })); },
   levelup: () => { [72, 76, 79, 84, 88, 91].forEach((n, i) => tone(N(n), 0.2, { type: 'triangle', vol: 0.13, delay: i * 0.06 })); },
+  // blessings, hexes, combos
+  draft: () => { [67, 71, 74, 79].forEach((n, i) => tone(N(n), 0.5, { type: 'sine', vol: 0.1, delay: i * 0.09 })); noise(0.9, { vol: 0.05, filter: 7000, delay: 0.2 }); },
+  boon: () => { [79, 83, 86, 91, 95].forEach((n, i) => tone(N(n), 0.28, { type: 'triangle', vol: 0.13, delay: i * 0.05 })); tone(N(55), 0.6, { type: 'sine', vol: 0.15 }); },
+  hexSend: () => { tone(N(50), 0.5, { type: 'sawtooth', vol: 0.11, slide: 2.5 }); noise(0.5, { vol: 0.14, filter: 600, slide: 6, q: 3 }); tone(N(74), 0.3, { type: 'square', vol: 0.05, delay: 0.25, slide: 0.5 }); },
+  hexed: () => { tone(N(62), 0.35, { type: 'sawtooth', vol: 0.12, slide: 0.5 }); tone(N(55), 0.5, { type: 'sawtooth', vol: 0.1, slide: 0.5, delay: 0.2 }); noise(0.6, { vol: 0.12, filter: 300, delay: 0.1 }); },
+  hexReady: () => { tone(N(81), 0.12, { type: 'sine', vol: 0.12 }); tone(N(88), 0.2, { type: 'sine', vol: 0.12, delay: 0.08 }); },
+  combo: () => { [84, 88, 91, 96].forEach((n, i) => tone(N(n), 0.12, { type: 'square', vol: 0.06, delay: i * 0.04 })); },
+  crit: () => { noise(0.07, { vol: 0.12, filter: 5000, q: 2 }); tone(1200, 0.06, { type: 'square', vol: 0.04, slide: 0.5 }); },
+  lucky: () => { [76, 83, 88].forEach((n, i) => tone(N(n), 0.18, { type: 'triangle', vol: 0.14, delay: 0.25 + i * 0.06 })); },
   drop: () => { tone(N(60), 0.4, { type: 'sine', vol: 0.2, slide: 2 }); noise(0.4, { vol: 0.1, filter: 5000, delay: 0.3 }); },
 };
-const MIN_GAP = { slash: 0.05, thrust: 0.05, arrow: 0.05, gallop: 0.12, spark: 0.08, kill: 0.04, hover: 0.04 };
+const MIN_GAP = { crit: 0.12, combo: 0.1, slash: 0.05, thrust: 0.05, arrow: 0.05, gallop: 0.12, spark: 0.08, kill: 0.04, hover: 0.04 };
 
 export const Audio = {
   state,

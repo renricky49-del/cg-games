@@ -21,7 +21,7 @@ const W = +process.argv[3] || 1280, H = +process.argv[4] || 720;
     await page.evaluate(async (win) => {
       const mod = await import('./js/ai.js'); const ctl = __LL.ctl;
       // WIN: strong helper; LOSS: helper that does nothing
-      const b = win ? new mod.CpuBrain(ctl.match.sides[0], { think: 0.5, skill: 1, spell: 5, mistakes: 0 }) : null;
+      ctl.match.sides[0].autoPick = true; const b = win ? new mod.CpuBrain(ctl.match.sides[0], { think: 0.5, skill: 1, spell: 5, mistakes: 0 }) : null;
       const o = ctl.update.bind(ctl); ctl.update = dt => { if (b && !ctl.paused) b.update(dt * ctl.speed); o(dt); }; ctl.speed = 4;
       // allow 4x for tests by stepping more
     }, win);

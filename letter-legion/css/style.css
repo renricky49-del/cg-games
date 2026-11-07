@@ -266,3 +266,53 @@ button.slot { cursor: pointer; } button.slot:hover { background: rgba(255,80,80,
   .rewards { font-size: 17px; margin: 4px 0; } .drop { margin: 6px auto; padding: 6px 14px; }
   .hub { gap: 10px; padding: 10px 12px 110px; } .card { padding: 12px; } .map-thumb { height: 86px; }
 }
+
+/* ---------- blessings draft ---------- */
+.modal-bg.draft-bg { background: rgba(8,6,20,0.45); }
+.modal.draft { max-width: min(860px, 96vw); text-align: center; padding: 18px 20px; }
+.draft-h { font-family: 'Titan One', sans-serif; font-size: 28px; color: var(--gold); text-shadow: 0 3px 0 #3a1d06; }
+.center { text-align: center; }
+.draft-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 14px 0 10px; }
+.boon-card { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 12px 16px; border-radius: 18px; cursor: pointer; color: #fff; font-family: 'Fredoka', sans-serif;
+  background: linear-gradient(color-mix(in srgb, var(--bc) 30%, #2a2060), #17123a); border: 3px solid var(--bc); box-shadow: 0 0 22px color-mix(in srgb, var(--bc) 35%, transparent); transition: transform .12s, box-shadow .12s;
+  animation: dealIn .35s cubic-bezier(.2,1.3,.5,1) both; }
+.boon-card:nth-child(2) { animation-delay: .07s; } .boon-card:nth-child(3) { animation-delay: .14s; }
+.boon-card:hover { transform: translateY(-6px) scale(1.04); box-shadow: 0 0 34px var(--bc); }
+.boon-card.chosen { transform: scale(1.1); box-shadow: 0 0 50px var(--bc); }
+.boon-card img { width: 84px; height: 84px; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.5)); }
+.boon-card b { font-family: 'Titan One', sans-serif; font-size: 19px; color: var(--bc); text-shadow: 0 2px 0 rgba(0,0,0,0.6); }
+.boon-card span { font-size: 15px; line-height: 1.3; color: #ece8ff; }
+.boon-card kbd { position: absolute; top: 8px; left: 10px; font: bold 12px 'Fredoka', sans-serif; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.3); border-radius: 6px; padding: 1px 6px; color: #ddd; }
+.draft-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+@keyframes dealIn { from { opacity: 0; transform: translateY(40px) rotate(-4deg) scale(.8); } to { opacity: 1; transform: none; } }
+@media (max-width: 560px) {
+  .draft-cards { grid-template-columns: 1fr; gap: 8px; margin: 8px 0; }
+  .boon-card { flex-direction: row; text-align: left; padding: 8px 12px; gap: 10px; flex-wrap: wrap; }
+  .boon-card img { width: 52px; height: 52px; }
+  .boon-card b { font-size: 16px; } .boon-card span { font-size: 13px; flex: 1 1 60%; }
+  .boon-card kbd { left: auto; right: 10px; }
+  .draft-h { font-size: 21px; }
+}
+@media (max-height: 520px) and (min-width: 561px) {
+  .modal.draft { padding: 10px 14px; }
+  .draft-h { font-size: 20px; }
+  .draft-cards { gap: 8px; margin: 6px 0; }
+  .boon-card { padding: 8px 8px 10px; gap: 3px; }
+  .boon-card img { width: 48px; height: 48px; }
+  .boon-card b { font-size: 15px; } .boon-card span { font-size: 12.5px; }
+}
+.boon-chip { display: inline-flex; align-items: center; gap: 4px; margin: 2px 3px; padding: 2px 8px 2px 2px; border-radius: 20px; font-size: 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--bc); color: #fff; }
+.boon-chip img { width: 22px; height: 22px; }
+.pause-boons, .res-boons { text-align: center; margin: 4px 0 10px; }
+/* ---------- daily quests ---------- */
+.quest { display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.22); border-radius: 12px; padding: 7px 10px; margin-bottom: 7px; border: 1px solid transparent; }
+.quest.ready { border-color: var(--gold); box-shadow: 0 0 12px rgba(255,210,74,0.3); }
+.quest.claimed { opacity: 0.55; }
+.q-main { flex: 1; min-width: 0; }
+.q-text { font-size: 14px; font-weight: 600; }
+.q-bar { position: relative; height: 14px; border-radius: 7px; background: rgba(255,255,255,0.1); margin-top: 4px; overflow: hidden; }
+.q-bar i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #7fd7ff, #7fe08a); border-radius: 7px; }
+.q-bar span { position: relative; display: block; text-align: center; font-size: 10px; line-height: 14px; font-weight: 700; text-shadow: 0 1px 1px #000; }
+.q-rew { display: flex; flex-direction: column; align-items: center; font-weight: 700; font-size: 13px; white-space: nowrap; }
+.q-rew small { font-size: 10px; color: #b9b2dc; font-weight: 600; }
+.q-done { font-size: 20px; color: #7fe08a; width: 56px; text-align: center; }

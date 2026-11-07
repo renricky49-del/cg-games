@@ -1,7 +1,7 @@
 // Match renderer: layout, boards, letter soldiers, enemies, effects and in-match HUD (canvas).
-import { UNITS, HERO_BY_ID, HEROES, LEVEL_COLORS, BOSSES, ENEMIES, ITEM_BY_ID, MAX_LEVEL, RARITIES } from './data.js';
+import { UNITS, HERO_BY_ID, HEROES, LEVEL_COLORS, BOSSES, ENEMIES, ITEM_BY_ID, MAX_LEVEL, RARITIES, BOON_BY_ID } from './data.js';
 import { IMG, drawStrip } from './assets.js';
-import { letterGlyph, goldGlyph, EYES, FONT, FONT2 } from './glyphs.js';
+import { letterGlyph, goldGlyph, hexGlyph, boonIcon, EYES, FONT, FONT2 } from './glyphs.js';
 import { posAt } from './sim.js';
 
 const TAU = Math.PI * 2;
@@ -123,6 +123,7 @@ export class MatchView {
         this.rivalCard = null;
         this.wavePanel = { x: px, y: 54, w: pw, h: 44 }; add('callWave', px, 54, pw, 44);
         this.playerCard = { x: px, y: 104, w: pw, h: 50 };
+        if (!this.match.tutorial) add('hex', px + pw - 56, 106, 52, 46);
         const tw = (pw - 18) / 4;
         for (let i = 0; i < 4; i++) add('train' + i, px + i * (tw + 6), 160, tw, 42);
         const iw = (pw - 12) / 3;
@@ -137,6 +138,7 @@ export class MatchView {
         this.wavePanel = { x: px, y: 122, w: pw, h: 46 };
         add('callWave', px, 122, pw, 46);
         this.playerCard = { x: px, y: 174, w: pw, h: 62 };
+        if (!this.match.tutorial) add('hex', px + pw - 62, 178, 56, 54);
         const tw = (pw - 18) / 4;
         for (let i = 0; i < 4; i++) add('train' + i, px + i * (tw + 6), 244, tw, 46);
         const iw = (pw - 12) / 3;
@@ -151,8 +153,10 @@ export class MatchView {
     } else {
       const T = L.top;
       add('pause', T.w - 44, 4, 38, 36); add('speed', T.w - 86, 4, 38, 36); add('book', T.w - 128, 4, 38, 36);
-      this.wavePanel = { x: 6, y: 4, w: T.w - 140, h: 36 };
-      add('callWave', 6, 4, T.w - 140, 36);
+      const hexW = this.match.tutorial ? 0 : 46;
+      this.wavePanel = { x: 6, y: 4, w: T.w - 140 - hexW, h: 36 };
+      add('callWave', 6, 4, T.w - 140 - hexW, 36);
+      if (hexW) add('hex', T.w - 132 - hexW, 4, 42, 36);
       this.rivalCard = null; this.playerCard = null;
       const px = 8, pw = hud.w - 16, y0 = hud.y + 6;
       const sw = clamp((pw - 160) / 4 - 6, 44, 70);
@@ -170,7 +174,7 @@ export class MatchView {
     this.buttons = B;
   }
   toHud(x, y) { return [(x - this.hox) / this.hk, y / this.hk]; }
-  btnCenter(id) { const b = this.buttons.find(b => b.id === id); return [this.hox + (b.x + b.w / 2) * this.hk, (b.y + b.h / 2) * this.hk]; }
+  btnCenter(id) { const b = this.buttons.find(b => b.id === id); if (!b) return null; return [this.hox + (b.x + b.w / 2) * this.hk, (b.y + b.h / 2) * this.hk]; }
   trayCenter(i) { const r = this.trayRects[i]; return [this.hox + (r.x + r.w / 2) * this.hk, (r.y + r.h / 2) * this.hk]; }
   buttonAt(x, y) { [x, y] = this.toHud(x, y); for (const b of this.buttons) if (x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h) return b; return null; }
   trayAt(x, y) { [x, y] = this.toHud(x, y); return (this.trayRects || []).findIndex(r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h); }
@@ -197,8 +201,27 @@ export class MatchView {
           const [x, y] = this.toScreen(sideIdx, e.x, e.y);
           this.burst(x, y, e.boss !== undefined ? 30 : 8, e.boss !== undefined ? '#ffcf3a' : '#d7f2ff', g.ts * (e.boss !== undefined ? 0.12 : 0.07));
           if (me) { this.text(x, y - g.ts * 0.3, '+' + e.ink, '#7fd7ff', g.ts * 0.28); A.play(e.boss !== undefined ? 'bosskill' : 'kill'); if (e.boss !== undefined) this.shake = Math.max(this.shake, 10); }
+          if (e.elite) { this.burst(x, y, 26, '#c77dff', g.ts * 0.1); if (me) this.text(x, y - g.ts * 0.75, 'Brute down! +Hex', '#d9a8ff', g.ts * 0.3); }
           break;
         }
+        case 'crit': if (me) { const [x, y] = this.toScreen(0, e.x, e.y); this.text(x + (Math.random() - 0.5) * g.ts * 0.4, y - g.ts * 0.6, 'CRIT!', '#ff5d7a', g.ts * 0.3); A.play('crit'); } break;
+        case 'boon': {
+          const b = BOON_BY_ID[e.id]; if (!b) break;
+          if (me) { this.banner(`Blessing: ${b.name}`, b.col, 1.6, 0); A.play('boon'); this.burst(g.x + g.w / 2, g.y + g.h / 2, 30, b.col, g.ts * 0.1); }
+          else this.text(g.x + g.w / 2, g.y + g.h * 0.5, `Rival: ${b.name}`, '#ffb3bb', g.ts * 0.36);
+          break;
+        }
+        case 'draft': if (me) A.play('draft'); break;
+        case 'hexSent': if (me) {
+          const [bx, by] = this.btnCenter('hex') || [g.x + g.w, g.y]; const rg = this.geo[1]; const pt = this.match.sides[1].map.pts[1]; const [px, py] = this.toScreen(1, pt.x, pt.y);
+          this.fx.push({ k: 'hexorb', x0: bx, y0: by, x1: px, y1: py, t: 0, dur: 0.9, s: Math.max(rg.ts, 26) });
+          this.banner('HEX SENT! A Brute marches on the rival', '#d9a8ff', 1.6, 0); A.play('hexSend');
+        } break;
+        case 'hexed': if (me) {
+          const rg = this.geo[1]; const pt = this.match.sides[0].map.pts[1]; const [px, py] = this.toScreen(0, pt.x, pt.y);
+          this.fx.push({ k: 'hexorb', x0: rg.x + rg.w * 0.8, y0: rg.y + 8, x1: px, y1: py, t: 0, dur: 0.9, s: Math.max(g.ts, 26) });
+          this.later(() => { this.banner('HEXED! A Hexed Brute is coming!', '#c77dff', 1.8, 0); this.shake = Math.max(this.shake, 8); }, 0.85); A.play('hexed');
+        } break;
         case 'dodge': if (me) { const [x, y] = this.toScreen(0, e.x, e.y); this.text(x, y - 18, 'miss', '#fff', 13); } break;
         case 'leak': {
           this.wardSad[sideIdx] = 2.5;
@@ -212,7 +235,11 @@ export class MatchView {
           const c = this.match.sides[sideIdx].cells[e.cell]; const [x, y] = this.toScreen(sideIdx, c.x, c.y);
           this.fx.push({ k: 'ring', x, y, t: 0, dur: 0.45, r: g.ts * 0.8, col: LEVEL_COLORS[e.unit.level - 1] });
           this.burst(x, y, 16, LEVEL_COLORS[e.unit.level - 1], g.ts * 0.08);
-          if (me) { this.text(x, y - g.ts * 0.55, 'Lv ' + e.unit.level + '!', LEVEL_COLORS[e.unit.level - 1], g.ts * 0.34); A.play('merge'); }
+          if (me) {
+            this.text(x, y - g.ts * 0.55, 'Lv ' + e.unit.level + '!', LEVEL_COLORS[e.unit.level - 1], g.ts * 0.34); A.play('merge');
+            if (e.combo >= 2) { this.text(x, y - g.ts * 1.0, `COMBO ×${e.combo}!`, e.combo >= 4 ? '#ff7bd5' : '#ffe066', g.ts * (0.34 + 0.04 * Math.min(5, e.combo))); A.play('combo'); this.fx.push({ k: 'ring', x, y, t: 0, dur: 0.5, r: g.ts * 1.3, col: '#ffe066', w: 3 }); }
+            if (e.ink) this.text(x, y + g.ts * 0.15, `+${e.ink} ink`, '#7fd7ff', g.ts * 0.28);
+          }
           break;
         }
         case 'transmute': { const c = this.match.sides[sideIdx].cells[e.cell]; const [x, y] = this.toScreen(sideIdx, c.x, c.y); this.fx.push({ k: 'ring', x, y, t: 0, dur: 0.5, r: g.ts * 0.7, col: '#ffd24a' }); if (me) { this.text(x, y - g.ts * 0.5, '→ ' + e.unit.letter, '#ffd24a', g.ts * 0.34); A.play('transmute'); } break; }
@@ -221,7 +248,15 @@ export class MatchView {
         case 'sell': if (me) { A.play('sell'); const at = e.cell !== undefined ? this.toScreen(0, this.match.sides[0].cells[e.cell].x, this.match.sides[0].cells[e.cell].y) : [this.hox + (this.trash.x + this.trash.w / 2) * this.hk, this.trash.y * this.hk]; this.text(at[0], at[1] - 10, '+' + e.value + ' ink', '#7fd7ff', 16); } break;
         case 'dig': { const c = this.match.sides[sideIdx].cells[e.cell]; const [x, y] = this.toScreen(sideIdx, c.x, c.y); this.burst(x, y, 18, '#a8743f', g.ts * 0.09); if (me) A.play('shovel'); break; }
         case 'train': if (me) { A.play('levelup'); } break;
-        case 'summon': if (me) { if (e.slot >= 0) this.trayAnim[e.slot] = 1; A.play('summon'); setTimeout(() => A.play(e.item.kind === 'gold' ? 'gold' : e.item.kind === 'shovel' ? 'shovel' : 'reveal'), 260); if (e.item.kind === 'shovel') this.banner('Shovel found! Click a locked cell to dig', '#ffd88a', 1.6, 0.5); } break;
+        case 'summon': if (me) {
+          if (e.slot >= 0) this.trayAnim[e.slot] = 1; A.play('summon'); setTimeout(() => A.play(e.item.kind === 'gold' ? 'gold' : e.item.kind === 'shovel' ? 'shovel' : 'reveal'), 260);
+          if (e.item.kind === 'shovel') this.banner('Shovel found! Click a locked cell to dig', '#ffd88a', 1.6, 0.5);
+          if (e.slot >= 0 && (e.item.lucky || e.item.letter === '*')) {
+            const [tx, ty] = this.trayCenter(e.slot); const lucky = e.item.lucky;
+            this.later(() => { this.text(tx, ty - 30, lucky ? 'LUCKY! Lv 2' : '★ WILD!', lucky ? '#7fe08a' : '#e0a8ff', 18); this.burst(tx, ty, 16, lucky ? '#7fe08a' : '#e0a8ff', 4); }, 0.3);
+            if (lucky) A.play('lucky');
+          }
+        } break;
         case 'spell': {
           const side = this.match.sides[sideIdx]; const tc = side.cells[e.target]; const [tx, ty] = this.toScreen(sideIdx, tc.x, tc.y);
           const h = HERO_BY_ID[e.hero];
@@ -231,6 +266,7 @@ export class MatchView {
           setTimeout(() => this.burst(tx, ty, 40, '#ffe066', g.ts * 0.12), 520);
           if (me) {
             A.play('spell'); A.voice(h.id); this.shake = Math.max(this.shake, 8); this.cutin(h, e.level > 1 ? `${h.word} ★${e.level}` : h.word);
+            if (e.wild) this.text(tx, ty - g.ts * 1.2, '★ WILD SPELL!', '#e0a8ff', g.ts * 0.36);
 
           } else this.banner(`Rival spelled ${h.word}!`, '#ffb3bb', 1.4, 0.4);
           break;
@@ -262,6 +298,8 @@ export class MatchView {
       }
     }
   }
+  // delayed visual (in game time, so it respects pause and speed)
+  later(fn, sec) { this.fx.push({ k: 'call', t: -sec, dur: 0.001, fn }); }
   cutin(h, label) { this.lastCut[h.id] = this.time; this.cuts = [{ h, label, t: 0, dur: 1.25 }]; }
   drawCutins(dt) {
     const im = IMG.cutins; if (!im || !this.cuts.length) return;
@@ -413,12 +451,23 @@ export class MatchView {
       const lx = geo.x + geo.w - tw - 10;
       rr(g, lx - 8, geo.y - 6, tw + 16, 22, 8); g.fillStyle = 'rgba(120,20,30,0.85)'; g.fill();
       g.fillStyle = '#fff'; g.fillText(lbl, lx, geo.y - 2);
+      if (!m.tutorial) this.hexMeter(lx - 24, geo.y + 5, 11, side);
     } else {
       g.font = `bold ${clamp(ts * 0.3, 11, 16)}px ${FONT2}`; g.textAlign = 'left'; g.textBaseline = 'top';
       const lbl = 'YOU · Prince Pip'; const tw = g.measureText(lbl).width;
       rr(g, geo.x - 6, geo.y - 6, tw + 16, 22, 8); g.fillStyle = 'rgba(20,60,130,0.85)'; g.fill();
       g.fillStyle = '#fff'; g.fillText(lbl, geo.x + 2, geo.y - 2);
     }
+  }
+  // small charge ring + orb showing how close a side is to sending a Hex
+  hexMeter(x, y, r, side) {
+    const g = this.g; const f = clamp(side.hex / side.hexNeed(), 0, 1); const ready = f >= 1;
+    g.save();
+    if (ready) { g.shadowColor = '#c77dff'; g.shadowBlur = 10 + 6 * Math.sin(this.time * 8); }
+    g.fillStyle = 'rgba(20,6,40,0.85)'; g.beginPath(); g.arc(x, y, r + 3, 0, TAU); g.fill(); g.shadowBlur = 0;
+    g.globalAlpha = 0.45 + 0.55 * f; const s = r * 1.7; g.drawImage(hexGlyph().canvas, x - s / 2, y - s / 2, s, s); g.globalAlpha = 1;
+    g.strokeStyle = ready ? '#f0d0ff' : '#b26bff'; g.lineWidth = 2.5; g.beginPath(); g.arc(x, y, r + 2, -Math.PI / 2, -Math.PI / 2 + f * TAU); g.stroke();
+    g.restore();
   }
   drawLock(x, y, s, canDig, hov) {
     const g = this.g;
@@ -548,7 +597,12 @@ export class MatchView {
     g.save(); g.translate(x, y + h * 0.35 + bob); g.scale(1 / squash, squash);
     const walkB = (Math.floor(this.time * (4 + 3 * e.speed) + e.id * 0.37) & 1) === 1;
     const strip = boss ? (e.castT > 0 ? 'bosses_atk' : 'bosses') : (walkB && !frozen ? 'enemies_b' : 'enemies');
-    drawStrip(g, strip, e.sprite, 0, 0, h, { flip, anchor: 'bottom' });
+    if (e.elite) { // cursed aura
+      g.globalCompositeOperation = 'lighter'; const ar = h * (0.55 + 0.05 * Math.sin(this.time * 6 + e.id));
+      const grd = g.createRadialGradient(0, -h * 0.4, ar * 0.2, 0, -h * 0.4, ar); grd.addColorStop(0, 'rgba(180,90,255,0.55)'); grd.addColorStop(1, 'rgba(180,90,255,0)');
+      g.fillStyle = grd; g.beginPath(); g.arc(0, -h * 0.4, ar, 0, TAU); g.fill(); g.globalCompositeOperation = 'source-over';
+    }
+    drawStrip(g, strip, e.sprite, 0, 0, h, { flip, anchor: 'bottom', hex: !!e.elite });
     if (e.hitT > 0) drawStrip(g, strip, e.sprite, 0, 0, h, { flip, anchor: 'bottom', flash: true, alpha: 0.6 });
     g.restore();
     if (frozen) { g.fillStyle = e.stunT > 0 && this.match.sides[si].freezeT <= 0 ? '#ffe066' : '#bfe9ff'; for (let i = 0; i < 3; i++) { const a = this.time * 4 + i * 2.1; this.star(x + Math.cos(a) * h * 0.3, y - h * 0.55 + Math.sin(a) * h * 0.08, h * 0.07); } }
@@ -556,17 +610,18 @@ export class MatchView {
     if (e.dotT > 0) { g.strokeStyle = 'rgba(80,200,90,0.9)'; g.lineWidth = 3; g.beginPath(); g.ellipse(x, y + h * 0.3, h * 0.32, h * 0.1, 0, 0, TAU); g.stroke(); }
     // hp bar
     const f = clamp(e.hp / e.maxHp, 0, 1);
-    if (f < 1 || boss) {
-      const bw = boss ? h * 0.9 : h * 0.6, bh = boss ? 6 : 4, by = y - h * 0.72 + bob;
+    if (f < 1 || boss || e.elite) {
+      const big = boss || e.elite;
+      const bw = big ? h * 0.9 : h * 0.6, bh = big ? 6 : 4, by = y - h * 0.72 + bob;
       g.fillStyle = 'rgba(0,0,0,0.6)'; g.fillRect(x - bw / 2 - 1, by - 1, bw + 2, bh + 2);
-      g.fillStyle = boss ? '#ff5d4a' : f > 0.5 ? '#6fe05b' : f > 0.25 ? '#ffd24a' : '#ff5d4a'; g.fillRect(x - bw / 2, by, bw * f, bh);
+      g.fillStyle = boss ? '#ff5d4a' : e.elite ? '#c77dff' : f > 0.5 ? '#6fe05b' : f > 0.25 ? '#ffd24a' : '#ff5d4a'; g.fillRect(x - bw / 2, by, bw * f, bh);
       if (e.armor) { g.fillStyle = '#c9d3dd'; g.fillRect(x - bw / 2, by + bh, bw, 1.5); }
     }
   }
 
   drawFx(dt) {
     const g = this.g;
-    for (const f of this.fx) f.t += dt;
+    for (const f of this.fx) { f.t += dt; if (f.k === 'call' && !f.fired && f.t >= 0) { f.fired = true; f.fn(); } }
     this.fx = this.fx.filter(f => f.t < f.dur);
     for (const f of this.fx) {
       if (f.t < 0) continue;
@@ -586,6 +641,15 @@ export class MatchView {
         case 'cross': g.translate(f.x, f.y); g.strokeStyle = f.col; g.globalAlpha = 1 - p; g.lineWidth = 4; g.beginPath(); g.moveTo(-f.r, -f.r); g.lineTo(f.r, f.r); g.moveTo(f.r, -f.r); g.lineTo(-f.r, f.r); g.stroke(); break;
         case 'vines': { g.translate(f.x, f.y); g.globalAlpha = Math.min(1, (1 - p) * 3); g.strokeStyle = '#3fae4f'; g.lineWidth = 3; for (let i = 0; i < 7; i++) { const a = i * TAU / 7 + p; g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(Math.cos(a + 0.6) * f.r * 0.6, Math.sin(a + 0.6) * f.r * 0.6, Math.cos(a) * f.r, Math.sin(a) * f.r); g.stroke(); } g.strokeStyle = 'rgba(63,174,79,0.6)'; g.beginPath(); g.arc(0, 0, f.r, 0, TAU); g.stroke(); break; }
         case 'beam': { g.globalCompositeOperation = 'lighter'; g.globalAlpha = Math.sin(p * Math.PI); const grd = g.createLinearGradient(f.x, f.y - f.s * 3, f.x, f.y); grd.addColorStop(0, 'rgba(255,250,200,0)'); grd.addColorStop(1, 'rgba(255,250,200,0.9)'); g.fillStyle = grd; g.fillRect(f.x - f.s * 0.3, f.y - f.s * 3, f.s * 0.6, f.s * 3); break; }
+        case 'hexorb': {
+          const q = easeOut(p); const x = lerp(f.x0, f.x1, q), y = lerp(f.y0, f.y1, q) - Math.sin(q * Math.PI) * f.s * 1.6;
+          g.globalCompositeOperation = 'lighter';
+          for (let i = 1; i <= 5; i++) { const qq = easeOut(Math.max(0, p - i * 0.035)); const tx = lerp(f.x0, f.x1, qq), ty = lerp(f.y0, f.y1, qq) - Math.sin(qq * Math.PI) * f.s * 1.6; g.globalAlpha = 0.35 - i * 0.05; g.fillStyle = '#b26bff'; g.beginPath(); g.arc(tx, ty, f.s * (0.42 - i * 0.05), 0, TAU); g.fill(); }
+          g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
+          const sz = f.s * 0.95; g.translate(x, y); g.rotate(p * 8); g.drawImage(hexGlyph().canvas, -sz / 2, -sz / 2, sz, sz);
+          if (!f.boomed && p > 0.97) { f.boomed = true; this.burst(f.x1, f.y1, 26, '#c77dff', f.s * 0.12); }
+          break;
+        }
         case 'tongue': case 'zap': { const q = Math.min(1, p * 2.5); g.strokeStyle = f.k === 'tongue' ? '#ff6f9a' : '#ffb347'; g.lineWidth = f.k === 'tongue' ? 5 : 3; g.lineCap = 'round'; g.globalAlpha = 1 - Math.max(0, p - 0.6) / 0.4; g.beginPath(); g.moveTo(f.x0, f.y0); g.lineTo(lerp(f.x0, f.x1, q), lerp(f.y0, f.y1, q)); g.stroke(); break; }
       }
       g.restore();
@@ -615,6 +679,7 @@ export class MatchView {
     let y = r.y + 10;
     g.font = `${fs * 1.1}px ${FONT}`; g.fillStyle = '#ffd24a'; g.fillText('DUEL', r.x + 12, y); y += fs * 1.7;
     const rows = [['', 'YOU', 'CPU'], ['Lives', `♥ ${me.lives}`, `♥ ${riv.lives}`], ['Kills', me.stats.kills, riv.stats.kills], ['Heroes', me.stats.heroes, riv.stats.heroes], ['Best letter', 'Lv ' + me.stats.maxLevel, 'Lv ' + riv.stats.maxLevel]];
+    if (!m.tutorial) rows.push(['Hexes sent', me.stats.hexes, riv.stats.hexes], ['Blessings', me.boons.length, riv.boons.length]);
     const c1 = r.x + 12, c2 = r.x + r.w * 0.52, c3 = r.x + r.w * 0.78;
     for (const [i, row] of rows.entries()) {
       if (y + fs > r.y + r.h - 8) break;
@@ -652,19 +717,26 @@ export class MatchView {
     const heroes = side.unlockedHeroes();
     const onBoard = side.heroesOnBoard();
     const ls = Math.min(S.h - 12, 26); let x = S.x + 10; const y = S.y + (S.h - ls) / 2;
+    // your blessings, right-aligned
+    this.stripHits = [];
+    const boons = side.boons; let bx = S.x + S.w - 8;
+    for (let i = boons.length - 1; i >= 0; i--) {
+      const b = BOON_BY_ID[boons[i]]; if (!b) continue; bx -= ls + 3; if (bx < S.x + S.w * 0.55) { bx += ls + 3; break; }
+      g.drawImage(boonIcon(b).canvas, bx, y, ls, ls); this.stripHits.push({ x: bx, y, w: ls, h: ls, boon: b });
+    }
+    const right = boons.length ? bx - 6 : S.x + S.w - 6;
     g.font = `${Math.max(10, ls * 0.5)}px ${FONT2}`; g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillStyle = '#ffd24a';
     if (this.land) { g.fillText('SPELLBOOK', x, S.y + S.h / 2); x += g.measureText('SPELLBOOK').width + 12; }
-    this.stripHits = [];
     // order: most progress first
     const list = heroes.map(h => ({ h, p: side.heroProgress(h), lvl: onBoard.find(u => u.heroId === h.id)?.level || 0 })).sort((a, b) => b.p - a.p);
     for (const { h, lvl } of list) {
       const w = h.word.length * (ls + 2) + 10;
-      if (x + w > S.x + S.w - 6) break;
+      if (x + w > right) break;
       const hc = held.slice();
       rr(g, x - 3, y - 3, w - 4, ls + 6, 7); g.fillStyle = lvl ? 'rgba(255,210,74,0.25)' : 'rgba(255,255,255,0.06)'; g.fill();
       for (let k = 0; k < h.word.length; k++) {
-        const ch = h.word[k]; const i = hc.indexOf(ch); const have = i >= 0; if (have) hc.splice(i, 1);
-        if (have) g.drawImage(goldGlyph(ch).canvas, x + k * (ls + 2), y, ls, ls);
+        const ch = h.word[k]; let i = hc.indexOf(ch); const exact = i >= 0; if (!exact) i = hc.indexOf('*'); const have = i >= 0; if (have) hc.splice(i, 1);
+        if (have) g.drawImage(goldGlyph(exact ? ch : '*').canvas, x + k * (ls + 2), y, ls, ls);
         else { rr(g, x + k * (ls + 2) + 1, y + 1, ls - 2, ls - 2, 5); g.fillStyle = 'rgba(255,255,255,0.12)'; g.fill(); g.font = `${ls * 0.62}px ${FONT}`; g.textAlign = 'center'; g.fillStyle = 'rgba(255,255,255,0.45)'; g.fillText(ch, x + k * (ls + 2) + ls / 2, y + ls / 2 + 1); }
       }
       if (lvl) { g.fillStyle = '#ffe066'; g.font = `${ls * 0.5}px ${FONT}`; g.textAlign = 'center'; g.fillText('★' + lvl, x + w - 14, y - 2); }
@@ -726,11 +798,13 @@ export class MatchView {
       const t = m.timeToNextWave();
       g.textAlign = 'left'; g.textBaseline = 'middle'; g.font = `${Math.min(18, r.h * 0.45)}px ${FONT}`; g.fillStyle = '#fff';
       const label = m.overtime ? `Sudden death ${m.overtime}` : w === 0 ? 'Get ready!' : `Wave ${w}/${fw}`;
-      g.fillText(label, r.x + 10, r.y + r.h * 0.38);
+      g.fillText(label, r.x + 10, r.y + r.h * 0.38); const lw = g.measureText(label).width;
       g.font = `bold ${Math.min(12, r.h * 0.3)}px ${FONT2}`; g.fillStyle = canCall ? '#b8ffc4' : '#c8d0ff';
       const nextBoss = Math.ceil((w + 1) / 5) * 5;
       const bonus = m.curWave ? m.callWaveBonus() : 0;
-      const info = canCall ? (w === 0 ? '▶▶ Start now' : `▶▶ Call now +${bonus}`) : w >= fw ? 'Final wave!' : `next in ${Math.ceil(t)}s · boss at ${nextBoss <= fw ? nextBoss : fw}`;
+      let info = canCall ? (w === 0 ? '▶▶ Start now' : `▶▶ Call now +${bonus}`) : w >= fw ? 'Final wave!' : `next in ${Math.ceil(t)}s · boss at ${nextBoss <= fw ? nextBoss : fw}`;
+      const room = r.w - 30 - lw;
+      if (g.measureText(info).width > room) info = canCall ? (w === 0 ? '▶▶ Go' : `▶▶ +${bonus}`) : w >= fw ? 'Final!' : `${Math.ceil(t)}s`;
       g.textAlign = 'right'; g.fillText(info, r.x + r.w - 10, r.y + r.h * 0.38);
       const dur = m.curWave ? m.curWave.dur : 2.5; const f = clamp(1 - t / dur, 0, 1);
       rr(g, r.x + 10, r.y + r.h - 12, r.w - 20, 6, 3); g.fillStyle = 'rgba(255,255,255,0.15)'; g.fill();
@@ -748,8 +822,24 @@ export class MatchView {
       const r = this.playerInfo; g.textAlign = 'left'; g.textBaseline = 'middle';
       g.font = `16px ${FONT}`; g.fillStyle = '#7fd7ff'; g.fillText(`${fmt(me.ink)} ink`, r.x, r.y + 10);
       g.fillStyle = '#ff9aa6'; g.fillText(`♥ ${me.lives}`, r.x + 110, r.y + 10);
-      g.fillStyle = '#ffb3bb'; g.font = `bold 12px ${FONT2}`; g.fillText(`${ctl.rival.name}: ♥ ${riv.lives}`, r.x + 170, r.y + 10);
-      if (me.shovels) { g.fillStyle = '#ffd88a'; g.fillText(`⛏ ${me.shovels}`, r.x + r.w - 40, r.y + 10); }
+      // rival lives (shortened so it never runs under the summon button)
+      const sb0 = B('summon'); const maxX = (sb0 ? sb0.x : r.x + r.w) - 6; g.font = `bold 12px ${FONT2}`; g.fillStyle = '#ffb3bb';
+      let rl = `${ctl.rival.name}: ♥ ${riv.lives}`; if (r.x + 160 + g.measureText(rl).width > maxX) rl = `CPU ♥ ${riv.lives}`;
+      g.fillText(rl, r.x + 160, r.y + 10);
+      if (me.shovels) { g.fillStyle = '#ffd88a'; g.fillText(`⛏ ${me.shovels}`, Math.min(r.x + r.w - 40, maxX - 30), r.y + 10); }
+    }
+    // hex button: charges from kills; send a Hexed Brute down the rival's road
+    const hb = B('hex');
+    if (hb) {
+      const f = clamp(me.hex / me.hexNeed(), 0, 1); const can = me.canHex();
+      if (can && !this.hexWasReady) { ctl.audio.play('hexReady'); this.text(this.hox + (hb.x + hb.w / 2) * this.hk, (hb.y - 4) * this.hk, 'HEX READY!', '#e0a8ff', 15); }
+      this.hexWasReady = can;
+      this.btn(hb, { col: can ? '#8a3fe0' : '#3b2a5e', enabled: true, glow: can, sub: can ? 'SEND!' : Math.floor(f * 100) + '%', icon: (gg, b) => {
+        const cx = b.w / 2, cy = b.h * 0.38, r = Math.min(b.w, b.h) * 0.27;
+        gg.globalAlpha = can ? 1 : 0.55 + 0.45 * f; const s = r * 2.1; gg.drawImage(hexGlyph().canvas, cx - s / 2, cy - s / 2, s, s); gg.globalAlpha = 1;
+        gg.strokeStyle = 'rgba(255,255,255,0.18)'; gg.lineWidth = 3; gg.beginPath(); gg.arc(cx, cy, r + 3, 0, TAU); gg.stroke();
+        gg.strokeStyle = can ? '#f6dcff' : '#c77dff'; gg.beginPath(); gg.arc(cx, cy, r + 3, -Math.PI / 2, -Math.PI / 2 + f * TAU); gg.stroke();
+      } });
     }
     // train buttons
     ['S', 'L', 'B', 'K'].forEach((Lt, i) => {

@@ -2,11 +2,13 @@
 import {
   UNITS, BASIC_LETTERS, MAX_LEVEL, LEVEL_DMG, LEVEL_RATE, GOLD_TILE, HEROES, HERO_BY_ID, HERO_LEVEL_MULT, HERO_MAX_LEVEL,
   ENEMIES, BOSSES, WAVE_POOLS, BOSS_EVERY, waveHp, MAP_BY_ID, SUMMON_BASE, SUMMON_STEP, START_INK, PASSIVE_INK, TRAIN_COSTS, TRAIN_BONUS,
-  ITEM_BY_ID, RARITIES, WEAPON_BASES,
+  ITEM_BY_ID, RARITIES, WEAPON_BASES, HEX, BOONS, DRAFT_WAVES,
 } from './data.js';
 import { RNG } from './rng.js';
 
 export const TRAY_SIZE = 3;
+export let BOON_HP = +(globalThis.process?.env?.BOON_HP ?? 0.12);
+const COMBO_WINDOW = 3.5; // seconds between merges to keep a combo going
 const WAVE_DUR = 21, BOSS_WAVE_DUR = 28, FIRST_WAVE_DELAY = 2.5;
 // opening waves are short so the action starts fast: 12s, 14s, 16s, 18s, then 21s
 export const waveDur = (w, isBoss) => isBoss ? BOSS_WAVE_DUR : (w <= 4 ? 10 + 2 * w : WAVE_DUR);
@@ -90,7 +92,10 @@ export function makeWave(w, rng, mapDef, overtime = 0) {
 // ---------- modifiers from loadout / daily buff / weapons ----------
 export function buildMods(cfg = {}) {
   const mods = { dmg: 1, letterDmg: { S: 1, L: 1, B: 1, K: 1 }, letterRate: { S: 1, L: 1, B: 1, K: 1 }, ink: 1, gold: 0.22, lives: 0,
-    heroCd: 1, startInk: START_INK, weapons: {}, actives: [], coins: 1, unlockedHeroes: cfg.unlockedHeroes || HEROES.map(h => h.id) };
+    heroCd: 1, startInk: START_INK, weapons: {}, actives: [], coins: 1, unlockedHeroes: cfg.unlockedHeroes || HEROES.map(h => h.id),
+    // blessing-driven knobs (see Side.applyBoon)
+    summonCost: 1, lucky: 0.04, wild: 0.05, shovel: 0.05, mergeInk: 0, enemySpeed: 1, crit: 0, critMult: 2.5, bossDmg: 0,
+    hexRate: 1, hexHp: 1, splash: 1, letterRange: { S: 0, L: 0, B: 0, K: 0 } };
   for (const it of (cfg.passives || [])) {
     const def = ITEM_BY_ID[it.id]; if (!def) continue; const v = def.vals[it.r];
     if (it.id === 'ring') mods.ink += v / 100;
@@ -136,7 +141,13 @@ export class Side {
     this.shovels = 0;
     this.rng = new RNG(match.seed * 31 + 7 + idx * 1013);
     this.events = [];
-    this.stats = { kills: 0, dmg: 0, leaks: 0, heroes: 0, merges: 0, maxLevel: 1, summons: 0, spelled: [], dmgBy: {} };
+    this.stats = { kills: 0, dmg: 0, leaks: 0, heroes: 0, merges: 0, maxLevel: 1, summons: 0, spelled: [], dmgBy: {},
+      calls: 0, hexes: 0, brutes: 0, boons: 0, maxCombo: 0, wildSpells: 0, crits: 0, lucky: 0, boonList: [] };
+    this.boons = this.stats.boonList; this.offers = null; this.rerolls = 1;
+    this.autoPick = idx === 1; // the CPU picks its blessings instantly; the player picks in the draft screen
+    this.hex = 0; this.hexSent = 0;
+    this.combo = 0; this.lastMergeT = -99;
+    this.wildLeft = 0;
     this.dmgKey = 'other';
     this.script = cfg.script ? cfg.script.slice() : null;
     this.cloverLeft = 0;
@@ -150,7 +161,9 @@ export class Side {
     this.pendingSpawns = [];
   }
   emit(e) { if (this.events.length < 400) this.events.push(e); }
-  summonCost() { return SUMMON_BASE + SUMMON_STEP * this.summons; }
+  summonCost() { return Math.round((SUMMON_BASE + SUMMON_STEP * this.summons) * this.mods.summonCost); }
+  // no actions while the match is over or a blessing draft is open
+  busy() { return this.dead || this.match.state !== 'running' || !!this.match.draft; }
   freeTraySlot() { return this.tray.findIndex(t => t === null); }
   freeCells() { return this.cells.filter(c => !c.locked && !c.unit); }
   lockedCells() { return this.cells.filter(c => c.locked); }
@@ -165,8 +178,9 @@ export class Side {
     return out;
   }
   heroProgress(h) {
+    // a ★ wild letter stands in for any one missing letter
     const held = this.heldGold().slice(); let n = 0;
-    for (const ch of h.word) { const i = held.indexOf(ch); if (i >= 0) { held.splice(i, 1); n++; } }
+    for (const ch of h.word) { let i = held.indexOf(ch); if (i < 0) i = held.indexOf('*'); if (i >= 0) { held.splice(i, 1); n++; } }
     return n / h.word.length;
   }
   // pity threshold: a golden letter at least every 4 summons until your first hero, then every 6
@@ -187,18 +201,24 @@ export class Side {
       const h = best[this.rng.int(best.length)];
       const held = this.heldGold().slice(); const missing = [];
       for (const ch of h.word) { const i = held.indexOf(ch); if (i >= 0) held.splice(i, 1); else missing.push(ch); }
+      missing.length -= Math.min(missing.length, held.filter(x => x === '*').length); // wilds already cover some
       if (missing.length) return missing[this.rng.int(missing.length)];
     }
     // otherwise: a random letter from a random (unfinished) hero word — shorter words slightly favoured
     const h = heroes[this.rng.weighted(heroes.map(x => x.word.length === 4 ? 1.4 : 1))];
     return h.word[this.rng.int(h.word.length)];
   }
+  // a golden letter from a summon: sometimes a ★ wild letter
+  goldItem() {
+    if (this.wildLeft > 0) { this.wildLeft--; return this.makeGold('*'); }
+    return this.makeGold(this.rng.next() < this.mods.wild ? '*' : this.rollGoldLetter());
+  }
   makeBasic(letter, level = 1) { return { uid: UID++, kind: 'basic', letter, level, cd: this.rng.range(0, 0.6), atkT: 0, frozen: 0, born: this.match.time }; }
   makeGold(letter) { return { uid: UID++, kind: 'gold', letter, level: 1, cd: this.rng.range(0, 0.6), atkT: 0, frozen: 0, born: this.match.time }; }
 
-  canSummon() { return !this.dead && this.match.state === 'running' && this.ink >= this.summonCost() && this.freeTraySlot() >= 0; }
+  canSummon() { return !this.busy() && this.ink >= this.summonCost() && this.freeTraySlot() >= 0; }
   summon(free = false) {
-    if (this.dead || this.match.state !== 'running') return null;
+    if (this.busy()) return null;
     const slot = this.freeTraySlot();
     if (slot < 0) return null;
     const cost = this.summonCost();
@@ -210,16 +230,20 @@ export class Side {
       if (sc === 'shovel') item = { kind: 'shovel' };
       else if (sc.startsWith('gold:')) item = this.makeGold(sc.slice(5));
       else item = this.makeBasic(sc);
-    } else if (this.cloverLeft > 0 && this.goldUseful()) {
-      this.cloverLeft--; item = this.makeGold(this.rollGoldLetter());
+    } else if ((this.cloverLeft > 0 || this.wildLeft > 0) && this.goldUseful()) {
+      if (this.cloverLeft > 0 && !this.wildLeft) this.cloverLeft--;
+      item = this.goldItem();
     } else {
       const r = this.rng.next();
       const canGold = this.goldUseful();
-      const shovelChance = this.lockedCells().length > this.shovels ? 0.05 : 0;
-      if (canGold && (this.sinceGold || 0) >= this.pityAt()) item = this.makeGold(this.rollGoldLetter()); // pity: guaranteed golden letter
+      const shovelChance = this.lockedCells().length > this.shovels ? this.mods.shovel : 0;
+      if (canGold && (this.sinceGold || 0) >= this.pityAt()) item = this.goldItem(); // pity: guaranteed golden letter
       else if (r < shovelChance) item = { kind: 'shovel' };
-      else if (canGold && r < shovelChance + this.mods.gold) item = this.makeGold(this.rollGoldLetter());
-      else item = this.makeBasic(BASIC_LETTERS[this.rng.int(4)]);
+      else if (canGold && r < shovelChance + this.mods.gold) item = this.goldItem();
+      else {
+        item = this.makeBasic(BASIC_LETTERS[this.rng.int(4)]);
+        if (this.rng.next() < this.mods.lucky) { item.level = 2; item.lucky = true; this.stats.lucky++; this.stats.maxLevel = Math.max(this.stats.maxLevel, 2); }
+      }
     }
     this.sinceGold = item.kind === 'gold' ? 0 : (this.sinceGold || 0) + 1;
     if (item.kind === 'shovel') { this.shovels++; this.emit({ t: 'summon', item, slot: -1 }); return item; }
@@ -234,12 +258,12 @@ export class Side {
   canMerge(a, b) {
     if (!a || !b || a === b) return false;
     if (a.kind === 'basic' && b.kind === 'basic') return a.letter === b.letter && a.level === b.level && a.level < MAX_LEVEL;
-    if (a.kind === 'gold' && b.kind === 'gold') return a.letter === b.letter; // transmute
+    if (a.kind === 'gold' && b.kind === 'gold') return a.letter === b.letter && a.letter !== '*'; // transmute (never wilds)
     return false;
   }
   // returns a result string or null
   place(src, dstId) {
-    if (this.dead || this.match.state !== 'running') return null;
+    if (this.busy()) return null;
     const u = this.getSrc(src); const dst = this.cells[dstId];
     if (!u || !dst || dst.locked) return null;
     if (src.cell === dstId) return null;
@@ -255,7 +279,13 @@ export class Side {
       if (u.kind === 'basic') {
         t.level++; t.cd = 0.2; t.mergeT = this.match.time;
         this.stats.merges++; this.stats.maxLevel = Math.max(this.stats.maxLevel, t.level);
-        this.emit({ t: 'merge', cell: dstId, unit: t });
+        // quick successive merges chain into a combo that pays bonus ink
+        const now = this.match.time;
+        this.combo = now - this.lastMergeT <= COMBO_WINDOW ? this.combo + 1 : 1; this.lastMergeT = now;
+        this.stats.maxCombo = Math.max(this.stats.maxCombo, this.combo);
+        const ink = this.mods.mergeInk * t.level + (this.combo >= 2 ? Math.round((3 + this.match.wave) * (this.combo - 1)) : 0);
+        this.ink += ink;
+        this.emit({ t: 'merge', cell: dstId, unit: t, combo: this.combo, ink });
       } else {
         // transmute two identical gold tiles into a letter you need
         let nl = t.letter, tries = 0;
@@ -290,7 +320,7 @@ export class Side {
     return 0;
   }
   sell(src) {
-    if (this.dead || this.match.state !== 'running') return 0;
+    if (this.busy()) return 0;
     const u = this.getSrc(src); if (!u || u.kind === 'hero') return 0;
     const v = this.sellValue(u); this.ink += v; this.clearSrc(src); this.dirty = true;
     this.emit({ t: 'sell', src, value: v, cell: src.cell });
@@ -298,18 +328,18 @@ export class Side {
   }
   dig(cellId) {
     const c = this.cells[cellId];
-    if (!c || !c.locked || this.shovels <= 0) return false;
+    if (!c || !c.locked || this.shovels <= 0 || this.busy()) return false;
     this.shovels--; c.locked = false; this.dirty = true;
     this.emit({ t: 'dig', cell: cellId });
     return true;
   }
   trainCost(letter) { const r = this.train[letter]; return r < TRAIN_COSTS.length ? TRAIN_COSTS[r] : Infinity; }
   doTrain(letter) {
-    const cost = this.trainCost(letter); if (this.ink < cost) return false;
+    const cost = this.trainCost(letter); if (this.ink < cost || this.busy()) return false;
     this.ink -= cost; this.train[letter]++; this.emit({ t: 'train', letter, rank: this.train[letter] }); return true;
   }
   useItem(i) {
-    const it = this.mods.actives[i]; if (!it || it.used || this.match.state !== 'running') return false;
+    const it = this.mods.actives[i]; if (!it || it.used || this.busy()) return false;
     const def = ITEM_BY_ID[it.id]; const v = def.vals[it.r];
     it.used = true; this.dmgKey = 'item';
     if (it.id === 'flask') this.ink += v;
@@ -319,6 +349,98 @@ export class Side {
     if (it.id === 'shovel') this.shovels += v;
     if (it.id === 'horn') this.hornT = v;
     this.emit({ t: 'item', id: it.id, v });
+    return true;
+  }
+
+  // ---------- blessings ----------
+  boonOk(b) {
+    if (b.id === 'wild' && !this.goldUseful()) return false;
+    if (b.id === 'dig' && !this.lockedCells().length) return false;
+    if (b.id === 'tempo' && !this.unlockedHeroes().length) return false;
+    return true;
+  }
+  rollOffers(avoid = []) {
+    let pool = BOONS.filter(b => this.boonOk(b) && !avoid.includes(b.id));
+    if (pool.length < 3) pool = BOONS.filter(b => this.boonOk(b));
+    const out = [];
+    while (out.length < 3 && pool.length) out.push(pool.splice(this.rng.int(pool.length), 1)[0].id);
+    return out;
+  }
+  // CPU / auto-pick heuristic: weigh each offer against the current board
+  boonScore(id) {
+    const cnt = { S: 0, L: 0, B: 0, K: 0 }; let tot = 0;
+    for (const c of this.cells) if (c.unit && c.unit.kind === 'basic') { const v = Math.pow(2, c.unit.level - 1); cnt[c.unit.letter] += v; tot += v; }
+    const share = L => tot ? cnt[L] / tot : 0.25;
+    const w = this.match.wave;
+    switch (id) {
+      case 'serif': return 1.0;
+      case 'cheap': return w < 12 ? 0.95 : 0.7;
+      case 'gilded': return this.goldUseful() ? 0.75 : 0;
+      case 'lucky': return 0.8;
+      case 'blade': return 0.3 + 2.2 * share('S');
+      case 'lance': return 0.3 + 2.0 * share('L');
+      case 'eagle': return 0.3 + 2.0 * share('B');
+      case 'charge': return 0.3 + 2.0 * share('K');
+      case 'rebate': return 0.65;
+      case 'tempo': return this.heroesOnBoard().length ? 0.9 : 0.45;
+      case 'guard': return this.lives <= this.maxLives / 2 ? 1.4 : 0.55;
+      case 'chill': return 0.8;
+      case 'bounty': return w < 10 ? 0.95 : 0.6;
+      case 'crit': return 0.85;
+      case 'slayer': return 0.7;
+      case 'wild': return this.goldUseful() ? 0.8 : 0;
+      case 'hexer': return 0.6;
+      case 'dig': return this.lockedCells().length ? 0.7 : 0;
+    }
+    return 0.5;
+  }
+  chooseBoon() {
+    if (!this.offers) return 0;
+    const skill = this.cfg.cpuSkill ?? 1;
+    if (this.rng.next() > skill) return this.rng.int(this.offers.length);
+    let best = 0; this.offers.forEach((id, i) => { if (this.boonScore(id) > this.boonScore(this.offers[best])) best = i; });
+    return best;
+  }
+  applyBoon(id) {
+    const m = this.mods;
+    switch (id) {
+      case 'serif': m.dmg *= 1.2; break;
+      case 'cheap': m.summonCost *= 0.8; break;
+      case 'gilded': m.gold += 0.08; break;
+      case 'lucky': m.lucky += 0.2; break;
+      case 'blade': m.letterDmg.S += 0.4; m.splash *= 1.3; break;
+      case 'lance': m.letterDmg.L += 0.25; m.letterRange.L += 0.8; break;
+      case 'eagle': m.letterDmg.B += 0.3; m.letterRange.B += 1; break;
+      case 'charge': m.letterRate.K += 0.4; break;
+      case 'rebate': m.mergeInk += 8; break;
+      case 'tempo': m.heroCd *= 0.7; break;
+      case 'guard': this.maxLives += 2; this.lives += 2; break;
+      case 'chill': m.enemySpeed *= 0.88; break;
+      case 'bounty': m.ink += 0.4; break;
+      case 'crit': m.crit = Math.min(0.6, m.crit + 0.15); break;
+      case 'slayer': m.bossDmg += 0.75; break;
+      case 'wild': this.wildLeft += 2; break;
+      case 'hexer': m.hexRate *= 1.5; m.hexHp *= 1.3; break;
+      case 'dig': this.shovels += 2; m.shovel += 0.05; break;
+      default: return false;
+    }
+    this.boons.push(id); this.stats.boons++; this.dirty = true;
+    this.emit({ t: 'boon', id });
+    return true;
+  }
+
+  // ---------- hex (curse the rival with a Hexed Brute) ----------
+  hexNeed() { return HEX.need + HEX.step * this.hexSent; }
+  hexReady() { return !this.match.tutorial && this.hex >= this.hexNeed(); }
+  chargeHex(n) { if (!this.match.tutorial) this.hex = Math.min(this.hexNeed(), this.hex + n * this.mods.hexRate); }
+  canHex() { const foe = this.match.sides[1 - this.idx]; return this.hexReady() && !this.busy() && !foe.dead; }
+  sendHex() {
+    if (!this.canHex()) return false;
+    const foe = this.match.sides[1 - this.idx]; const m = this.match;
+    this.hex = 0; this.hexSent++; this.stats.hexes++;
+    const hp = waveHp(Math.max(1, m.wave)) * m.mapDef.hpMult * ENEMIES.brute.hp * this.mods.hexHp * (m.overtime ? Math.pow(1.45, m.overtime) : 1);
+    foe.pendingSpawns.push({ type: 'brute', hp, dist: 0 });
+    this.emit({ t: 'hexSent' }); foe.emit({ t: 'hexed' });
     return true;
   }
 
@@ -335,12 +457,14 @@ export class Side {
         let ok = true;
         for (let k = 0; k < L; k++) {
           const u = run[i + k].unit;
-          if (!u || u.locked || run[i + k].locked || u.kind !== 'gold' || u.letter !== h.word[k]) { ok = false; break; }
+          if (!u || u.locked || run[i + k].locked || u.kind !== 'gold' || (u.letter !== h.word[k] && u.letter !== '*')) { ok = false; break; }
         }
         if (!ok) continue;
         const existing = this.cells.find(cc => cc.unit && cc.unit.kind === 'hero' && cc.unit.heroId === h.id);
         if (existing && existing.unit.level >= HERO_MAX_LEVEL) continue;
         const seg = run.slice(i, i + L);
+        const wild = seg.some(sc => sc.unit.letter === '*');
+        if (wild) this.stats.wildSpells++;
         for (const sc of seg) sc.unit = null;
         let target;
         if (existing) { existing.unit.level++; existing.unit.mergeT = this.match.time; target = existing; }
@@ -350,7 +474,7 @@ export class Side {
         }
         this.stats.heroes++; this.stats.spelled.push(h.id);
         this.dirty = true;
-        this.emit({ t: 'spell', hero: h.id, cells: seg.map(x => x.id), target: target.id, level: target.unit.level });
+        this.emit({ t: 'spell', hero: h.id, cells: seg.map(x => x.id), target: target.id, level: target.unit.level, wild });
         return true;
       }
     }
@@ -377,7 +501,7 @@ export class Side {
     if (this.hornT > 0) r *= 1.6;
     return r;
   }
-  unitRange(u) { return u.kind === 'basic' ? UNITS[u.letter].range : u.kind === 'gold' ? GOLD_TILE.range : HERO_BY_ID[u.heroId].range; }
+  unitRange(u) { return u.kind === 'basic' ? UNITS[u.letter].range + this.mods.letterRange[u.letter] : u.kind === 'gold' ? GOLD_TILE.range : HERO_BY_ID[u.heroId].range; }
   recomputeAuras() {
     const kings = this.cells.filter(c => c.unit && c.unit.kind === 'hero' && c.unit.heroId === 'KING');
     for (const c of this.cells) if (c.unit) c.unit.aura = 0;
@@ -395,7 +519,7 @@ export class Side {
       this.emit({ t: 'boss', boss: spec.boss });
     } else {
       const d = ENEMIES[spec.type];
-      e = { id: UID++, type: spec.type, hp: spec.hp, maxHp: spec.hp, speed: d.speed, armor: d.armor || 0, ink: d.ink, size: d.size, sprite: d.sprite };
+      e = { id: UID++, type: spec.type, hp: spec.hp, maxHp: spec.hp, speed: d.speed, armor: d.armor || 0, ink: d.ink, size: d.size, sprite: d.sprite, elite: !!d.elite };
     }
     e.dist = spec.dist || 0; e.slowT = 0; e.slowF = 1; e.stunT = 0; e.dotT = 0; e.dot = 0; e.hitT = 0; e.wave = this.match.wave;
     e.inkMul = 1 + 0.25 * (this.match.wave - 1);
@@ -405,6 +529,7 @@ export class Side {
   }
   damage(e, amt, pierce, src) {
     if (e.hp <= 0) return 0;
+    if (this.mods.bossDmg && (e.type === 'boss' || e.elite)) amt *= 1 + this.mods.bossDmg;
     if (!pierce && e.armor) amt *= 1 - e.armor;
     if (e.type === 'imp' && !pierce && this.rng.next() < 0.2) { this.emit({ t: 'dodge', x: e.x, y: e.y }); return 0; }
     const real = Math.min(amt, e.hp); e.hp -= amt; e.hitT = 0.12; this.stats.dmg += amt; this.stats.dmgBy[this.dmgKey] = (this.stats.dmgBy[this.dmgKey] || 0) + real;
@@ -416,7 +541,9 @@ export class Side {
     this.stats.kills++;
     const ink = Math.round(e.ink * e.inkMul * this.mods.ink);
     this.ink += ink;
-    this.emit({ t: 'kill', x: e.x, y: e.y, type: e.type, boss: e.boss, ink });
+    this.emit({ t: 'kill', x: e.x, y: e.y, type: e.type, boss: e.boss, ink, elite: e.elite });
+    if (e.elite) this.stats.brutes++;
+    this.chargeHex(e.type === 'boss' ? HEX.boss : e.elite ? HEX.elite : HEX.kill);
     if (e.type === 'slime') {
       for (let i = 0; i < 2; i++) this.pendingSpawns.push({ type: 'baby', hp: e.maxHp * 0.28, dist: Math.max(0, e.dist - 0.25 * i) });
     }
@@ -435,11 +562,15 @@ export class Side {
     const range = this.unitRange(u);
     const tgt = this.leadingEnemyInRange(c.x, c.y, range);
     if (!tgt) return false;
-    const dmg = this.unitDamage(u);
+    let dmg = this.unitDamage(u);
+    if (this.mods.crit > 0 && this.rng.next() < this.mods.crit) {
+      dmg *= this.mods.critMult; this.stats.crits++;
+      if (this.match.fx) this.emit({ t: 'crit', x: tgt.x, y: tgt.y });
+    }
     u.atkT = 1; u.aimX = tgt.x; u.aimY = tgt.y;
     let kind = u.kind === 'basic' ? UNITS[u.letter].kind : u.kind === 'gold' ? 'single' : HERO_BY_ID[u.heroId].kind;
     if (kind === 'splash') {
-      const rad = u.kind === 'basic' ? UNITS[u.letter].splash : HERO_BY_ID[u.heroId].splash;
+      const rad = u.kind === 'basic' ? UNITS[u.letter].splash * this.mods.splash : HERO_BY_ID[u.heroId].splash;
       const tx = tgt.x, ty = tgt.y;
       for (const e of this.enemies) if (e.hp > 0 && Math.hypot(e.x - tx, e.y - ty) <= rad) this.damage(e, e === tgt ? dmg : dmg * 0.6, false, u);
       this.emit({ t: 'slash', cell: c.id, x: tx, y: ty, letter: u.letter, hero: u.heroId });
@@ -570,7 +701,7 @@ export class Side {
       if (e.dotT > 0) { e.dotT -= dt; this.dmgKey = 'DRUID*'; this.damage(e, e.dot * dt, true, null); if (e.hp <= 0) continue; }
       if (e.type === 'wisp') e.hp = Math.min(e.maxHp, e.hp + e.maxHp * ENEMIES.wisp.regen * dt);
       if (e.type === 'boss') { if (e.castT > 0) e.castT -= dt; e.abilityT -= dt; if (e.abilityT <= 0) { e.abilityT = BOSSES[e.boss].abilityCd; e.castT = 0.8; this.bossAbility(e); } }
-      let sp = e.speed;
+      let sp = e.speed * this.mods.enemySpeed;
       if (e.slowT > 0) { e.slowT -= dt; sp *= e.slowF; }
       if (e.stunT > 0) { e.stunT -= dt; sp = 0; }
       if (frozen) sp = 0;
@@ -581,7 +712,7 @@ export class Side {
         const cost = e.type === 'boss' ? 2 : 1;
         if (this.shield > 0) { this.shield--; }
         else { this.lives -= cost; this.stats.leaks += cost; }
-        this.emit({ t: 'leak', boss: e.type === 'boss', cost });
+        this.emit({ t: 'leak', boss: e.type === 'boss', cost, elite: e.elite });
         this.match.onLeak(this);
       }
     }
@@ -606,6 +737,7 @@ export class Match {
     this.plan = {}; // pre-rolled waves so the next one can be previewed
     this.otLeaks = [false, false];
     this.events = [];
+    this.draft = null; // blessing draft in progress (the match waits until every side has picked)
   }
   get finalWave() { return this.mapDef.waves; }
   getPlan(w) {
@@ -616,7 +748,7 @@ export class Match {
   // a side whose board is clear may call the next wave early for bonus ink (skips dead time)
   callWaveBonus() { return Math.round(this.timeToNextWave() * (2 + 0.6 * Math.max(1, this.wave))); }
   canCallWave(idx) {
-    if (this.state !== 'running' || this.tutorialHold || this.overtime) return false;
+    if (this.state !== 'running' || this.tutorialHold || this.overtime || this.draft) return false;
     if (this.curWave && (this.spawnIdx < this.curWave.list.length || this.wave >= this.finalWave)) return false;
     if (this.timeToNextWave() < 2) return false;
     return !this.sides[idx].enemies.some(e => e.hp > 0);
@@ -624,7 +756,7 @@ export class Match {
   callWave(idx) {
     if (!this.canCallWave(idx)) return 0;
     const bonus = this.curWave ? this.callWaveBonus() : 0;
-    const s = this.sides[idx]; s.ink += bonus; s.stats.calls = (s.stats.calls || 0) + 1;
+    const s = this.sides[idx]; s.ink += bonus; s.stats.calls++;
     s.emit({ t: 'call', ink: bonus });
     if (!this.curWave) this.waveT = 0; else this.startWave();
     return bonus;
@@ -647,9 +779,35 @@ export class Match {
     this.spawnIdx = 0; this.waveT = 0;
     const bonus = 20 + 8 * this.wave;
     for (const s of this.sides) { s.ink += bonus; s.emit({ t: 'wave', w: this.wave, boss: this.curWave.isBoss, ink: bonus, overtime: this.overtime }); }
+    if (!this.tutorial && !this.overtime && DRAFT_WAVES.includes(this.wave)) this.openDraft();
+  }
+  // ---------- blessing draft: every living side picks 1 of 3 before the wave's enemies arrive ----------
+  openDraft() {
+    this.draft = { w: this.wave, picks: {} }; this.drafts = (this.drafts || 0) + 1;
+    for (const s of this.sides) { s.offers = s.dead ? null : s.rollOffers(); if (s.offers) s.emit({ t: 'draft', offers: s.offers }); }
+    for (const s of this.sides) if (s.offers && s.autoPick) this.pickBoon(s.idx, s.chooseBoon()); // the CPU decides at once
+    if (this.sides.every(s => !s.offers)) this.draft = null;
+  }
+  pickBoon(idx, choice) {
+    const s = this.sides[idx];
+    if (!this.draft || !s.offers || !s.offers[choice]) return false;
+    const id = s.offers[choice]; s.offers = null;
+    s.applyBoon(id); this.draft.picks[idx] = id;
+    if (this.sides.every(x => !x.offers)) this.draft = null;
+    return id;
+  }
+  rerollBoons(idx) {
+    const s = this.sides[idx];
+    if (!this.draft || !s.offers || s.rerolls <= 0) return false;
+    s.rerolls--; s.offers = s.rollOffers(s.offers);
+    return true;
   }
   update(dt) {
     if (this.state !== 'running') return;
+    if (this.draft) {
+      for (const s of this.sides) if (s.offers && s.autoPick) this.pickBoon(s.idx, s.chooseBoon());
+      if (this.draft) return; // waiting for the player's pick
+    }
     this.time += dt; this.tick++;
     if (!this.tutorialHold) {
       this.waveT += dt;
@@ -657,7 +815,9 @@ export class Match {
       else {
         while (this.spawnIdx < this.curWave.list.length && this.curWave.list[this.spawnIdx].at <= this.waveT) {
           const spec = this.curWave.list[this.spawnIdx++];
-          for (const s of this.sides) if (!s.dead) s.spawn(spec);
+          // both sides grow stronger with every blessing, so later waves get a matching HP bump
+          const sp = this.drafts ? { ...spec, hp: spec.hp * (1 + BOON_HP * this.drafts) } : spec;
+          for (const s of this.sides) if (!s.dead) s.spawn(sp);
         }
         const allSpawned = this.spawnIdx >= this.curWave.list.length;
         if (this.wave >= this.finalWave && allSpawned) {

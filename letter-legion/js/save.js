@@ -1,6 +1,6 @@
 // Persistent player profile (CrazyGames data module with localStorage fallback)
 import { CG } from './cg.js';
-import { HEROES, RIVALS, MAPS, ITEMS, ITEM_BY_ID, ITEM_PRICES, SHOP_RARITY_WEIGHTS, RARITIES, WEAPON_BASES, WEAPON_ADJ, DAILY_BUFFS, xpForLevel } from './data.js';
+import { HEROES, RIVALS, MAPS, ITEMS, ITEM_BY_ID, ITEM_PRICES, SHOP_RARITY_WEIGHTS, RARITIES, WEAPON_BASES, WEAPON_ADJ, DAILY_BUFFS, xpForLevel, QUESTS, QUEST_BY_ID, QUEST_ALL_BONUS } from './data.js';
 import { RNG, hashStr, todayKey } from './rng.js';
 
 const KEY = 'letterlegion_save_v1';
@@ -14,6 +14,8 @@ export function defaultProfile() {
     bests: {}, daily: { date: '', best: 0, wins: 0, played: 0, history: [] },
     stats: { matches: 0, wins: 0, heroes: 0, kills: 0 },
     seenHeroes: {},
+    quests: { date: '', list: [], bonus: false },
+    tips: {},
   };
 }
 export let P = defaultProfile();
@@ -24,7 +26,7 @@ export function loadProfile() {
     if (raw) {
       const d = JSON.parse(raw); const def = defaultProfile();
       P = Object.assign(def, d);
-      for (const k of ['settings', 'daily', 'stats', 'loadout']) P[k] = Object.assign(defaultProfile()[k], d[k] || {});
+      for (const k of ['settings', 'daily', 'stats', 'loadout', 'quests']) P[k] = Object.assign(defaultProfile()[k], d[k] || {});
       sanitize();
     }
   } catch (e) { console.warn('save load failed', e); P = defaultProfile(); }
@@ -44,6 +46,10 @@ function sanitize() {
   for (const k of ['coins', 'xp', 'level', 'ladder']) if (!Number.isFinite(P[k]) || P[k] < 0) P[k] = defaultProfile()[k];
   P.level = Math.max(1, Math.floor(P.level)); P.ladder = Math.min(Math.floor(P.ladder), RIVALS.length);
   if (!Array.isArray(P.daily.history)) P.daily.history = [];
+  if (!P.tips || typeof P.tips !== 'object' || Array.isArray(P.tips)) P.tips = {};
+  P.quests.list = (Array.isArray(P.quests.list) ? P.quests.list : []).filter(q => q && QUEST_BY_ID[q.id])
+    .map(q => ({ id: q.id, prog: Number.isFinite(q.prog) ? Math.max(0, Math.min(q.prog, QUEST_BY_ID[q.id].goal)) : 0, claimed: !!q.claimed }));
+  if (P.quests.list.length !== 3) P.quests.date = ''; // regenerate
 }
 let saveTimer = null;
 export function saveProfile(now = false) {
@@ -85,7 +91,35 @@ export function rolloverDaily() {
     }
     P.daily.date = k; P.daily.best = 0; P.daily.wins = 0; P.daily.played = 0;
   }
+  if (P.quests.date !== k) {
+    // three different quests a day (the same three for everyone on that date)
+    const rng = new RNG(hashStr('letter-legion-quests-' + k)); const pool = QUESTS.slice(); const list = [];
+    while (list.length < 3) list.push({ id: pool.splice(rng.int(pool.length), 1)[0].id, prog: 0, claimed: false });
+    P.quests = { date: k, list, bonus: false };
+  }
 }
+// ---------- daily quests ----------
+// add one match's progress; returns the ids of quests that just became complete
+export function questProgress(res) {
+  rolloverDaily();
+  const done = [];
+  for (const q of P.quests.list) {
+    const def = QUEST_BY_ID[q.id]; if (!def || q.prog >= def.goal) continue;
+    q.prog = Math.min(def.goal, q.prog + Math.max(0, def.m(res) || 0));
+    if (q.prog >= def.goal) done.push(q.id);
+  }
+  return done;
+}
+export function claimQuest(i) {
+  const q = P.quests.list[i]; const def = q && QUEST_BY_ID[q.id];
+  if (!def || q.claimed || q.prog < def.goal) return null;
+  q.claimed = true; P.coins += def.coins; const ups = addXp(def.xp);
+  let bonus = 0;
+  if (!P.quests.bonus && P.quests.list.every(x => x.claimed)) { P.quests.bonus = true; bonus = QUEST_ALL_BONUS; P.coins += bonus; }
+  saveProfile(true);
+  return { coins: def.coins, xp: def.xp, bonus, levelUps: ups };
+}
+export function questsClaimable() { return P.quests.list.filter(q => !q.claimed && q.prog >= (QUEST_BY_ID[q.id]?.goal ?? Infinity)).length; }
 
 // ---------- shop ----------
 export function rollItem(rng) {

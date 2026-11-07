@@ -8,7 +8,7 @@ const human = { think: 1.0, skill: 0.7, spell: 4, mistakes: 0.08 };
 const acc = { firstEnemy: 0, firstMerge: 0, firstHero: 0, heroN: 0, idle120: 0, summons60: 0, wave120: 0, matchTime: 0, merges120: 0 };
 const med = { firstHero: [] };
 for (let i = 0; i < runs; i++) {
-  const m = new Match({ mapId: 'ember', seed: 300 + i, fx: false, player: { unlockedHeroes: ['KING', 'MAGE', 'MONK'] }, rival: { cpuBonus: RIVALS[0].power, unlockedHeroes: ['KING', 'MAGE', 'MONK'] } });
+  const m = new Match({ mapId: 'ember', seed: 300 + i, fx: false, player: { unlockedHeroes: ['KING', 'MAGE', 'MONK'] }, rival: { cpuBonus: RIVALS[0].power, unlockedHeroes: ['KING', 'MAGE', 'MONK'] } }); m.sides[0].autoPick = true;
   const A = new CpuBrain(m.sides[0], human), B = new CpuBrain(m.sides[1], RIVALS[0]);
   let fe = null, fm = null, fh = null, idle = 0, s60 = null, w120 = null, mg120 = null; const dt = 1 / 30;
   while (m.state === 'running' && m.time < 1800) {

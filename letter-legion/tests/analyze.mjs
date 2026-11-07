@@ -12,7 +12,7 @@ const perMap = {};
 for (const mp of MAPS) {
   const rivals = RIVALS.filter(r => r.map === mp.id);
   for (const r of rivals) for (let i = 0; i < runs; i++) {
-    const m = new Match({ mapId: mp.id, seed: 500 + i * 13, fx: false, player: { unlockedHeroes: HSET }, rival: { unlockedHeroes: allHeroes, cpuBonus: r.power } });
+    const m = new Match({ mapId: mp.id, seed: 500 + i * 13, fx: false, player: { unlockedHeroes: HSET }, rival: { unlockedHeroes: allHeroes, cpuBonus: r.power } }); m.sides[0].autoPick = true;
     const A = new CpuBrain(m.sides[0], human), B = new CpuBrain(m.sides[1], r);
     let g = 0; while (m.state === 'running' && g++ < 30 * 60 * 30) { A.update(1 / 30); B.update(1 / 30); m.update(1 / 30); m.sides[0].events.length = 0; m.sides[1].events.length = 0; }
     const s = m.sides[0];

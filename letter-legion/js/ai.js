@@ -32,7 +32,7 @@ export class CpuBrain {
   }
   update(dt) {
     const s = this.side;
-    if (s.dead || s.match.state !== 'running') return;
+    if (s.busy()) return;
     this.t -= dt;
     if (this.t > 0) return;
     this.t = this.p.think * (0.75 + s.rng.next() * 0.5);
@@ -59,7 +59,7 @@ export class CpuBrain {
         for (let i = 0; i + h.word.length <= run.length; i++) {
           const seg = run.slice(i, i + h.word.length);
           if (seg.some(sc => sc.unit && sc.unit.kind === 'hero')) continue;
-          let score = s.heroProgress(h) * 10 + seg.filter((sc, k) => sc.unit && sc.unit.kind === 'gold' && sc.unit.letter === h.word[k]).length * 4;
+          let score = s.heroProgress(h) * 10 + seg.filter((sc, k) => sc.unit && sc.unit.kind === 'gold' && (sc.unit.letter === h.word[k] || sc.unit.letter === '*')).length * 4;
           score -= seg.filter(sc => sc.unit && sc.unit.kind === 'hero').length * 100;
           score -= seg.filter(sc => sc.unit && sc.unit.kind === 'basic').reduce((a, sc) => a + sc.unit.level, 0) * 0.6;
           score -= h.word.length * 0.5;
@@ -71,11 +71,17 @@ export class CpuBrain {
   }
   planNeeds(letter) {
     if (!this.plan) return -1;
-    const s = this.side; const w = this.plan.hero.word;
-    for (let k = 0; k < w.length; k++) {
-      const c = s.cells[this.plan.cells[k]];
-      if (w[k] === letter && !(c.unit && c.unit.kind === 'gold' && c.unit.letter === letter) && !(c.unit && c.unit.kind === 'hero')) return c.id;
+    const s = this.side; const w = this.plan.hero.word; const ids = this.plan.cells;
+    const open = k => { const u = s.cells[ids[k]].unit; return !(u && (u.kind === 'hero' || (u.kind === 'gold' && (u.letter === w[k] || u.letter === '*')))); };
+    if (letter === '*') {
+      // a ★ fills a gap whose real letter you don't already hold somewhere
+      const held = s.heldGold(); let first = -1;
+      for (let k = 0; k < w.length; k++) if (open(k)) { if (first < 0) first = ids[k]; if (!held.includes(w[k])) return ids[k]; }
+      return first;
     }
+    for (let k = 0; k < w.length; k++) if (w[k] === letter && open(k)) return ids[k];
+    // a ★ is keeping this letter's seat warm: put the real letter there (the ★ swaps back to the tray)
+    for (let k = 0; k < w.length; k++) { const u = s.cells[ids[k]].unit; if (w[k] === letter && u && u.kind === 'gold' && u.letter === '*') return ids[k]; }
     return -1;
   }
   planValid() {
@@ -103,6 +109,9 @@ export class CpuBrain {
   }
   act() {
     const s = this.side;
+    if (s.busy()) return false;
+    // 0) curse the rival as soon as the Hex is charged (during a wave, so the Brute arrives with company)
+    if (s.canHex() && s.match.curWave && (s.match.spawnIdx > 0 || s.rng.next() < 0.3)) { s.sendHex(); return true; }
     // 1) dig
     if (s.shovels > 0) {
       const locked = s.lockedCells();
@@ -124,7 +133,7 @@ export class CpuBrain {
           if (s.place({ tray: i }, dst)) return true;
         }
         // keep it somewhere if a matching gold tile exists (transmute) or sell
-        const twin = s.cells.find(c => c.unit && c.unit.kind === 'gold' && c.unit.letter === u.letter && !(this.plan && this.plan.cells.includes(c.id)));
+        const twin = u.letter !== '*' && s.cells.find(c => c.unit && c.unit.kind === 'gold' && c.unit.letter === u.letter && !(this.plan && this.plan.cells.includes(c.id)));
         if (twin && this.p.skill > 0.5) { s.place({ tray: i }, twin.id); return true; }
         const fc = this.bestFreeCell(u);
         if (fc >= 0 && s.freeCells().length > (this.p.skill > 0.6 ? 4 : 2)) { s.place({ tray: i }, fc); return true; }
@@ -141,8 +150,10 @@ export class CpuBrain {
         s.sell({ tray: i }); return true;
       }
     }
-    // 3) relocate basic units out of plan cells when the plan needs room
+    // 3) relocate basic units out of plan cells when the plan needs room (and walk a stray ★ into the word)
     if (this.plan && this.p.skill > 0.5) {
+      const wc = s.cells.find(c => c.unit && c.unit.kind === 'gold' && c.unit.letter === '*' && !this.plan.cells.includes(c.id));
+      if (wc) { const d = this.planNeeds('*'); if (d >= 0 && !s.cells[d].unit) { s.place({ cell: wc.id }, d); return true; } }
       for (const id of this.plan.cells) {
         const c = s.cells[id];
         if (c.unit && c.unit.kind === 'basic') {
@@ -172,7 +183,7 @@ export class CpuBrain {
     return false;
   }
   unitValue(u) {
-    if (u.kind === 'gold') return this.planNeeds(u.letter) >= 0 ? 50 : 0.5;
+    if (u.kind === 'gold') return u.letter === '*' || this.planNeeds(u.letter) >= 0 ? 50 : 0.5;
     return Math.pow(2, u.level);
   }
   favoriteLetter() {

@@ -12,7 +12,7 @@ const OUT = __dirname + '/../store/screenshots/';
   await p.evaluate(() => __LL.show('prematch', { mode: 'ladder', rivalIndex: 3 })); await p.waitForTimeout(400);
   await p.screenshot({ path: OUT + '5_prematch.jpg', quality: 88 });
   await p.click('#go'); await p.waitForTimeout(500);
-  await p.evaluate(async () => { const mod = await import('./js/ai.js'); const ctl = __LL.ctl; const br = new mod.CpuBrain(ctl.match.sides[0], { think: 0.4, skill: 1, spell: 5, mistakes: 0 }); const o = ctl.update.bind(ctl); window.__spelled = 0; ctl.match.sides[0].script = ['S','gold:M','B','gold:A','S','L','gold:G','K','gold:E','B','S','gold:K','gold:I','L','gold:N','gold:G'];
+  await p.evaluate(async () => { const mod = await import('./js/ai.js'); const ctl = __LL.ctl; ctl.match.sides[0].autoPick = true; const br = new mod.CpuBrain(ctl.match.sides[0], { think: 0.4, skill: 1, spell: 5, mistakes: 0 }); const o = ctl.update.bind(ctl); window.__spelled = 0; ctl.match.sides[0].script = ['S','gold:M','B','gold:A','S','L','gold:G','K','gold:E','B','S','gold:K','gold:I','L','gold:N','gold:G'];
     ctl.update = dt => { const n = ctl.match.sides[0].stats.heroes; if (!ctl.paused) br.update(dt * ctl.speed); o(dt); if (ctl.match.sides[0].stats.heroes > n) window.__spelled = performance.now(); }; ctl.speed = 3; });
   console.log('match started'); // wait for a hero spell moment
   for (let i = 0; i < 900; i++) { await p.waitForTimeout(100); const st = await p.evaluate(() => ({ s: window.__spelled, t: __LL.ctl.match.time | 0, fps: Math.round(window.__fps), h: __LL.ctl.match.sides[0].stats.heroes })); if (i % 50 === 0) console.log(JSON.stringify(st)); if (st.s > 0) break; }
@@ -28,5 +28,12 @@ const OUT = __dirname + '/../store/screenshots/';
   await p.screenshot({ path: OUT + '6_victory.jpg', quality: 88 });
   await p.click('#cont'); await p.waitForTimeout(1500);
   for (const [s, f] of [['spellbook', '7_spellbook'], ['shop', '8_shop'], ['hub', '9_hub']]) { await p.evaluate(s => __LL.show(s), s); await p.waitForTimeout(500); await p.screenshot({ path: OUT + f + '.jpg', quality: 88 }); }
+  // blessing draft (v1.1): play up to wave 3 without auto-pick so the draft screen shows
+  await p.evaluate(() => __LL.startMatch({ mode: 'ladder', rival: __LL.RIVALS[4], rivalIndex: 4, mapId: 'bay', seed: 7 })); await p.waitForTimeout(400);
+  await p.evaluate(async () => { const mod = await import('./js/ai.js'); const ctl = __LL.ctl; const br = new mod.CpuBrain(ctl.match.sides[0], { think: 0.4, skill: 1, spell: 5, mistakes: 0 }); const o = ctl.update.bind(ctl);
+    ctl.match.sides[0].script = ['S', 'gold:K', 'B', 'gold:I', 'S', 'L', 'K', 'gold:N', 'B', 'S'];
+    ctl.update = dt => { if (!ctl.paused) br.update(dt * ctl.speed); o(dt); }; ctl.speed = 3; });
+  await p.waitForSelector('.modal.draft .boon-card', { timeout: 90000 }); await p.waitForTimeout(900);
+  await p.screenshot({ path: OUT + '10_blessings.jpg', quality: 88 });
   await b.close();
 })();

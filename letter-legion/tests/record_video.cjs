@@ -23,7 +23,7 @@ const FPS = 30, SECONDS = 17.5;
   // take over the clock: the page's own RAF loop stops advancing the match; we step it at exactly 1/30 s per frame
   await p.evaluate(async () => {
     const mod = await import('./js/ai.js'); const ctl = __LL.ctl;
-    const brain = new mod.CpuBrain(ctl.match.sides[0], { think: 0.35, skill: 1, spell: 5, mistakes: 0 });
+    ctl.match.sides[0].autoPick = true; const brain = new mod.CpuBrain(ctl.match.sides[0], { think: 0.35, skill: 1, spell: 5, mistakes: 0 });
     const orig = ctl.update.bind(ctl); ctl.update = () => {};
     window.__step = dt => { brain.update(dt); orig(dt); };
     ctl.speed = 1;
@@ -32,10 +32,14 @@ const FPS = 30, SECONDS = 17.5;
     for (let i = 0; i < 30 * 58; i++) window.__step(1 / 30);
     // queue a hero spelling (MONK) to land a few seconds into the clip for the cut-in
     const me = ctl.match.sides[0]; me.ink += 400; me.script = ['gold:M', 'gold:O', 'gold:N', 'gold:K', 'S', 'L', 'B'];
+    me.hex = 0; ctl.match.sides[1].hex = 0; // hexes are fired on cue below
     __LL.view.cuts = []; __LL.view.banners = [];
   });
   const N = Math.round(FPS * SECONDS);
   for (let f = 0; f < N; f++) {
+    // show both sides of a Hex: ours flies to the rival at 6.5 s, theirs lands on our road at 11 s
+    if (f === Math.round(6.5 * FPS)) await p.evaluate(() => { const me = __LL.ctl.me; me.hex = me.hexNeed(); me.sendHex(); });
+    if (f === Math.round(11 * FPS)) await p.evaluate(() => { const r = __LL.ctl.match.sides[1]; r.hex = r.hexNeed(); r.sendHex(); });
     await p.evaluate(() => window.__step(1 / 30));
     await p.screenshot({ path: `${OUT}/f${String(f).padStart(4, '0')}.jpg`, quality: 92 });
   }

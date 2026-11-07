@@ -16,15 +16,20 @@ Duel a computer-controlled rival on mirrored battlefields. Spend Ink to summon b
 
 Lucky summons bring golden hero letters. Line them up left to right in one row to spell a hero's name: KING, MAGE, MONK, HAWK, NINJA, DRUID, TITAN or SAINT. The letters fuse into a hero with a spectacular special skill: meteors, arrow storms, shadow flurries, quake shouts and more.
 
+Every few waves the battle pauses and you choose 1 of 3 blessings, so no two battles build the same way. Defeat enemies to charge your Hex, then curse your rival with a Hexed Brute. Watch out: the rival can hex you too!
+
 Outlast your rival: whoever keeps their ward safe the longest wins.
 
 Features:
 - Random-summon merge tower defense with a word-spelling twist
+- 18 blessings to draft during each battle, plus Hex attacks that send cursed Brutes at your rival
+- Wild ★ letters, merge combos and lucky summons
 - 8 heroes with unique skills that level up when you spell them again
 - 4 hand-crafted maps: Ember Plains, Misty Marsh, Crimson Bay and Iron Gate Pass
 - A ladder of 9 CPU rivals, each with their own personality
 - Weapon drops in five rarities, an item shop and a limited loadout
 - Daily Duel with the map, seed and buff of the day, plus your personal best board
+- Three new daily quests every day
 - 1-minute tutorial, 1×/2× speed, mouse and touch support
 
 All rivals are computer-controlled. No account needed: your progress is saved automatically.
@@ -35,7 +40,8 @@ All rivals are computer-controlled. No account needed: your progress is saved au
 - Place golden letters in one row, left to right, to spell heroes.
 - Drag a letter onto the ✖ bin to sell it. Click a locked cell while holding a shovel to dig it.
 - When your board is clear, click the wave bar to call the next wave early for bonus Ink.
-- **Keyboard (optional):** Space = summon · 1–3 = auto-place a recruit · N = next wave · Q / W = items · F = speed · Esc = pause
+- When your Hex is charged, click the purple orb to send a Hexed Brute at the rival.
+- **Keyboard (optional):** Space = summon · 1–3 = auto-place a recruit (or pick a blessing) · H = send Hex · N = next wave · Q / W = items · F = speed · Esc = pause
 
 ## Assets in this folder
 - `cover_1920x1080.jpg`, `cover_800x1200.jpg`, `cover_800x800.jpg`: the three required covers (title is the only text)

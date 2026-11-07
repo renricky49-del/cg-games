@@ -1,6 +1,7 @@
 // DOM menus & meta screens
-import { HEROES, HERO_BY_ID, RIVALS, MAPS, MAP_BY_ID, ITEMS, ITEM_BY_ID, ITEM_PRICES, RARITIES, WEAPON_BASES, LOADOUT, UNITS, xpForLevel, DAILY_BUFFS } from './data.js';
-import { P, saveProfile, unlockedHeroIds, mapUnlocked, dailyInfo, refreshShop, REROLL_COST, equippedWeapons, resetProfile, rolloverDaily } from './save.js';
+import { HEROES, HERO_BY_ID, RIVALS, MAPS, MAP_BY_ID, ITEMS, ITEM_BY_ID, ITEM_PRICES, RARITIES, WEAPON_BASES, LOADOUT, UNITS, xpForLevel, DAILY_BUFFS, BOON_BY_ID, QUEST_BY_ID, QUEST_ALL_BONUS } from './data.js';
+import { boonIconUrl } from './glyphs.js';
+import { P, saveProfile, unlockedHeroIds, mapUnlocked, dailyInfo, refreshShop, REROLL_COST, equippedWeapons, resetProfile, rolloverDaily, claimQuest } from './save.js';
 import { stripCss } from './assets.js';
 import { Audio } from './audio.js';
 import { CG } from './cg.js';
@@ -59,7 +60,7 @@ function title() {
         ${P.tutorialDone ? '' : '<button class="btn small ghost" id="skipTut">I know this genre — skip tutorial</button>'}
         <button class="btn" data-go="settings">Settings</button>
       </div>
-      <div class="foot">v1.0 · Rivals are computer-controlled (CPU)</div>
+      <div class="foot">v1.1 · Rivals are computer-controlled (CPU)</div>
     </div>`);
   $('#play').onclick = () => { if (!P.tutorialDone) api.startTutorial(); else show('hub'); };
   if ($('#skipTut')) $('#skipTut').onclick = () => { P.tutorialDone = true; saveProfile(); show('prematch', { mode: 'ladder', rivalIndex: 0 }); };
@@ -90,6 +91,16 @@ function hub() {
         <div class="buff">✨ <b>${d.buff.name}</b> — ${d.buff.desc}</div>
         <div class="muted">Today's best: <b>${P.daily.best || '—'}</b> · wins today: ${P.daily.wins}</div>
         <div class="row"><button class="btn green" id="dailyGo">Play daily</button><button class="btn small" data-go="daily">Board</button></div>
+      </div>
+      <div class="card quests">
+        <div class="card-h">📋 Daily quests <span class="muted">new every day</span></div>
+        ${P.quests.list.map((q, i) => { const d = QUEST_BY_ID[q.id]; const ok = q.prog >= d.goal;
+          return `<div class="quest ${q.claimed ? 'claimed' : ok ? 'ready' : ''}">
+            <div class="q-main"><div class="q-text">${d.text}</div><div class="q-bar"><i style="width:${Math.min(100, q.prog / d.goal * 100)}%"></i><span>${Math.floor(Math.min(q.prog, d.goal))}/${d.goal}</span></div></div>
+            <div class="q-rew">🪙 ${d.coins}<small>+${d.xp} XP</small></div>
+            ${q.claimed ? '<div class="q-done">✔</div>' : `<button class="btn small ${ok ? 'gold' : 'ghost'}" data-claim="${i}" ${ok ? '' : 'disabled'}>Claim</button>`}
+          </div>`; }).join('')}
+        <div class="muted small">Claim all three for <b>+${QUEST_ALL_BONUS}</b> bonus coins${P.quests.bonus ? ' ✔' : ''}</div>
       </div>
       <div class="card quick">
         <div class="card-h">🎲 Quick Battle</div>
@@ -124,6 +135,12 @@ function hub() {
   $('#fight').onclick = () => show('prematch', { mode: 'ladder', rivalIndex: Math.min(P.ladder, RIVALS.length - 1) });
   $('#dailyGo').onclick = () => show('prematch', { mode: 'daily' });
   $('#tut').onclick = () => api.startTutorial();
+  root().querySelectorAll('[data-claim]').forEach(b => b.onclick = () => {
+    const r = claimQuest(+b.dataset.claim); if (!r) return;
+    Audio.play(r.levelUps.length ? 'levelup' : 'coin');
+    toast(`+${r.coins} coins · +${r.xp} XP${r.bonus ? ` · all quests done: +${r.bonus} bonus!` : ''}${r.levelUps.length ? ` · LEVEL UP! (Lv ${P.level})` : ''}`, 2200);
+    hub();
+  });
   root().querySelectorAll('[data-qm]').forEach(e => e.onclick = () => show('quick', e.dataset.qm));
 }
 
@@ -331,7 +348,12 @@ export function spellbookHtml() {
         ${ok ? (w ? `<div class="small" style="color:${rarityOf(w.rarity).color}">⚒ ${w.name}</div>` : '<div class="muted small">no weapon equipped</div>') : `<div class="lockmsg">🔒 Unlocks at player level ${hh.unlock}</div>`}
       </div>`; }).join('')}</div>
     <div class="sb-letters"><div class="section-h">Letter soldiers</div>${Object.values(UNITS).map(u => `<div class="sb-unit"><b style="color:${u.color}">${u.letter}</b> ${u.name} — ${u.desc}</div>`).join('')}
-    <div class="sb-unit"><b style="color:#ffd24a">⛏</b> Shovel — dig open a locked cell.</div></div>
+    <div class="sb-unit"><b style="color:#ffd24a">⛏</b> Shovel — dig open a locked cell.</div>
+    <div class="sb-unit"><b style="color:#e0a8ff">★</b> Wild letter — a golden tile that counts as ANY letter in a hero's name.</div></div>
+    <div class="sb-letters"><div class="section-h">Duel mechanics</div>
+    <div class="sb-unit"><b style="color:#ffe066">✨ Blessings</b> — before waves 3, 7, 11, 15 and 19 both sides pick 1 of 3 blessings (one free reroll per battle). They last the whole battle.</div>
+    <div class="sb-unit"><b style="color:#c77dff">🔮 Hex</b> — defeating enemies charges your Hex (bosses and Brutes count extra). When it's full, press H or click the orb to send a tough Hexed Brute down the rival's road. The CPU rival can hex you too!</div>
+    <div class="sb-unit"><b style="color:#7fe08a">⚡ Combos &amp; luck</b> — merges within 3.5 s of each other chain into a combo that pays bonus Ink. Some summons arrive as Lucky Lv 2 letters.</div></div>
   </div>`;
 }
 function spellbook() { h(`${topBar('Spellbook')}${spellbookHtml()}`); wireGo(); }
@@ -353,7 +375,10 @@ function settings() {
           <li><b>Merge</b>: drop a letter on the same letter of the same level → level up.</li>
           <li><b>Spell heroes</b>: golden letters in one row, left → right (e.g. K-I-N-G).</li>
           <li><b>Shovels</b> dig locked cells. <b>Train</b> boosts every letter of a type.</li>
-          <li>Drag to the ✖ bin to sell. Q / W use items. F toggles speed. Esc pauses.</li>
+          <li><b>Blessings</b>: before waves 3, 7, 11, 15, 19 pick 1 of 3 (keys 1–3, R rerolls).</li>
+          <li><b>Hex</b> (H): when charged, send a Hexed Brute down the rival's road.</li>
+          <li><b>★ Wild letters</b> count as any letter when spelling.</li>
+          <li>Drag to the ✖ bin to sell. Q / W use items. F toggles speed. N calls the next wave. Esc pauses.</li>
         </ul>
       </div>
       <div class="muted small">Fonts: Titan One & Fredoka (SIL Open Font License). All rivals are computer-controlled.</div>
@@ -371,9 +396,13 @@ function settings() {
 }
 
 // ---------------- in-match overlays ----------------
-export function pauseMenu(onResume, onQuit, quitLabel = 'Forfeit match') {
+function boonChips(ids) {
+  return ids.map(id => BOON_BY_ID[id]).filter(Boolean).map(b => `<span class="boon-chip" style="--bc:${b.col}" title="${b.desc}"><img src="${boonIconUrl(b)}" alt="">${b.name}</span>`).join('');
+}
+export function pauseMenu(onResume, onQuit, quitLabel = 'Forfeit match', boons = []) {
   const s = P.settings;
   const m = modal(`<h2>Paused</h2>
+    ${boons.length ? `<div class="pause-boons"><div class="muted small">Your blessings</div>${boonChips(boons)}</div>` : ''}
     <div class="col">
       <button class="btn gold" id="resume">Resume</button>
       <button class="btn" id="book">Spellbook</button>
@@ -387,6 +416,44 @@ export function pauseMenu(onResume, onQuit, quitLabel = 'Forfeit match') {
   q('#music').onchange = e => { s.music = e.target.checked; Audio.setMusic(s.music); saveProfile(); };
   q('#sfx').onchange = e => { s.sfx = e.target.checked; Audio.setSfx(s.sfx); saveProfile(); };
   q('#quit').onclick = () => { m.close(); onQuit(); };
+  return m;
+}
+// pick 1 of 3 blessings (the battle is frozen meanwhile)
+export function draftModal(ctl) {
+  const m = modal('', 'draft'); m.el.classList.add('draft-bg');
+  const box = m.el.querySelector('.modal');
+  let done = false;
+  const pick = i => {
+    if (done || !ctl.me.offers || !ctl.me.offers[i]) return;
+    done = true; window.removeEventListener('keydown', onKey, true);
+    const card = box.querySelector(`[data-i="${i}"]`); if (card) card.classList.add('chosen');
+    setTimeout(() => { m.close(); ctl.pickBoon(i); }, 260);
+  };
+  const onKey = e => {
+    if (!document.body.contains(m.el)) { window.removeEventListener('keydown', onKey, true); return; }
+    if (document.querySelector('#modals').lastElementChild !== m.el) return; // a pause menu is on top
+    if (['1', '2', '3'].includes(e.key)) { e.preventDefault(); e.stopPropagation(); pick(+e.key - 1); }
+    else if (e.key === 'r' || e.key === 'R') { e.preventDefault(); e.stopPropagation(); reroll(); }
+  };
+  const reroll = () => { if (done) return; if (ctl.rerollBoons()) render(); };
+  const render = () => {
+    const offers = ctl.me.offers || []; const d = ctl.match.draft || { w: ctl.match.wave, picks: {} };
+    const rp = BOON_BY_ID[d.picks?.[1]];
+    box.innerHTML = `<div class="draft-h">✨ Choose a blessing ✨</div>
+      <div class="muted center">Wave ${d.w} is about to begin · blessings last for the whole battle</div>
+      <div class="draft-cards">${offers.map((id, i) => { const b = BOON_BY_ID[id]; return `<button class="boon-card" data-i="${i}" style="--bc:${b.col}">
+        <img src="${boonIconUrl(b)}" alt=""><b>${b.name}</b><span>${b.desc}</span><kbd>${i + 1}</kbd></button>`; }).join('')}</div>
+      <div class="draft-foot">
+        <span class="muted small">${rp ? `CPU rival chose: <b style="color:${rp.col}">${rp.name}</b>` : ''}</span>
+        <button class="btn small ghost" id="reroll" ${ctl.me.rerolls > 0 ? '' : 'disabled'}>🎲 Reroll (${ctl.me.rerolls} left)</button>
+      </div>`;
+    bindSounds(box);
+    box.querySelectorAll('.boon-card').forEach(b => b.onclick = () => pick(+b.dataset.i));
+    box.querySelector('#reroll').onclick = reroll;
+  };
+  render();
+  window.addEventListener('keydown', onKey, true);
+  Audio.play('draft');
   return m;
 }
 export function spellbookModal(onClose) {
@@ -405,7 +472,9 @@ export function resultsScreen(res, rewards, onContinue) {
         <div><span>Heroes spelled</span><b>${res.stats.heroes}</b></div><div><span>Best letter</span><b>Lv ${res.stats.maxLevel}</b></div>
         <div><span>Score</span><b>${res.score}</b></div><div><span>Lives left</span><b>${res.lives}</b></div>
       </div>
+      ${res.stats.boonList && res.stats.boonList.length ? `<div class="res-boons">${boonChips(res.stats.boonList)}</div>` : ''}
       ${rewards.newBest ? '<div class="newbest">★ New personal best on this map!</div>' : ''}
+      ${rewards.questsDone && rewards.questsDone.length ? `<div class="levelup">📋 Daily quest complete: <b>${rewards.questsDone.map(id => QUEST_BY_ID[id].text).join(', ')}</b> — claim it in the hub!</div>` : ''}
       <div class="rewards"><div class="rw">🪙 <b id="coinsAmt">${rewards.coins}</b> coins</div><div class="rw">✦ <b>${rewards.xp}</b> XP</div></div>
       ${w ? `<div class="drop" style="--rc:${wr.color}"><div class="drop-glow"></div><div style="${stripCss('weapons', WEAPON_BASES[w.hero].icon, 80)}"></div><div><div class="muted small">Weapon drop!</div><div class="wname" style="color:${wr.color}">${w.name}</div><div class="small">${wr.name} · for ${w.hero}</div></div></div>` : ''}
       ${rewards.levelUps.length ? `<div class="levelup">LEVEL UP! You are now level ${P.level}${rewards.unlocks.length ? ' — new hero: <b>' + rewards.unlocks.join(', ') + '</b>' : ''}</div>` : ''}

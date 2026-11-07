@@ -4,8 +4,8 @@ import { Audio } from './audio.js';
 import { loadAll } from './assets.js';
 import { MatchView } from './render.js';
 import { MatchController } from './game.js';
-import { P, loadProfile, saveProfile, unlockedHeroIds, addXp, rollWeapon, equippedWeapons, refreshShop, dailyInfo } from './save.js';
-import { initUI, show, hideUI, toast, pauseMenu, spellbookModal, resultsScreen } from './ui.js';
+import { P, loadProfile, saveProfile, unlockedHeroIds, addXp, rollWeapon, equippedWeapons, refreshShop, dailyInfo, questProgress } from './save.js';
+import { initUI, show, hideUI, toast, pauseMenu, spellbookModal, resultsScreen, draftModal } from './ui.js';
 import { RIVALS, TUTOR_RIVAL, HEROES, MAP_BY_ID, RARITIES } from './data.js';
 import { RNG } from './rng.js';
 import { FONT } from './glyphs.js';
@@ -35,11 +35,13 @@ function setHint(html) {
 const hooks = {
   onEnd: res => endMatch(res),
   pause: () => openPause(),
+  draft: c => draftModal(c),
   spellbook: () => { const c = ctl; if (!c || c.ended) return; c.hold('book'); syncGameplay(); spellbookModal(() => { c.release('book'); syncGameplay(); }); },
   toast: t => toast(t, 1400),
   hint: setHint,
   cursor: c => { canvas.style.cursor = c; },
   setFast: on => { P.settings.fast = on; saveProfile(); },
+  tipOnce: id => { if (P.tips[id]) return false; P.tips[id] = 1; saveProfile(); return true; },
 };
 
 // tell the SDK whether the player is actively playing right now
@@ -50,7 +52,7 @@ function openPause() {
   c.hold('menu'); syncGameplay();
   pauseModal = pauseMenu(() => { pauseModal = null; c.release('menu'); syncGameplay(); },
     () => { pauseModal = null; c.release('menu'); if (c.ended) return; c.match.forfeit = true; c.match.finish(1, c.tutorial ? 'Tutorial skipped' : 'You forfeited the match'); },
-    c.tutorial ? 'Skip tutorial' : 'Forfeit match');
+    c.tutorial ? 'Skip tutorial' : 'Forfeit match', c.me.boons);
 }
 
 function startMatch(o) {
@@ -114,9 +116,10 @@ function computeRewards(res) {
   const unlocks = unlockedHeroIds().filter(h => !before.includes(h));
   P.stats.matches++; if (res.won) P.stats.wins++; P.stats.heroes += res.stats.heroes; P.stats.kills += res.stats.kills;
   if (tutorial) P.tutorialDone = true;
+  const questsDone = (!tutorial && !res.forfeit) ? questProgress({ won: res.won, mode: o.mode, stats: res.stats, lives: res.lives }) : [];
   if (!res.forfeit) refreshShop(false);
   saveProfile(true);
-  return { coins, xp, weapon, ladderUp, newBest, levelUps, unlocks };
+  return { coins, xp, weapon, ladderUp, newBest, levelUps, unlocks, questsDone };
 }
 
 function endMatch(res) {

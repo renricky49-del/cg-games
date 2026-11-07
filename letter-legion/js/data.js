@@ -67,7 +67,11 @@ export const ENEMIES = {
   wolf:     { name: 'Wolf',      hp: 0.7,  speed: 2.0,  ink: 3, sprite: 6, size: 0.62 },
   baby:     { name: 'Slimelet',  hp: 0.35, speed: 1.1,  ink: 1, sprite: 7, size: 0.42 },
   shroom:   { name: 'Shroomling', hp: 2.8, speed: 0.6,  ink: 6, sprite: 8, size: 0.66 },
+  // sent by the other side's Hex (never part of a normal wave)
+  brute:    { name: 'Hexed Brute', hp: 7, speed: 0.8, ink: 10, sprite: 3, size: 0.86, elite: true },
 };
+// Hex: kills charge it; when full, curse the rival with a Hexed Brute on their road
+export const HEX = { need: 22, step: 12, kill: 1, elite: 3, boss: 6 };
 export const BOSSES = [
   { id: 'toad',   name: 'Bog Toad King', hp: 11, speed: 0.55, ink: 60, sprite: 0, size: 1.15, ability: 'tongue', abilityCd: 6 },
   { id: 'golem',  name: 'Iron Golem',    hp: 14, speed: 0.45, ink: 80, sprite: 1, size: 1.25, armor: 0.5, ability: 'quake', abilityCd: 9 },
@@ -142,23 +146,23 @@ export const MAP_BY_ID = Object.fromEntries(MAPS.map(m => [m.id, m]));
 // ---------- CPU rivals (ladder) ----------
 // skill: 0..1 how well the CPU plays; think: seconds between decisions; spell: max word length it attempts
 export const RIVALS = [
-  { id: 'bumble', power: 0.5, name: 'Sir Bumble', tier: 'Rookie', map: 'ember', portrait: 0, think: 2.6, skill: 0.25, spell: 0, mistakes: 0.35,
+  { id: 'bumble', power: 0.55, name: 'Sir Bumble', tier: 'Rookie', map: 'ember', portrait: 0, think: 2.2, skill: 0.25, spell: 0, mistakes: 0.3,
     quote: 'I polished my sword! ...Which end is the pointy one?' , ward: 'Princess Pom' },
   { id: 'wren', power: 0.45, name: 'Wren the Scribe', tier: 'Rookie', map: 'ember', portrait: 1, think: 2.0, skill: 0.4, spell: 4, mistakes: 0.25,
     quote: 'I have read every book on tactics. Twice.', ward: 'Princess Pom' },
-  { id: 'grizelda', power: 0.62, name: 'Grizelda', tier: 'Adept', map: 'marsh', portrait: 2, think: 1.6, skill: 0.5, spell: 4, mistakes: 0.18,
+  { id: 'grizelda', power: 0.66, name: 'Grizelda', tier: 'Adept', map: 'marsh', portrait: 2, think: 1.6, skill: 0.5, spell: 4, mistakes: 0.18,
     quote: 'Hee hee! My bog creatures adore fresh letters.', ward: 'Princess Pom' },
-  { id: 'baron', power: 0.7, name: 'Baron Fizzlewick', tier: 'Adept', map: 'marsh', portrait: 3, think: 1.35, skill: 0.6, spell: 4, mistakes: 0.14,
+  { id: 'baron', power: 0.72, name: 'Baron Fizzlewick', tier: 'Adept', map: 'marsh', portrait: 3, think: 1.35, skill: 0.6, spell: 4, mistakes: 0.14,
     quote: 'A gentleman never loses. He merely postpones winning.', ward: 'Princess Pom' },
-  { id: 'barnacle', power: 0.98, name: 'Captain Barnacle', tier: 'Veteran', map: 'bay', portrait: 4, think: 1.1, skill: 0.68, spell: 5, mistakes: 0.1,
+  { id: 'barnacle', power: 1.05, name: 'Captain Barnacle', tier: 'Veteran', map: 'bay', portrait: 4, think: 1.1, skill: 0.68, spell: 5, mistakes: 0.1,
     quote: 'Arr! Me parrot can spell better than ye!', ward: 'Princess Pom' },
-  { id: 'plume', power: 1.1, name: 'Madame Plume', tier: 'Veteran', map: 'bay', portrait: 5, think: 0.95, skill: 0.75, spell: 5, mistakes: 0.08,
+  { id: 'plume', power: 1.6, name: 'Madame Plume', tier: 'Veteran', map: 'bay', portrait: 5, think: 0.95, skill: 0.75, spell: 5, mistakes: 0.08,
     quote: 'Elegance, darling. Every letter in its place.', ward: 'Princess Pom' },
-  { id: 'inkwell', power: 0.98, name: 'Lord Inkwell', tier: 'Master', map: 'iron', portrait: 6, think: 0.8, skill: 0.82, spell: 5, mistakes: 0.05,
+  { id: 'inkwell', power: 1.4, name: 'Lord Inkwell', tier: 'Master', map: 'iron', portrait: 6, think: 0.8, skill: 0.82, spell: 5, mistakes: 0.05,
     quote: 'I invented half of these letters. Hmph.', ward: 'Princess Pom' },
-  { id: 'hoot', power: 1.12, name: 'Professor Hoot', tier: 'Master', map: 'iron', portrait: 7, think: 0.65, skill: 0.9, spell: 5, mistakes: 0.03,
+  { id: 'hoot', power: 1.6, name: 'Professor Hoot', tier: 'Master', map: 'iron', portrait: 7, think: 0.65, skill: 0.9, spell: 5, mistakes: 0.03,
     quote: 'Whooo will win? Statistically... me.', ward: 'Princess Pom' },
-  { id: 'frost', power: 1.4, name: 'Queen Frostquill', tier: 'Grandmaster', map: 'iron', portrait: 8, think: 0.5, skill: 1.0, spell: 5, mistakes: 0.0,
+  { id: 'frost', power: 2.1, name: 'Queen Frostquill', tier: 'Grandmaster', map: 'iron', portrait: 8, think: 0.5, skill: 1.0, spell: 5, mistakes: 0.0,
     quote: 'Your words will freeze on your tongue.', ward: 'Princess Pom' },
 ];
 export const RIVAL_BY_ID = Object.fromEntries(RIVALS.map(r => [r.id, r]));
@@ -220,6 +224,51 @@ export const DAILY_BUFFS = [
   { id: 'ink', name: 'Overflowing Inkwell', desc: 'Start every match with +60 Ink.' },
   { id: 'hero', name: 'Heroic Day', desc: 'Hero skills recharge 20% faster.' },
 ];
+
+// ---------- Blessings: pick 1 of 3 before waves 3, 7, 11, 15 and 19 ----------
+// icon: { item: i } (items sheet) · { letter: 'S' } (letter soldier) · { wild: true } · { hex: true }
+export const DRAFT_WAVES = [3, 7, 11, 15, 19];
+export const BOONS = [
+  { id: 'serif',  name: 'Sharp Serifs',    col: '#ff8a5c', icon: { item: 6 },  desc: 'All your letters and heroes deal +20% damage.' },
+  { id: 'cheap',  name: 'Cheap Ink',       col: '#7fd7ff', icon: { item: 0 },  desc: 'Summons cost 20% less Ink.' },
+  { id: 'gilded', name: 'Gilded Quill',    col: '#ffd24a', icon: { item: 7 },  desc: '+8% chance to summon golden hero letters.' },
+  { id: 'lucky',  name: 'Lucky Star',      col: '#7fe08a', icon: { item: 3 },  desc: '+20% chance that a summoned letter arrives at Lv 2.' },
+  { id: 'blade',  name: 'Whirling Blades', col: '#e8453c', icon: { letter: 'S' }, desc: 'Swordsmen (S) deal +40% damage with a 30% wider splash.' },
+  { id: 'lance',  name: 'Long Lances',     col: '#3d7fe6', icon: { letter: 'L' }, desc: 'Lancers (L) reach 0.8 tiles further and deal +25% damage.' },
+  { id: 'eagle',  name: 'Eagle Eye',       col: '#43b04a', icon: { letter: 'B' }, desc: 'Bowmen (B) reach 1 tile further and deal +30% damage.' },
+  { id: 'charge', name: 'Cavalry Charge',  col: '#f08a24', icon: { letter: 'K' }, desc: 'Knights (K) attack 40% faster.' },
+  { id: 'rebate', name: 'Merge Rebate',    col: '#c9a7ff', icon: { item: 5 },  desc: 'Every merge refunds Ink: 8 × the new level.' },
+  { id: 'tempo',  name: 'Heroic Tempo',    col: '#ffe066', icon: { item: 9 },  desc: 'Hero skills recharge 30% faster.' },
+  { id: 'guard',  name: 'Royal Guard',     col: '#ff8fa0', icon: { item: 8 },  desc: 'Your ward gains 2 lives right now.' },
+  { id: 'chill',  name: 'Chill Wind',      col: '#bfe9ff', icon: { item: 1 },  desc: 'Enemies on your road move 12% slower.' },
+  { id: 'bounty', name: 'Bounty Hunter',   col: '#ffc531', icon: { item: 10 }, desc: '+40% Ink from defeated enemies.' },
+  { id: 'crit',   name: 'Critical Ink',    col: '#ff5d7a', icon: { item: 2 },  desc: 'Attacks have a 15% chance to crit for 2.5× damage.' },
+  { id: 'slayer', name: 'Giant Slayer',    col: '#ff6b5e', icon: { item: 11 }, desc: '+75% damage against bosses and Hexed Brutes.' },
+  { id: 'wild',   name: 'Wildcard',        col: '#e0a8ff', icon: { wild: true }, desc: 'Your next 2 summons are ★ wild letters. A ★ counts as ANY letter in a hero name.' },
+  { id: 'hexer',  name: 'Hexcraft',        col: '#b07cff', icon: { hex: true }, desc: 'Your Hex charges 50% faster and your Brutes are 30% tougher.' },
+  { id: 'dig',    name: 'Prospector',      col: '#ffd88a', icon: { item: 4 },  desc: '+2 shovels now, and shovels turn up more often.' },
+];
+export const BOON_BY_ID = Object.fromEntries(BOONS.map(b => [b.id, b]));
+
+// ---------- Daily quests (3 per day) ----------
+// m(res) → progress this match adds; res = { won, mode, stats, lives }
+export const QUESTS = [
+  { id: 'win',      text: 'Win 2 duels',                         goal: 2,   coins: 90,  xp: 40, m: r => r.won ? 1 : 0 },
+  { id: 'spell',    text: 'Spell 5 heroes',                      goal: 5,   coins: 70,  xp: 30, m: r => r.stats.heroes },
+  { id: 'lv5',      text: 'Merge a letter up to Lv 5',           goal: 1,   coins: 70,  xp: 30, m: r => r.stats.maxLevel >= 5 ? 1 : 0 },
+  { id: 'kills',    text: 'Defeat 300 enemies',                  goal: 300, coins: 60,  xp: 30, m: r => r.stats.kills },
+  { id: 'hex',      text: 'Hex your rivals 4 times',             goal: 4,   coins: 70,  xp: 30, m: r => r.stats.hexes || 0 },
+  { id: 'brute',    text: 'Defeat 3 Hexed Brutes',               goal: 3,   coins: 70,  xp: 30, m: r => r.stats.brutes || 0 },
+  { id: 'boons',    text: 'Choose 6 blessings',                  goal: 6,   coins: 60,  xp: 30, m: r => r.stats.boons || 0 },
+  { id: 'calls',    text: 'Call 5 waves early',                  goal: 5,   coins: 60,  xp: 30, m: r => r.stats.calls || 0 },
+  { id: 'daily',    text: 'Play the Daily Duel',                 goal: 1,   coins: 50,  xp: 25, m: r => r.mode === 'daily' ? 1 : 0 },
+  { id: 'combo',    text: 'Land a ×3 merge combo',               goal: 1,   coins: 60,  xp: 30, m: r => (r.stats.maxCombo || 0) >= 3 ? 1 : 0 },
+  { id: 'flawless', text: 'Win a duel without losing a life',    goal: 1,   coins: 120, xp: 50, m: r => r.won && r.stats.leaks === 0 ? 1 : 0 },
+  { id: 'merges',   text: 'Merge letters 40 times',              goal: 40,  coins: 60,  xp: 30, m: r => r.stats.merges },
+  { id: 'wild',     text: 'Spell a hero with a ★ wild letter',   goal: 1,   coins: 80,  xp: 35, m: r => r.stats.wildSpells || 0 },
+];
+export const QUEST_BY_ID = Object.fromEntries(QUESTS.map(q => [q.id, q]));
+export const QUEST_ALL_BONUS = 80; // coins for claiming all three
 
 // ---------- Progression ----------
 export function xpForLevel(lvl) { return Math.round(100 + (lvl - 1) * 70 + Math.pow(lvl - 1, 2) * 12); }

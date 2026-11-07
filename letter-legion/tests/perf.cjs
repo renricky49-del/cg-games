@@ -8,7 +8,7 @@ const { chromium } = require('playwright');
   await p.goto('http://127.0.0.1:8123/index.html'); await p.waitForSelector('#play');
   await p.evaluate(() => { __LL.P.tutorialDone = true; __LL.P.ladder = 4; __LL.show('prematch', { mode: 'ladder', rivalIndex: 4 }); });
   await p.click('#go'); await p.waitForTimeout(500);
-  await p.evaluate(async () => { const mod = await import('./js/ai.js'); const ctl = __LL.ctl; const br = new mod.CpuBrain(ctl.match.sides[0], { think: 0.5, skill: 1, spell: 5, mistakes: 0 }); const o = ctl.update.bind(ctl); ctl.update = dt => { if (!ctl.paused) br.update(dt * ctl.speed); o(dt); }; });
+  await p.evaluate(async () => { const mod = await import('./js/ai.js'); const ctl = __LL.ctl; ctl.match.sides[0].autoPick = true; const br = new mod.CpuBrain(ctl.match.sides[0], { think: 0.5, skill: 1, spell: 5, mistakes: 0 }); const o = ctl.update.bind(ctl); ctl.update = dt => { if (!ctl.paused) br.update(dt * ctl.speed); o(dt); }; });
   const samples = [];
   for (let i = 0; i < 40; i++) {
     await p.waitForTimeout(3000);

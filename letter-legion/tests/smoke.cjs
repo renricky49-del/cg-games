@@ -22,7 +22,7 @@ const OUT = process.argv[3] || '/tmp/claude-0/shots';
   // play a bit with the CPU brain on our side
   await page.evaluate(async () => {
     const { ctl } = __LL; const mod = await import('./js/ai.js');
-    window.__pb = new mod.CpuBrain(ctl.match.sides[0], { think: 0.8, skill: 0.8, spell: 5, mistakes: 0 });
+    ctl.match.sides[0].autoPick = true; window.__pb = new mod.CpuBrain(ctl.match.sides[0], { think: 0.8, skill: 0.8, spell: 5, mistakes: 0 });
     const orig = ctl.update.bind(ctl);
     ctl.update = dt => { if (!ctl.paused) window.__pb.update(dt * ctl.speed); orig(dt); };
     ctl.speed = 2;
