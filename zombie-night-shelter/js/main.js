@@ -4,7 +4,7 @@ import { Audio } from './audio.js';
 import { loadImages, IMG } from './assets.js';
 import { Renderer, TS } from './render.js';
 import { Game, fmt } from './sim.js';
-import { NIGHTS, ENDLESS, BOSSES, bossKinds, ABILITIES, PERKS, SKINS, BUILD_ORDER, BUILDINGS } from './data.js';
+import { NIGHTS, ENDLESS, BOSSES, bossKinds, nightKinds, ABILITIES, PERKS, SKINS, BUILD_ORDER, BUILDINGS } from './data.js';
 import { roomAt } from './map.js';
 import { HUD } from './ui.js';
 
@@ -109,7 +109,7 @@ const App = {
       const el = document.createElement('button');
       const un = this.nightUnlocked(N.n), st = this.save.stars[N.n] || 0;
       el.className = 'night' + (un ? '' : ' locked') + (i === cur ? ' current' : '');
-      el.innerHTML = `<div>Night ${N.n}</div><img class="b" src="assets/img/${BOSSES[N.boss].sprite}.png" alt=""><div class="nm">${N.count} bosses · Lv${N.lvl}</div><div class="st">${[1, 2, 3].map((k) => `<img src="assets/img/i_star.png" class="${st >= k ? '' : 'off'}" alt="">`).join('')}</div>`;
+      el.innerHTML = `<div>Night ${N.n}</div><img class="b" src="assets/img/${BOSSES[N.boss].sprite}.png" alt=""><div class="nm">${N.title ? N.title + '<br>' : ''}${N.count} bosses · Lv${N.lvl}</div><div class="st">${[1, 2, 3].map((k) => `<img src="assets/img/i_star.png" class="${st >= k ? '' : 'off'}" alt="">`).join('')}</div>`;
       el.onclick = () => { if (!un) { this.toast('Survive the previous night to unlock'); Audio.play('error'); return; } Audio.play('click'); this.startNight(i); };
       grid.appendChild(el);
     });
@@ -170,12 +170,15 @@ const App = {
     }
     this.nightIdx = idx;
     const night = idx < 0 ? ENDLESS : NIGHTS[idx];
-    const kinds = bossKinds(night.boss, night.count || 2), B = BOSSES[night.boss];
-    $('intro-night').textContent = idx < 0 ? 'Endless Mode' : `Night ${night.n} · ${kinds.length} bosses${night.lvl > 1 ? ` · start at Lv${night.lvl}` : ''}`;
+    const kinds = nightKinds(night), B = BOSSES[night.boss];
+    $('intro-night').textContent = idx < 0 ? 'Endless Mode' : `Night ${night.n}${night.title ? ` · “${night.title}”` : ''} · ${kinds.length} bosses${night.lvl > 1 ? ` · Lv${night.lvl}` : ''}`;
     $('intro-bosses').innerHTML = kinds.map((k) => `<img src="assets/img/${BOSSES[k].sprite}.png" alt="">`).join('');
     const names = [...new Set(kinds.slice(1))].map((k) => BOSSES[k].name.replace(/^The /, ''));
     $('intro-name').textContent = idx < 0 ? 'The Endless Horde' : `${B.name} leads the pack`;
-    $('intro-desc').textContent = idx < 0 ? 'Bosses keep coming, more of them every other wave. How many waves can you hold?' : `${B.desc} With it: ${names.join(', ')}. ${B.name} hunts YOUR door.`;
+    const allSame = kinds.every((k) => k === kinds[0]);
+    $('intro-desc').textContent = idx < 0 ? 'Bosses keep coming, more of them every other wave. How many waves can you hold?'
+      : allSame && kinds.length > 2 ? `${B.desc} ${kinds.length} of them at once, and the first one hunts YOUR door.`
+        : `${B.desc} With it: ${names.join(', ')}. ${B.name} hunts YOUR door.`;
     const newB = idx < 0 ? null : BUILD_ORDER.filter((t) => BUILDINGS[t].unlock === night.n).map((t) => BUILDINGS[t].name)
       .concat(Object.values(ABILITIES).filter((a) => a.unlock === night.n).map((a) => `${a.name} (${a.key})`));
     $('intro-unlock').textContent = newB && newB.length ? 'New: ' + newB.join(', ') + '!' : '';

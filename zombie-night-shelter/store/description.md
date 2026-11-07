@@ -20,10 +20,10 @@ Lie down on your bed to earn scrap every second, then spend it wisely:
 
 Turrets cover the whole hallway, so neighbours protect each other, and you can send scrap to allies or pay to repair and reinforce their doors. Help them and they'll return the favour. But beware: a pack of bosses prowls the floor every night (2 at first, up to 5), one of them hunting you, and every door they break makes them stronger, and fallen survivors rise as zombies that join the hunt!
 
-Survive until dawn for a star, keep every ally alive for two, and destroy every boss for three. Collect medals to buy permanent upgrades, unlock new survivors, and take on 12 handcrafted nights with six different bosses — the Brute, the acid-spitting Spitter, the door-slamming Charger, the Howler, the armored Riot Tank and the Abomination. Then see how many waves you can last in **Endless mode**.
+Survive until dawn for a star, keep every ally alive for two, and destroy every boss for three. Collect medals to buy permanent upgrades, unlock new survivors, and take on 22 handcrafted nights with six different bosses — the Brute, the acid-spitting Spitter, the door-slamming Charger, the Howler, the armored Riot Tank and the Abomination. Then see how many waves you can last in **Endless mode**.
 
 ### Features
-- 12 nights + Endless mode, 2 to 5 bosses every night, 6 boss types with unique abilities
+- 22 nights + Endless mode, 2 to 5 bosses every night, 6 boss types with unique abilities
 - 11 buildings (5 weapon types), all upgradeable, plus bed and door upgrades
 - Throw Flashbangs and Molotovs, grab parachuted supply crates, collect daily supplies
 - Co-op with AI allies: send scrap, repair or reinforce their doors, and they help you back; team bounty for every boss kill

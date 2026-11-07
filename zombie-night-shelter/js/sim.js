@@ -2,7 +2,7 @@
 import {
   RUSH_TIME, GRACE_TIME, PACE, AI_COUNT, AID_FRAC, AID_FRAC_REPAIR, AID_CD, TEAM_BOUNTY_S, MAX_BED, MAX_DOOR, bedIncome, bedCost, bedDoorReq,
   doorMaxHp, doorCost, repairCost, REPAIR_FRAC, REPAIR_CD,
-  BUILDINGS, upgradeCost, totalSpent, turretStats, BOSSES, bossBase, bossKinds, GROUP_HP, GROUP_DMG, HUNT_CHANCE, ABILITIES, CRATE_EVERY, CRATE_LIFE, BOSS_LVL_HP, BOSS_LVL_DMG, bossXpNeed,
+  BUILDINGS, upgradeCost, totalSpent, turretStats, BOSSES, bossBase, bossKinds, nightKinds, GROUP_HP, GROUP_DMG, HUNT_CHANCE, ABILITIES, CRATE_EVERY, CRATE_LIFE, BOSS_LVL_HP, BOSS_LVL_DMG, bossXpNeed,
   PERSONALITIES, AI_NAMES,
 } from './data.js';
 import { buildMap } from './map.js';
@@ -79,7 +79,7 @@ export class Game {
     }
     this.player = this.survivors[0];
     // two bosses per night
-    this.bosses = this._makeBossGroup(bossKinds(this.night.boss, this.night.count || 2), this.diff, this.night.lvl || 1);
+    this.bosses = this._makeBossGroup(nightKinds(this.night), this.diff, this.night.lvl || 1);
   }
 
   // first living boss (HUD / legacy callers); falls back to the first one
@@ -87,7 +87,7 @@ export class Game {
   bossesAlive() { return this.bosses.filter((b) => b.alive); }
 
   _makeBossGroup(kinds, diff, lvl) {
-    const n = kinds.length, OFF = [0, 3, -3, 5.5, -5.5];
+    const n = kinds.length, OFF = [0, 3, -3, 5.5, -5.5, 1.5];
     const group = kinds.map((k, i) => {
       const b = this._makeBoss(k, diff, GROUP_HP[n] || 0.3, GROUP_DMG[n] || 0.38, lvl);
       b.y += OFF[i % OFF.length]; b.wakeDelay = i * 3; // they file out of the stairwell one after another

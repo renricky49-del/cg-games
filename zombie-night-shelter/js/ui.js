@@ -516,7 +516,7 @@ export class HUD {
         break;
       case 'kill': if (ev.e.kind === 'boss') this.banner(g.endless ? 'BOSS DOWN!' : 'BOSS DEFEATED!', g.endless ? 'Another one is coming…' : 'You win the night!', 2.6); break;
       case 'win': if (!ev.killed) this.banner('DAWN!', 'The zombies retreat from the light', 2.6); break;
-      case 'howl': this.toast('The Howler called more zombies!', 'bad'); break;
+      case 'howl': this.toast(`${ev.e.name} called more zombies!`, 'bad'); break;
       case 'acid': if (ev.b.room === g.player.room) this.toast('Acid! A gadget is jammed', 'bad'); break;
       case 'toast': this.toast(ev.text, 'bad'); break;
       case 'aid':
@@ -536,6 +536,10 @@ export class HUD {
     this.bannerT = dur || 2;
   }
   toast(text, cls) {
+    // the same message twice within 4 s is dropped (packs of bosses fire abilities together)
+    const now = performance.now(); this.lastToasts = this.lastToasts || {};
+    if (now - (this.lastToasts[text] || -1e9) < 4000) return;
+    this.lastToasts[text] = now;
     const box = $('toasts');
     if (box.children.length > 3) box.firstChild.remove();
     const t = document.createElement('div'); t.className = 'toast ' + (cls || ''); t.textContent = text;

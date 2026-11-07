@@ -19,7 +19,7 @@ localStorage saves). To upload: zip the **contents** of this folder (index.html 
 ## Tests / tools (need Node 18+, Playwright with the preinstalled Chromium)
 | Command | What it does |
 |---|---|
-| `node tools/balance.mjs 20 balanced` | Headless fast-forward sim of all 12 nights (player slot driven by the survivor AI). Prints win %, boss-kill %, stars, AI deaths, boss level. Optional 3rd arg: perks JSON, e.g. `'{"start":2,"door":2,"dmg":2,"bed":2,"fix":2}'`. Personalities: `balanced greedy turtle gunner rookie`. |
+| `node tools/balance.mjs 20 balanced` | Headless fast-forward sim of all 22 nights (player slot driven by the survivor AI). Prints win %, boss-kill %, stars, AI deaths, boss level. Optional 3rd arg: perks JSON, e.g. `'{"start":2,"door":2,"dmg":2,"bed":2,"fix":2}'`. Personalities: `balanced greedy turtle gunner rookie`. |
 | `node tools/endless_test.mjs` | Headless endless-mode runs (waves survived / duration). |
 | `node tools/playtest.cjs <outdir>` | Browser test (server on :8123): Night 1 via real clicks/hotkeys (claim room, click bed, B, build menu, info panel) then AI fast-forward to the results screen; a loss with the rewarded Continue flow; menus; frame-time check; iPhone portrait + landscape. Fails on any console error. |
 | `node tools/perf.cjs <outdir>` | Late-night (Night 11, maxed perks) frame time + heap measurement. |
@@ -39,7 +39,7 @@ js/ui.js              HUD: resource pills, phase timer, boss card, action bar, b
 js/sim.js             Pure simulation (no DOM): survivors, rooms, doors, buildings, boss/minion AI, projectiles, results
 js/ai.js              Survivor AI: room picking + spending heuristics per personality
 js/map.js             3 apartment-floor layouts (4 big apartments, some with 2 doors), tile queries
-js/data.js            All tuning: economy curves, buildings, bosses, 12 nights, perks, skins, personalities
+js/data.js            All tuning: economy curves, buildings, bosses, 22 nights, perks, skins, personalities
 js/render.js          Canvas renderer: pre-rendered floor layer, sprites, cracks, particles, floaters, night lighting, camera
 js/audio.js           WebAudio: music loop (file) + synthesized SFX
 js/cg.js              CrazyGames SDK v3 adapter with standalone fallback
@@ -92,6 +92,11 @@ Click it for scrap (25 s of income), an instant ability recharge, or +50 % door 
 resets the streak. Shown on the title screen once per day after the first night has been played.
 
 **Upgrade sounds:** bed (springs + cash register), door (steel plate + drill), turrets/gadgets (ratchet + reload).
+
+**Nights 13–22** add mixed packs with names ("Mixed Company" … "The Last Door"): 5 bosses at Lv4–6 for N13–18, 6 bosses at
+Lv6–8 for N19–22 (N22 = six Lv8 Abominations). They are tuned for upgraded perks: N13–17 around perk level 4, N18–22
+around maxed perks, with the pack's total HP rising every night (`node tools/tune.mjs 16 13 22`). With mid perks
+N13–17 survive 80–100 %; with maxed perks N18–22 survive 30–70 % and killing every boss becomes rare.
 
 **Bosses per night (count / start level):** N1 2/Lv1, N2 2/Lv2, N3 3/Lv1, N4 3/Lv2, N5 3/Lv3, N6 4/Lv1, N7 4/Lv2,
 N8 4/Lv3, N9 4/Lv4, N10 5/Lv1, N11 5/Lv2, N12 5/Lv3 (`count`, `lvl` in `NIGHTS`). Boss 1 is the night's boss, the others

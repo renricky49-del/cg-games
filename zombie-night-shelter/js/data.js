@@ -139,6 +139,17 @@ export const NIGHTS = [
   { n: 10, boss: 'tank',    count: 5, lvl: 1, diff: 1.63, len: 270, map: 0, unlockText: 'Harder nights' },
   { n: 11, boss: 'abom',    count: 5, lvl: 2, diff: 1.41, len: 280, map: 1, unlockText: 'The Abomination' },
   { n: 12, boss: 'abom',    count: 5, lvl: 3, diff: 1.3, len: 300, map: 2, unlockText: 'Endless mode' },
+  // Nights 13-22: mixed packs, 5-6 bosses, start levels 4-8. Balanced around upgraded perks (tools/tune.mjs).
+  { n: 13, title: 'Mixed Company', boss: 'abom', kinds: ['abom', 'tank', 'howler', 'charger', 'spitter'], count: 5, lvl: 4, diff: 1.37, len: 300, map: 0 },
+  { n: 14, title: 'Iron Rain', boss: 'tank', kinds: ['tank', 'tank', 'howler', 'howler', 'abom'], count: 5, lvl: 4, diff: 1.57, len: 305, map: 1 },
+  { n: 15, title: 'Stampede', boss: 'charger', kinds: ['charger', 'charger', 'charger', 'abom', 'tank'], count: 5, lvl: 5, diff: 1.16, len: 310, map: 2 },
+  { n: 16, title: 'Choir of the Dead', boss: 'howler', kinds: ['howler', 'howler', 'spitter', 'spitter', 'abom'], count: 5, lvl: 5, diff: 1.38, len: 315, map: 0 },
+  { n: 17, title: 'Heavy Metal', boss: 'abom', kinds: ['abom', 'abom', 'tank', 'tank', 'charger'], count: 5, lvl: 6, diff: 1.13, len: 320, map: 1 },
+  { n: 18, title: 'Lockdown', boss: 'tank', kinds: ['tank', 'tank', 'tank', 'abom', 'abom'], count: 5, lvl: 6, diff: 1.31, len: 325, map: 2 },
+  { n: 19, title: 'Six Feet Closer', boss: 'abom', kinds: ['abom', 'howler', 'charger', 'spitter', 'tank', 'brute'], count: 6, lvl: 6, diff: 1.42, len: 330, map: 0 },
+  { n: 20, title: 'Riot Season', boss: 'abom', kinds: ['abom', 'abom', 'tank', 'tank', 'howler', 'howler'], count: 6, lvl: 7, diff: 1.12, len: 340, map: 1 },
+  { n: 21, title: 'Red Moon', boss: 'abom', kinds: ['abom', 'abom', 'abom', 'tank', 'charger', 'spitter'], count: 6, lvl: 7, diff: 1.08, len: 350, map: 2 },
+  { n: 22, title: 'The Last Door', boss: 'abom', kinds: ['abom', 'abom', 'abom', 'abom', 'abom', 'abom'], count: 6, lvl: 8, diff: 0.82, len: 360, map: 0 },
 ];
 // Several bosses every night: count = how many, lvl = the level they all start at.
 // Boss 1 is the night's boss (and the hunter); the others walk down the chain of earlier variants.
@@ -148,8 +159,10 @@ export function bossKinds(main, count) {
   return Array.from({ length: count }, (_, k) => BOSS_CHAIN[Math.max(0, i - k)]);
 }
 // per-boss share of a solo boss's HP / damage, by group size (tuned with tools/balance.mjs)
-export const GROUP_HP = { 1: 1, 2: 0.62, 3: 0.47, 4: 0.38, 5: 0.32 };
-export const GROUP_DMG = { 1: 1, 2: 0.7, 3: 0.55, 4: 0.46, 5: 0.4 };
+export const GROUP_HP = { 1: 1, 2: 0.62, 3: 0.47, 4: 0.38, 5: 0.32, 6: 0.28 };
+export const GROUP_DMG = { 1: 1, 2: 0.7, 3: 0.55, 4: 0.46, 5: 0.4, 6: 0.35 };
+// the boss list for a night: an explicit mixed pack if the night defines one, else the chain
+export const nightKinds = (night) => night.kinds || bossKinds(night.boss, night.count || 2);
 export const AI_COUNT = 3;          // allies (4 survivors, 4 apartments)
 export const AID_FRAC = 0.35;        // "Send scrap" gives this share of your scrap
 export const AID_FRAC_REPAIR = 0.5; // a repair you pay for on an ally's door restores this much (more than your own 35%)
