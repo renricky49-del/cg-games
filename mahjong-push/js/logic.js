@@ -2,10 +2,16 @@
 // Pure functions, no DOM — used by the game and by the node build tools.
 //
 // Board: { w, h, cells } where cells is an array of length w*h:
-//   EMPTY (-1), STONE (-2) or a tile type id (>= 0).
+//   EMPTY (-1), STONE (-2) or a tile value (>= 0) = face id (0..63) + TIED (64) if the tile is tied
+//   with a red cord. Tied tiles can be matched normally but can never slide, and a chain that
+//   contains a tied tile cannot be pushed. The flag lives on the tile value, so it disappears with
+//   the tile when it is matched.
 
 export const EMPTY = -1;
 export const STONE = -2;
+export const TIED = 64;
+export const faceOf = (v) => v & 63;
+export const isTied = (v) => v >= TIED;
 // dirs: 0 up, 1 down, 2 left, 3 right
 export const DIRS = [[0, -1], [0, 1], [-1, 0], [1, 0]];
 
@@ -61,7 +67,7 @@ export function partnersOf(cells, w, h, i) {
   if (t < 0) return out;
   for (let d = 0; d < 4; d++) {
     const j = scan(cells, w, h, i, d);
-    if (j >= 0 && cells[j] === t) {
+    if (j >= 0 && cells[j] >= 0 && (cells[j] & 63) === (t & 63)) {
       const dist = Math.abs((j % w) - (i % w)) + Math.abs((j / w | 0) - (i / w | 0));
       out.push({ j, dist, d });
     }
@@ -77,7 +83,7 @@ export function directMatches(cells, w, h) {
     if (t < 0) continue;
     for (const d of [1, 3]) { // down & right only to avoid duplicates
       const j = scan(cells, w, h, i, d);
-      if (j >= 0 && cells[j] === t) out.push({ type: 'match', a: i, b: j });
+      if (j >= 0 && cells[j] >= 0 && (cells[j] & 63) === (t & 63)) out.push({ type: 'match', a: i, b: j });
     }
   }
   return out;
@@ -87,10 +93,12 @@ export function directMatches(cells, w, h) {
 export function pushInfo(cells, w, h, i, d) {
   const [dx, dy] = DIRS[d];
   const chain = [];
-  let x = i % w, y = i / w | 0;
+  let x = i % w, y = i / w | 0, tied = false;
   while (x >= 0 && y >= 0 && x < w && y < h && cells[y * w + x] >= 0) {
+    if (cells[y * w + x] >= TIED) tied = true;
     chain.push(y * w + x); x += dx; y += dy;
   }
+  if (tied) return { chain, maxK: 0, tied: true };
   let free = 0;
   while (x >= 0 && y >= 0 && x < w && y < h && cells[y * w + x] === EMPTY) {
     free++; x += dx; y += dy;
@@ -215,7 +223,7 @@ export function analyze(cells, w, h, runs = 40, seed = 1) {
 }
 
 // Random board: w x h, `pairs` pairs drawn from `types` tile types, `stones` stone blockers.
-export function generateBoard({ w, h, pairs, types, stones = 0, typeOffset = 0, typePool = null }, seed) {
+export function generateBoard({ w, h, pairs, types, stones = 0, typeOffset = 0, typePool = null, tied = 0 }, seed) {
   const rnd = mulberry32(seed);
   const n = w * h;
   const cells = new Array(n).fill(EMPTY);
@@ -242,7 +250,15 @@ export function generateBoard({ w, h, pairs, types, stones = 0, typeOffset = 0, 
   shuffleArr(tileList, rnd);
   for (let k = 0; k < tileList.length && k < free.length; k++) cells[free[k]] = tileList[k];
   si = 0;
+  if (tied) tieTiles(cells, tied, rnd);
   return { w, h, cells };
+}
+
+// Ties `n` random untied tiles with a red cord (in place).
+export function tieTiles(cells, n, rnd) {
+  const idx = shuffleArr(cells.map((v, i) => (v >= 0 && v < TIED ? i : -1)).filter((i) => i >= 0), rnd);
+  for (let k = 0; k < n && k < idx.length; k++) cells[idx[k]] += TIED;
+  return cells;
 }
 
 // Re-arrange the remaining tiles so the board can be played on. Guarantees at least one move whenever
@@ -253,7 +269,7 @@ export function shuffleBoard(cells, w, h, rnd, maxTries = 40, budgetMs = 150) {
   const t0 = now();
   const pos = [], types = [], free = [];
   for (let i = 0; i < cells.length; i++) {
-    if (cells[i] >= 0) { pos.push(i); types.push(cells[i]); }
+    if (cells[i] >= 0) { pos.push(i); types.push(cells[i] & 63); }
     if (cells[i] !== STONE) free.push(i);
   }
   if (types.length < 2) return cells.slice();
@@ -296,7 +312,7 @@ export function encode(b) {
     let s = '';
     for (let x = 0; x < b.w; x++) {
       const v = b.cells[y * b.w + x];
-      s += v === EMPTY ? '.' : v === STONE ? '#' : ALPH[v];
+      s += v === EMPTY ? '.' : v === STONE ? '#' : (v >= TIED ? '!' : '') + ALPH[v & 63];
     }
     rows.push(s);
   }
@@ -304,8 +320,15 @@ export function encode(b) {
 }
 export function decode(str) {
   const rows = str.split('/');
-  const h = rows.length, w = rows[0].length;
+  const h = rows.length, w = rows[0].replace(/!/g, '').length;
   const cells = [];
-  for (const r of rows) for (const ch of r) cells.push(ch === '.' ? EMPTY : ch === '#' ? STONE : ALPH.indexOf(ch));
+  for (const r of rows) {
+    let tie = 0;
+    for (const ch of r) {
+      if (ch === '!') { tie = TIED; continue; }
+      cells.push(ch === '.' ? EMPTY : ch === '#' ? STONE : ALPH.indexOf(ch) + tie);
+      tie = 0;
+    }
+  }
   return { w, h, cells };
 }

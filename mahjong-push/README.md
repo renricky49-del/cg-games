@@ -141,3 +141,15 @@ Paste-ready portal values: `store/SUBMISSION.md`.
 | First teahouse visit | only at chapter end (after level 12) | **after level 3**: one-time "Restore the teahouse" prompt; affordable restorations pulse; teahouse "Play" goes straight to the next level |
 
 Afterwards, whenever a restoration becomes affordable, the result screen shows a "Teahouse" button with a red dot next to "Next".
+
+
+## Fun layer (added after launch prep)
+
+| Feature | What it does | Notes |
+|---|---|---|
+| **Red-cord tied tiles** | Tied tiles match normally but can never slide, and any chain containing one cannot be pushed. Shuffle unties them. | Introduced at level 27 (tip), 1–4 per level up to 84, also in Daily (2) and Endless (later boards). Stored as a +64 flag on the tile value (`L.TIED`), so solver, hint, undo and bot handle them for free. `tools/add-ties.mjs` picked solver-proven tie sets that only lower bot win rate by about 0.04 on average (max 0.09). Level code: `!` before a letter. |
+| **Tea Rush** | Matches fill a meter (more for combos, mega slides and golden pairs; it decays slowly). When full: "TEA RUSH!", 6 s with the clock frozen, a glowing tray, +2 coins per match (double points in Endless). | A frozen clock helps players reach 3-star par. |
+| **Mega Slide** | A push that moves 3+ tiles into a match: big burst, bonus coins (3 × tiles), extra meter. 5+ tiles = "AVALANCHE!". 2-tile pushes show "Chain slide!". | Rewards mastering the core mechanic. |
+| **Golden pair** | One pair per level (from level 4, plus Daily and every Endless board) has a shimmering gold rim: +20 coins (Endless: +5 s, +150 points). | Visual only, no effect on solvability. |
+| **Trophies** | 16 achievements (combos, mega slides, golden pairs, rushes, tied tiles, 3-star levels, stars, areas, daily streak, endless score, all levels), each with a coin reward, a pop-up, and a Trophies screen with progress bars. | Tracked in `S.stats` / `S.ach` (Data Module save). |
+| **Lucky Teapot** | A free daily gift on the title screen (coins, hints, shuffles or 2 stars). | Retention hook; no ads required. |

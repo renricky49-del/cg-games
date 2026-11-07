@@ -4,7 +4,7 @@ import * as L from '../js/logic.js';
 import { LEVELS } from '../js/levels-data.js';
 const rnd = L.mulberry32(42);
 let worstHint = 0, worstShuffle = 0, fails = [], hintAbort = 0, deadNoMoveShuffle = 0, total = 0;
-const counts = (c) => { const m = {}; for (const v of c) if (v >= 0) m[v] = (m[v] || 0) + 1; return m; };
+const counts = (c) => { const m = {}; for (const v of c) if (v >= 0) m[v & 63] = (m[v & 63] || 0) + 1; return m; };
 LEVELS.forEach((lv, k) => {
   const b = L.decode(lv.s);
   // property: all faces appear an even number of times

@@ -23,6 +23,7 @@ const DEFAULT_SAVE = () => ({
   settings: { music: true, sfx: true, hc: false },
   daily: { last: '', streak: 0, best: 0 }, endlessBest: 0, played: 0, seenAreaDone: [],
   skins: ['jade'], skin: 'jade',
+  stats: { gold: 0, rush: 0, mega: 0, maxChain: 0, maxCombo: 0, tied: 0 }, ach: {}, gift: '',
 });
 let S = DEFAULT_SAVE();
 async function loadSave() {
@@ -34,6 +35,8 @@ async function loadSave() {
       S.boosters = Object.assign(DEFAULT_SAVE().boosters, d.boosters || {});
       S.settings = Object.assign(DEFAULT_SAVE().settings, d.settings || {});
       S.daily = Object.assign(DEFAULT_SAVE().daily, d.daily || {});
+      S.stats = Object.assign(DEFAULT_SAVE().stats, d.stats || {});
+      S.ach = d.ach || {};
       while (S.areas.length < AREAS.length) S.areas.push([false, false, false, false, false]);
     }
   } catch (e) { S = DEFAULT_SAVE(); }
@@ -135,6 +138,7 @@ function startLevel(n) {
   hideTutorial();
   $('#g-label').textContent = `Level ${n}`;
   $('#g-target').innerHTML = def.tut ? 'Tutorial' : `${icon('star')}${icon('star')}${icon('star')} under ${fmt(G.par)}`;
+  if (!def.tut && n >= 4) b.gold = pickGold(b.cells, n * 7919);
   beginBoard(b, chapterOf(n));
   showLevelTip(n);
   if (G.tut) startTutorial(G.tut);
@@ -146,10 +150,13 @@ function beginBoard(b, chapter = 0) {
   board.hc = S.settings.hc;
   refreshWallet();
   $('#g-combo').classList.remove('show');
+  if (G) { G.rush = 0; G.rushT = 0; }
+  document.body.classList.remove('rush'); $('#g-rush').style.width = '0%';
   board.start(b, {
     onMatch: onMatch, onWin: onWin, onStuck: onStuck,
     onFailedPush: () => { if (G && G.tut === 'push') tutBubble('Almost! The dragged tile must line up with its twin, with nothing in between.'); },
     onComboEnd: () => $('#g-combo').classList.remove('show'),
+    onTiedBlock: () => { if (!tiedToastShown) { tiedToastShown = true; toast('Tied tiles can\u2019t slide \u2014 match them to set them free!', 2600); } },
   });
   CG.gameplayStart();
 }
@@ -168,12 +175,144 @@ function onMatch(combo, m, a, b) {
     board.floatText(`Combo ×${combo}`, c.x, c.y, '#ffe27a');
     if (combo % 3 === 0) { S.coins += 2; refreshWallet(); }
   }
-  if (G.tut) tutAfterMove();
+  if (G.tut) { tutAfterMove(); return; }
+  funOnMatch(combo, m, a, b, c);
+}
+
+// ---------------- fun layer: golden pair, mega slides, Tea Rush, achievements, daily gift ----------------
+const RUSH_SECS = 6;
+let tiedToastShown = false;
+// golden pair: two tiles of one face get a gold rim and pay a bonus when matched (no effect on solvability)
+function pickGold(cells, seed) {
+  const rnd = L.mulberry32(seed);
+  const byFace = {};
+  cells.forEach((v, i) => { if (v >= 0 && v < L.TIED) (byFace[v] = byFace[v] || []).push(i); });
+  const faces = Object.keys(byFace).filter((f) => byFace[f].length >= 2);
+  if (!faces.length) return [];
+  const list = L.shuffleArr(byFace[faces[Math.floor(rnd() * faces.length)]].slice(), rnd);
+  return list.slice(0, 2);
+}
+function funOnMatch(combo, m, a, b, c) {
+  const st = S.stats, endless = G.mode === 'endless', rushing = G.rushT > 0;
+  let gain = 12 + 6 * Math.min(combo - 1, 5), coins = 0, pts = 0;
+  st.maxCombo = Math.max(st.maxCombo, combo);
+  st.tied += (a.face >= L.TIED ? 1 : 0) + (b.face >= L.TIED ? 1 : 0);
+  if (m.type === 'push' && m.chain.length >= 2) {
+    const n = m.chain.length;
+    st.maxChain = Math.max(st.maxChain, n);
+    if (n >= 3) {
+      st.mega++; gain += 20; coins += n * 3; pts += n * 30;
+      board.bigBurst(a); Audio.play('mega', n);
+      board.floatText(n >= 5 ? `AVALANCHE! ×${n}` : `MEGA SLIDE ×${n}`, c.x, c.y - board.ch * 0.8, '#ffd23a');
+    } else board.floatText('Chain slide!', c.x, c.y - board.ch * 0.8, '#bff5d8');
+  }
+  if (a.gold || b.gold) {
+    st.gold++; gain += 15; coins += 20; pts += 150;
+    board.bigBurst(a.gold ? a : b, 34); Audio.play('coin'); Audio.play('chime');
+    board.floatText(endless ? 'Golden pair! +5s' : 'Golden pair! +20', c.x, c.y + board.ch * 0.6, '#ffe27a');
+    if (endless) G.timeLeft += 5;
+  }
+  if (rushing) { coins += 2; pts += 10 * combo; }
+  if (endless) { G.score += pts; updateEndlessHud(); } else if (coins) { S.coins += coins; refreshWallet(); bump($('#g-coins').parentElement); }
+  if (!rushing) {
+    G.rush = Math.min(100, (G.rush || 0) + gain);
+    if (G.rush >= 100) startRush();
+  }
+  $('#g-rush').style.width = (rushing ? 100 : G.rush) + '%';
+  checkAch();
+}
+function startRush() {
+  G.rushT = RUSH_SECS; G.rush = 100;
+  S.stats.rush++;
+  board.rush = true; document.body.classList.add('rush');
+  const el = document.createElement('div'); el.className = 'rush-banner'; el.textContent = 'TEA RUSH!';
+  document.body.appendChild(el); setTimeout(() => el.remove(), 1500);
+  Audio.play('rush');
+  toast(G.mode === 'endless' ? 'Clock frozen \u2014 double points!' : 'Clock frozen \u2014 bonus coins on every match!', 2000);
+}
+function endRush() {
+  G.rushT = 0; G.rush = 0; board.rush = false; document.body.classList.remove('rush');
+  $('#g-rush').style.width = '0%';
+}
+
+const ACH = [
+  { id: 'first', name: 'First Cup', desc: 'Clear your first level', rw: 20, goal: 1, val: () => Object.keys(S.stars).length },
+  { id: 'combo5', name: 'Tea Party', desc: 'Reach a ×5 combo', rw: 30, goal: 5, val: () => S.stats.maxCombo },
+  { id: 'combo10', name: 'Tea Frenzy', desc: 'Reach a ×10 combo', rw: 80, goal: 10, val: () => S.stats.maxCombo },
+  { id: 'mega', name: 'Mega Slide', desc: 'Slide 3+ tiles into a match', rw: 30, goal: 3, val: () => S.stats.maxChain },
+  { id: 'avalanche', name: 'Avalanche', desc: 'Slide 5+ tiles into a match', rw: 100, goal: 5, val: () => S.stats.maxChain },
+  { id: 'gold', name: 'Golden Touch', desc: 'Match 10 golden pairs', rw: 60, goal: 10, val: () => S.stats.gold },
+  { id: 'rush', name: 'Tea Rush', desc: 'Fill the Tea Rush meter', rw: 30, goal: 1, val: () => S.stats.rush },
+  { id: 'rush20', name: 'Rush Hour', desc: 'Trigger 20 Tea Rushes', rw: 120, goal: 20, val: () => S.stats.rush },
+  { id: 'cords', name: 'Knots Undone', desc: 'Match 25 tied tiles', rw: 60, goal: 25, val: () => S.stats.tied },
+  { id: 'perfect', name: 'Perfect Brew', desc: 'Get 3 stars on 25 levels', rw: 80, goal: 25, val: () => Object.values(S.stars).filter((v) => v === 3).length },
+  { id: 'stars', name: 'Star Gazer', desc: 'Earn 150 stars', rw: 150, goal: 150, val: () => totalStars() },
+  { id: 'area', name: 'Open Doors', desc: 'Restore your first area', rw: 50, goal: 1, val: () => S.areas.filter((x) => x.every(Boolean)).length },
+  { id: 'allareas', name: 'Grand Teahouse', desc: 'Restore all 7 areas', rw: 300, goal: AREAS.length, val: () => S.areas.filter((x) => x.every(Boolean)).length },
+  { id: 'daily', name: 'Regular Guest', desc: 'Reach a 3-day daily streak', rw: 60, goal: 3, val: () => S.daily.best },
+  { id: 'endless', name: 'Endless Steeping', desc: 'Score 2,000 in Endless', rw: 80, goal: 2000, val: () => S.endlessBest },
+  { id: 'master', name: 'Tea Master', desc: 'Clear every level', rw: 500, goal: NUM_LEVELS, val: () => Object.keys(S.stars).length },
+];
+const achQueue = []; let achShowing = false;
+function checkAch() {
+  let got = false;
+  for (const a of ACH) {
+    if (S.ach[a.id] || a.val() < a.goal) continue;
+    S.ach[a.id] = 1; S.coins += a.rw; achQueue.push(a); got = true;
+  }
+  if (got) { save(); refreshWallet(); showAch(); }
+}
+function showAch() {
+  if (achShowing || !achQueue.length) return;
+  const a = achQueue.shift(); achShowing = true;
+  const el = $('#ach-pop');
+  el.innerHTML = `<div class="ai">${icon('trophy')}</div><div><small>Achievement</small><b>${a.name}</b> · +${a.rw} coins</div>`;
+  el.classList.add('show'); Audio.play('star', 2);
+  setTimeout(() => { el.classList.remove('show'); setTimeout(() => { achShowing = false; showAch(); }, 500); }, 2600);
+}
+function openTrophies() {
+  const done = ACH.filter((a) => S.ach[a.id]).length;
+  const card = modal(`<h2>Trophies</h2><p>${done} / ${ACH.length} unlocked</p><div class="achs">${ACH.map((a) => {
+    const v = Math.min(a.goal, a.val()), ok = !!S.ach[a.id];
+    return `<div class="ach ${ok ? 'done' : ''}"><div class="ai">${icon(ok ? 'trophy' : 'lock')}</div><div style="flex:1;min-width:0"><b>${a.name}</b><small>${a.desc}</small>${ok ? '' : `<div class="pb"><i style="width:${(v / a.goal) * 100}%"></i></div>`}</div><span class="rw">${ok ? icon('check') : `+${a.rw}`}</span></div>`;
+  }).join('')}</div><div class="btns"><button class="btn primary" id="tr-ok">Close</button></div>`);
+  card.querySelector('#tr-ok').onclick = closeModal;
+}
+function giftReady() { return S.gift !== todayStr(); }
+function refreshGift() {
+  const b = $('#gift-btn'); if (!b) return;
+  const ready = giftReady();
+  b.classList.toggle('ready', ready); b.classList.toggle('gold', ready);
+  $('#gift-lbl').textContent = ready ? 'Daily gift' : 'Gift tomorrow';
+  $('#title-trophies').textContent = `${ACH.filter((a) => S.ach[a.id]).length}/${ACH.length}`;
+}
+function openGift() {
+  if (!giftReady()) { toast('Your next gift is ready tomorrow!'); return; }
+  const card = modal(`${mascot(0)}<h2>Lucky Teapot</h2><p>Tap the teapot to pour today's gift!</p>
+    <div class="gift-pot" id="pot">${icon('gift')}</div><div id="prize"></div>
+    <div class="btns"><button class="btn primary hidden" id="g-ok">Collect</button></div>`);
+  let opened = false;
+  card.querySelector('#pot').onclick = () => {
+    if (opened) return; opened = true;
+    card.querySelector('#pot').classList.add('shake'); Audio.play('shuffle');
+    setTimeout(() => {
+      const r = Math.random();
+      let txt;
+      if (r < 0.2) { S.coins += 40; txt = '+40 coins'; } else if (r < 0.45) { S.coins += 60; txt = '+60 coins'; } else if (r < 0.6) { S.coins += 120; txt = '+120 coins!'; }
+      else if (r < 0.75) { S.boosters.hint += 2; txt = '+2 Hints'; } else if (r < 0.9) { S.boosters.shuffle += 2; txt = '+2 Shuffles'; } else { S.bank += 2; txt = '+2 Stars!'; }
+      S.gift = todayStr(); save(); refreshWallet(); refreshGift();
+      card.querySelector('#prize').innerHTML = `<div class="gift-prize">${txt}</div>`;
+      card.querySelector('#g-ok').classList.remove('hidden');
+      Audio.play('win'); CG.happytime();
+    }, 1000);
+  };
+  card.querySelector('#g-ok').onclick = closeModal;
 }
 
 function onWin() {
   if (!G || G.done) return;
   if (G.mode === 'endless') return endlessBoardCleared();
+  if (G.rushT > 0) endRush();
   G.done = true;
   CG.gameplayStop();
   Audio.play('win');
@@ -190,7 +329,7 @@ function onWin() {
   S.bank += gained;
   const coins = 10 + stars * 5 + (first ? 10 : 0);
   S.coins += coins; S.played++;
-  save(); refreshWallet();
+  save(); refreshWallet(); checkAch();
   if (stars === 3) CG.happytime();
   hideTutorial();
   if (LEVELS[n - 1].tut && n < NUM_LEVELS) {
@@ -518,10 +657,11 @@ function tutAfterMove() {
 
 const TIPS = {
   3: 'Tip: dragging a tile pushes every tile in front of it along.',
-  4: 'Tip: click a tile to see its matching partners glow.',
+  4: 'Golden pair! Match the shimmering gold tiles for bonus coins. Fast matches fill the Tea Rush meter.',
   6: 'Stuck? Hint, Undo and Shuffle are below the board.',
   13: 'New: mossy stones never move and block lines.',
   25: 'New tiles: flowers! Corner letters help tell them apart.',
+  27: 'New: red cords! Tied tiles can be matched but never slide \u2014 and they block any chain they are in.',
   37: 'New tiles: characters. The small number in the corner shows the value.',
   61: 'Expert chapters: more stones and more tile types. Plan two slides ahead!',
 };
@@ -565,7 +705,8 @@ function openDaily() {
 }
 function startDaily() {
   const day = todayStr();
-  const b = genBoard({ w: 8, h: 7, pairs: 18, types: 10, stones: 3 }, L.hashString('daily:' + day));
+  const b = genBoard({ w: 8, h: 7, pairs: 18, types: 10, stones: 3, tied: 2 }, L.hashString('daily:' + day));
+  b.gold = pickGold(b.cells, L.hashString('gold:' + day));
   G = { mode: 'daily', t: 0, used: 0, paused: false, par: parFor(18, 0.5), pairs: 18, done: false, day };
   $('#g-label').textContent = 'Daily';
   $('#g-target').textContent = day;
@@ -584,7 +725,7 @@ function dailyWin() {
     msg = `Streak: <b>${S.daily.streak} day${S.daily.streak > 1 ? 's' : ''}</b>`;
     CG.happytime();
   }
-  save(); refreshWallet();
+  save(); refreshWallet(); checkAch();
   const card = modal(`${mascot(1)}<h2>Daily cleared!</h2><p>Time ${fmt(G.t)}</p>
     ${first ? `<div class="rewards"><div class="pill coin"><b>+50</b></div><div class="pill star"><b>+2</b></div></div>` : ''}
     <p>${msg}</p><div class="btns"><button class="btn primary big" id="dw-ok">Continue</button></div>`);
@@ -592,10 +733,12 @@ function dailyWin() {
 }
 
 // ---------------- endless ----------------
-const ENDLESS_SIZES = [[5, 6, 9, 5, 0], [6, 6, 11, 6, 1], [7, 6, 13, 7, 1], [7, 7, 15, 8, 2], [8, 7, 18, 9, 2], [8, 8, 21, 10, 3]];
+const ENDLESS_SIZES = [[5, 6, 9, 5, 0, 0], [6, 6, 11, 6, 1, 0], [7, 6, 13, 7, 1, 1], [7, 7, 15, 8, 2, 1], [8, 7, 18, 9, 2, 2], [8, 8, 21, 10, 3, 2]];
 function endlessBoard() {
   const P = ENDLESS_SIZES[Math.min(G.boards, ENDLESS_SIZES.length - 1)];
-  return genBoard({ w: P[0], h: P[1], pairs: P[2], types: P[3], stones: P[4] }, (Math.random() * 1e9) | 0, 30);
+  const b = genBoard({ w: P[0], h: P[1], pairs: P[2], types: P[3], stones: P[4], tied: P[5] }, (Math.random() * 1e9) | 0, 30);
+  b.gold = pickGold(b.cells, (Math.random() * 1e9) | 0);
+  return b;
 }
 function startEndless() {
   G = { mode: 'endless', t: 0, used: 0, paused: false, done: false, score: 0, timeLeft: 75, boards: 0, reserve: false };
@@ -617,7 +760,7 @@ function endlessBoardCleared() {
   toast(`Board clear! +${bonus} · +15s`);
   Audio.play('win');
   updateEndlessHud();
-  setTimeout(() => { if (G && G.mode === 'endless' && !G.done) { board.start(endlessBoard(), board.cb); } }, 700);
+  setTimeout(() => { if (G && G.mode === 'endless' && !G.done) { const rt = G.rushT; board.start(endlessBoard(), board.cb); board.rush = rt > 0; } }, 700);
 }
 function endlessOver() {
   G.done = true; CG.gameplayStop(); board.over = true;
@@ -625,7 +768,8 @@ function endlessOver() {
   const best = G.score > S.endlessBest;
   S.endlessBest = Math.max(S.endlessBest, G.score);
   const coins = Math.floor(G.score / 25);
-  S.coins += coins; save(); refreshWallet();
+  S.coins += coins; save(); refreshWallet(); checkAch();
+  if (G.rushT > 0) endRush();
   const card = modal(`<h2>Time's up!</h2><div class="big-num">${G.score}</div>
     <p>${best ? '<b>New best score!</b>' : `Best: ${S.endlessBest}`} · ${G.boards} board${G.boards === 1 ? '' : 's'} cleared</p>
     <div class="rewards"><div class="pill coin"><b>+${coins}</b></div></div>
@@ -640,6 +784,7 @@ function openTitle() {
   show('s-title'); setBg('keyart');
   const n = nextLevel();
   $('#title-lvl').textContent = S.played || cleared(1) ? `· Level ${n}` : '';
+  refreshGift();
   $('#title-streak').textContent = S.daily.streak && S.daily.last >= todayStr(new Date(Date.now() - 864e5)) ? `· ${S.daily.streak} day${S.daily.streak > 1 ? 's' : ''}` : '';
 }
 
@@ -757,7 +902,7 @@ function restoreTask(c, k) {
     toast(`You need ${t.cost - S.bank} more star${t.cost - S.bank > 1 ? 's' : ''} — earn them by clearing levels`);
     return;
   }
-  S.bank -= t.cost; S.areas[c][k] = true; save();
+  S.bank -= t.cost; S.areas[c][k] = true; save(); setTimeout(checkAch, 1500);
   Audio.play('build'); bump($('#house-stars').parentElement);
   refreshWallet();
   renderHouse(k);
@@ -794,9 +939,18 @@ let lastT = performance.now();
 function tick(now) {
   const dt = Math.min(0.1, (now - lastT) / 1000); lastT = now;
   if (G && !G.paused && !G.done && !G.adPaused && current === 's-game' && document.visibilityState === 'visible') {
-    G.t += dt;
+    const rushing = G.rushT > 0;
+    if (rushing) {
+      G.rushT -= dt;
+      $('#g-rush').style.width = Math.max(0, G.rushT / RUSH_SECS * 100) + '%';
+      if (G.rushT <= 0) endRush();
+    } else if (G.rush > 0) {
+      G.rush = Math.max(0, G.rush - 5 * dt);
+      $('#g-rush').style.width = G.rush + '%';
+    }
+    if (!rushing) G.t += dt; // Tea Rush freezes the clock
     if (G.mode === 'endless') {
-      G.timeLeft -= dt;
+      if (!rushing) G.timeLeft -= dt;
       if (Math.floor(G.timeLeft * 10) % 2 === 0) updateEndlessHud();
       if (G.timeLeft <= 0) { G.timeLeft = 0; updateEndlessHud(); endlessOver(); }
     } else {
@@ -827,6 +981,8 @@ function bindUi() {
       openHouse(c);
     }
     else if (a === 'settings') openSettings();
+    else if (a === 'trophies') openTrophies();
+    else if (a === 'gift') openGift();
     else if (a === 'daily') openDaily();
     else if (a === 'endless') startEndless();
     else if (a === 'pause') pauseGame();

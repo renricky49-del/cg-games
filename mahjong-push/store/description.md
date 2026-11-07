@@ -18,6 +18,10 @@ Earn up to three stars per level by playing fast and without boosters, then spen
 
 - 84 campaign levels in 7 chapters, all guaranteed solvable
 - Interactive tutorial: learn matching, then sliding
+- Red-cord tied tiles: they match but never slide, and block any chain they are in
+- Tea Rush: fill the meter with fast matches to freeze the clock and earn bonus coins
+- Mega Slides, golden pairs and 16 trophies to collect
+- A Lucky Teapot gift every day
 - Teahouse renovation meta: 35 restorations across 7 areas, with before/after transformations
 - Unlockable tile-back skins
 - Daily Puzzle with a streak counter

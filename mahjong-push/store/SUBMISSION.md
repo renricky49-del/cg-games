@@ -43,6 +43,10 @@ Earn up to three stars per level by playing fast and without boosters, then spen
 Features:
 - 84 campaign levels in 7 chapters, all guaranteed solvable
 - Interactive tutorial: learn matching, then sliding
+- Red-cord tied tiles: they match but never slide, and block any chain they are in
+- Tea Rush: fill the meter with fast matches to freeze the clock and earn bonus coins
+- Mega Slides, golden pairs and 16 trophies to collect
+- A Lucky Teapot gift every day
 - Teahouse renovation: 35 restorations across 7 areas, with before/after transformations
 - Daily Puzzle with a streak counter
 - Endless mode: race the clock, clear boards and build combos for a high score
@@ -72,6 +76,6 @@ Keyboard: H = Hint, Z = Undo, S = Shuffle, P = Pause.
 | Landscape cover 16:9 | `store/cover_1920x1080.jpg` | 1920×1080, title text only, no borders/icons |
 | Portrait cover 2:3 | `store/cover_800x1200.jpg` | 800×1200, title text only |
 | Square cover 1:1 | `store/cover_800x800.jpg` | 800×800, title text only |
-| Preview video landscape | `store/preview_landscape_1920x1080.mp4` | 1920×1080, 19.8 s, H.264, no audio, 4.0 MB, opens on the cover, no cursor |
-| Preview video portrait | `store/preview_portrait_1080x1620.mp4` | 1080×1620 (2:3), 19.8 s, H.264, no audio, 3.5 MB, opens on the cover, no cursor |
+| Preview video landscape | `store/preview_landscape_1920x1080.mp4` | 1920×1080, 19.6 s, H.264, no audio, 4.6 MB, opens on the cover, no cursor |
+| Preview video portrait | `store/preview_portrait_1080x1620.mp4` | 1080×1620 (2:3), 20.0 s, H.264, no audio, 4.1 MB, opens on the cover, no cursor |
 | Screenshots (if asked) | `store/screenshots/*.jpg` | gameplay, map, teahouse before/after, mobile |

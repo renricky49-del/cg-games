@@ -200,6 +200,15 @@ const SFX = {
     tone(t + 0.6, pentaHz(17), 'sine', 0.12, 0.01, 1.2);
   },
   chime(t) { playSample('chime', t, 0.6); },
+  mega(t, n) {
+    const f = noise(t, 0.35, 0.3, 'bandpass', 700, 1.2); f.frequency.exponentialRampToValueAtTime(3200, t + 0.28);
+    [0, 2, 4, 7, 9, 12].slice(0, Math.min(6, n + 1)).forEach((s, i) => tone(t + 0.08 + i * 0.05, pentaHz(s + 7), 'triangle', 0.16, 0.004, 0.35));
+  },
+  rush(t) {
+    SFX.build(t);
+    [0, 4, 7, 12, 16].forEach((s, i) => tone(t + 0.1 + i * 0.06, pentaHz(s + 10), 'square', 0.05, 0.004, 0.25));
+    playSample('chime', t + 0.2, 0.6);
+  },
   click(t) { tone(t, 660, 'sine', 0.1, 0.001, 0.06); noise(t, 0.12, 0.02, 'highpass', 3000); },
 };
 

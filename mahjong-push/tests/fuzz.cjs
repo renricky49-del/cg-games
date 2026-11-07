@@ -23,7 +23,7 @@ const URL = process.env.URL || 'http://localhost:8123/index.html';
       if (t.x < 0 || t.y < 0 || t.x >= b.w || t.y >= b.h) out.push('out of bounds ' + k);
       if (b.stones.some((s) => s.x === t.x && s.y === t.y)) out.push('tile on stone ' + k);
       if (![t.vx, t.vy, t.ox, t.oy].every(Number.isFinite)) out.push('NaN position');
-      cnt[t.face] = (cnt[t.face] || 0) + 1;
+      cnt[t.face & 63] = (cnt[t.face & 63] || 0) + 1;
     }
     for (const f in cnt) if (cnt[f] % 2) out.push('odd face count ' + f);
     return out;

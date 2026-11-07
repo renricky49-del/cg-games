@@ -43,11 +43,13 @@ export class BoardView {
     this.cb = cb;
     this.w = board.w; this.h = board.h;
     this.tiles = []; this.stones = [];
+    const gold = new Set(board.gold || []);
     board.cells.forEach((v, i) => {
       const x = i % board.w, y = (i / board.w) | 0;
       if (v === L.STONE) this.stones.push({ x, y });
-      else if (v >= 0) this.tiles.push(this._mk(v, x, y, true));
+      else if (v >= 0) { const t = this._mk(v, x, y, true); t.gold = gold.has(i); this.tiles.push(t); }
     });
+    this.rush = false;
     this.history = [];
     this.sel = null; this.partners.clear(); this.hint = null; this.drag = null; this.press = null; this.hover = null;
     this.combo = 0; this.lastMatch = -99; this.solCache = null;
@@ -254,6 +256,14 @@ export class BoardView {
     const D = this.drag;
     this.drag = null;
     this.cv.style.cursor = 'default';
+    const side = D.off < 0 ? D.neg : D.pos;
+    if (side && side.tied && Math.abs(D.off) > 0.08) {
+      this._resetChain(D);
+      for (const ci of side.chain) { const tt = this.tileAtIdx(ci); if (tt && tt.face >= L.TIED) tt.flash = 1; }
+      Audio.play('deny');
+      this.cb.onTiedBlock && this.cb.onTiedBlock();
+      return;
+    }
     if (D.move) {
       this._resetChain(D);
       this._commitMatch(D.move);
@@ -268,7 +278,7 @@ export class BoardView {
   }
 
   // ---------- moves ----------
-  snapshot() { return this.tiles.filter((t) => t.rm < 0).map((t) => ({ id: t.id, face: t.face, x: t.x, y: t.y })); }
+  snapshot() { return this.tiles.filter((t) => t.rm < 0).map((t) => ({ id: t.id, face: t.face, x: t.x, y: t.y, gold: !!t.gold })); }
 
   _commitMatch(m) {
     this.history.push(this.snapshot());
@@ -314,8 +324,8 @@ export class BoardView {
     const old = new Map(this.tiles.map((t) => [t.id, t]));
     this.tiles = snap.map((s) => {
       const o = old.get(s.id);
-      if (o && o.rm < 0) { o.x = s.x; o.y = s.y; return o; }
-      const n = this._mk(s.face, s.x, s.y, false); n.id = s.id; n.alpha = 0; n.scale = 1.3;
+      if (o && o.rm < 0) { o.x = s.x; o.y = s.y; o.face = s.face; return o; }
+      const n = this._mk(s.face, s.x, s.y, false); n.id = s.id; n.alpha = 0; n.scale = 1.3; n.gold = s.gold;
       if (o) { n.vx = o.vx; n.vy = o.vy; }
       return n;
     });
@@ -366,10 +376,11 @@ export class BoardView {
     const cells = this.cells();
     const nc = L.shuffleBoard(cells, this.w, this.h, rnd);
     const pool = new Map();
-    for (const t of this.tiles) if (t.rm < 0) { if (!pool.has(t.face)) pool.set(t.face, []); pool.get(t.face).push(t); }
+    for (const t of this.tiles) if (t.rm < 0) { const f = t.face & 63; if (!pool.has(f)) pool.set(f, []); pool.get(f).push(t); }
     nc.forEach((f, i) => {
       if (f < 0) return;
-      const t = pool.get(f).pop();
+      const t = pool.get(f & 63).pop();
+      t.face = f; // shuffling also unties red cords
       t.x = i % this.w; t.y = (i / this.w) | 0; t.lift = 1; t.spin = 1;
     });
     this.history = []; this._clearSel(); this.hint = null; this.solCache = null;
@@ -400,6 +411,17 @@ export class BoardView {
     }
     // ring
     this.particles.push({ x, y, kind: 'ring', life: 0.45, age: 0, size: this.cw * 0.4 });
+  }
+  // extra celebration burst (gold coins / sparkles) at a tile
+  bigBurst(t, n = 26, cols = ['#ffd23a', '#fff3b0', '#ffb347']) {
+    const { x, y } = this._center(t);
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2, s = 120 + Math.random() * 260;
+      this.particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 120, life: 0.9 + Math.random() * 0.5, age: 0,
+        kind: i % 2 ? 'spark' : 'petal', rot: Math.random() * 6, vr: (Math.random() - 0.5) * 12, size: (i % 2 ? 4 : 7) * Math.max(0.8, this.cw / 55), col: cols[i % cols.length] });
+    }
+    this.particles.push({ x, y, kind: 'ring', life: 0.6, age: 0, size: this.cw * 0.7 });
+    this.shake = Math.max(this.shake, 6);
   }
   floatText(text, x, y, color = '#fff6c8') {
     this.floaters.push({ text, x, y, age: 0, life: 1.1, color });
@@ -448,6 +470,13 @@ export class BoardView {
     const sv = this.shake ? (Math.random() - 0.5) * this.shake : 0;
     g.setTransform(d, 0, 0, d, sh * d, sv * d);
     if (this.frame) g.drawImage(this.frame.c, this.frame.x, this.frame.y, this.frame.c.width / d, this.frame.c.height / d);
+    if (this.rush) { // Tea Rush: pulsing golden outline around the tray
+      const k = 0.5 + 0.5 * Math.sin(this.time * 9), pad = this.cw * 0.32;
+      g.save(); g.shadowColor = 'rgba(255, 200, 60, 1)'; g.shadowBlur = 18 + 18 * k;
+      g.strokeStyle = `rgba(255, ${200 + 40 * k | 0}, 80, ${0.75 + 0.25 * k})`; g.lineWidth = 4 + 3 * k;
+      g.beginPath(); g.roundRect(this.ox - pad, this.oy - pad, this.bw + pad * 2, this.bh + pad * 2, pad * 0.9); g.stroke();
+      g.restore();
+    }
     const cw = this.cw, ch = this.ch;
     const tw = cw * 0.94, th = ch * 0.94;
     const pw = Math.round(tw * d), ph = Math.round(th * d);
@@ -476,7 +505,9 @@ export class BoardView {
       const cx = x + tw / 2, cy = y + th / 2 - lift;
       g.save();
       g.translate(cx, cy); g.scale(s * scx, s);
-      g.drawImage(tileCanvas(t.face, pw, ph, this.hc), -tw / 2, -th / 2, tw, th);
+      g.drawImage(tileCanvas(t.face & 63, pw, ph, this.hc), -tw / 2, -th / 2, tw, th);
+      if (t.gold) this._goldRim(tw, th);
+      if (t.face >= L.TIED) this._cord(tw, th);
       g.restore();
       // highlights
       if (this.sel === t.id) this._outline(x, y - lift, tw, th, '#ffd23a', 3.5);
@@ -488,6 +519,41 @@ export class BoardView {
     g.globalAlpha = 1;
     if (this.hint && this.hint.move && this.hint.move.type === 'push') this._hintArrow(this.hint.move, pulse);
     this._renderFx();
+  }
+
+  // red cord tied around a tile (it can be matched but not slid)
+  _cord(w, h) {
+    const g = this.g, fh = h * 0.9;
+    g.save();
+    g.lineCap = 'round';
+    for (const [col, lw] of [['rgba(80,0,0,.45)', w * 0.11], ['#d42a2a', w * 0.075], ['rgba(255,170,150,.8)', w * 0.02]]) {
+      g.strokeStyle = col; g.lineWidth = lw;
+      g.beginPath(); g.moveTo(-w / 2, -fh * 0.18); g.quadraticCurveTo(0, -fh * 0.02, w / 2, -fh * 0.22); g.stroke();
+      g.beginPath(); g.moveTo(-w * 0.18, -fh / 2); g.quadraticCurveTo(-w * 0.02, 0, -w * 0.22, fh / 2 - h * 0.05); g.stroke();
+    }
+    // knot + tassel
+    g.fillStyle = '#b81e1e';
+    g.beginPath(); g.arc(-w * 0.1, -fh * 0.1, w * 0.1, 0, 7); g.fill();
+    g.fillStyle = '#f2b632';
+    g.beginPath(); g.arc(-w * 0.1, -fh * 0.1, w * 0.04, 0, 7); g.fill();
+    g.strokeStyle = '#d42a2a'; g.lineWidth = w * 0.035;
+    g.beginPath(); g.moveTo(-w * 0.1, -fh * 0.02); g.lineTo(-w * 0.16, fh * 0.16); g.moveTo(-w * 0.1, -fh * 0.02); g.lineTo(-w * 0.03, fh * 0.17); g.stroke();
+    g.restore();
+  }
+  // golden pair: shimmering gold rim
+  _goldRim(w, h) {
+    const g = this.g, fh = h * 0.9, k = 0.5 + 0.5 * Math.sin(this.time * 4);
+    g.save();
+    g.strokeStyle = `rgba(255, ${190 + 40 * k | 0}, 60, ${0.75 + 0.25 * k})`; g.lineWidth = Math.max(2.5, w * 0.07);
+    g.shadowColor = 'rgba(255, 200, 60, .9)'; g.shadowBlur = 8 + 8 * k;
+    g.beginPath(); g.roundRect(-w / 2 + 2, -h / 2 + 2, w - 4, fh - 4, w * 0.13); g.stroke();
+    // little sparkle travelling around
+    const a = (this.time * 1.6) % 1, per = 2 * (w + fh);
+    let d = a * per, sx, sy;
+    if (d < w) { sx = -w / 2 + d; sy = -h / 2; } else if ((d -= w) < fh) { sx = w / 2; sy = -h / 2 + d; } else if ((d -= fh) < w) { sx = w / 2 - d; sy = -h / 2 + fh; } else { d -= w; sx = -w / 2; sy = -h / 2 + fh - d; }
+    g.fillStyle = '#fffbe0'; g.shadowBlur = 12;
+    g.beginPath(); g.arc(sx, sy, Math.max(1.8, w * 0.045), 0, 7); g.fill();
+    g.restore();
   }
 
   _outline(x, y, w, h, col, lw) {
@@ -534,7 +600,7 @@ export class BoardView {
     g.globalAlpha = 0.35 + 0.2 * pulse;
     const gx = x1 + (x2 - x1) * ease(t), gy = y1 + (y2 - y1) * ease(t);
     const tile = this.tileAtIdx(m.from);
-    if (tile) g.drawImage(tileCanvas(tile.face, Math.round(this.cw * 0.94 * this.dpr), Math.round(this.ch * 0.94 * this.dpr), this.hc), gx - this.cw * 0.47, gy - this.ch * 0.47, this.cw * 0.94, this.ch * 0.94);
+    if (tile) g.drawImage(tileCanvas(tile.face & 63, Math.round(this.cw * 0.94 * this.dpr), Math.round(this.ch * 0.94 * this.dpr), this.hc), gx - this.cw * 0.47, gy - this.ch * 0.47, this.cw * 0.94, this.ch * 0.94);
     g.restore();
   }
 
