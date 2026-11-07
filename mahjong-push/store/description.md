@@ -20,8 +20,9 @@ Earn up to three stars per level by playing fast and without boosters, then spen
 - Interactive tutorial: learn matching, then sliding
 - Red-cord tied tiles: they match but never slide, and block any chain they are in
 - Tea Rush: fill the meter with fast matches to freeze the clock and earn bonus coins
-- Mega Slides, golden pairs and 16 trophies to collect
-- A Lucky Teapot gift every day
+- Mega Slides, golden pairs and 17 trophies to collect
+- Daily gift calendar: bigger gifts every day, with tile backs and stars on Day 7
+- Hot streaks: clear levels in a row for bonus coins, plus a daily first-win bonus
 - Every teahouse restoration grants a permanent perk (more coins, longer Tea Rush, free undos, extra golden pairs...)
 - Daily guest orders that pay stars and coins, and guests who leave tips
 - Teahouse renovation meta: 35 restorations across 7 areas, with before/after transformations

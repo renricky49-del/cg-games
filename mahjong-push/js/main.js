@@ -1,4 +1,5 @@
 // Teahouse Tile Slide — screens, progression, modes, boosters, ads, tutorial.
+import './compat.js';
 import * as L from './logic.js';
 import { LEVELS } from './levels-data.js';
 import { AREAS, LEVELS_PER_CHAPTER, PERK_TEXT } from './meta.js';
@@ -25,6 +26,7 @@ const DEFAULT_SAVE = () => ({
   skins: ['jade'], skin: 'jade',
   stats: { gold: 0, rush: 0, mega: 0, maxChain: 0, maxCombo: 0, tied: 0 }, ach: {}, gift: '',
   orders: { day: '', list: [], bonus: false }, tipT: 0,
+  login: { day: 0, last: '' }, streak: 0, bestStreak: 0, firstWin: '', lastSeen: '', day1Shown: false, introOrders: false,
 });
 let S = DEFAULT_SAVE();
 async function loadSave() {
@@ -39,6 +41,8 @@ async function loadSave() {
       S.stats = Object.assign(DEFAULT_SAVE().stats, d.stats || {});
       S.ach = d.ach || {};
       S.orders = Object.assign(DEFAULT_SAVE().orders, d.orders || {});
+      S.login = Object.assign(DEFAULT_SAVE().login, d.login || {});
+      if (!d.login && d.gift === todayStr()) S.login = { day: 1, last: d.gift }; // older saves: Lucky Teapot claimed today
       while (S.areas.length < AREAS.length) S.areas.push([false, false, false, false, false]);
     }
   } catch (e) { S = DEFAULT_SAVE(); }
@@ -71,7 +75,7 @@ const totalStars = () => Object.values(S.stars).reduce((a, b) => a + b, 0);
 // ---------------- ui helpers ----------------
 let current = 'loading';
 function show(id) {
-  if (!$('#modal').classList.contains('hidden')) { modalClose = null; $('#modal').classList.add('hidden'); }
+  if (!$('#modal').classList.contains('hidden')) { modalClose = null; $('#modal').classList.add('hidden'); document.body.classList.remove('modal-open'); }
   $$('.screen').forEach((s) => s.classList.toggle('show', s.id === id));
   current = id;
   document.body.classList.toggle('ingame', id === 's-game');
@@ -87,12 +91,13 @@ function toast(msg, ms = 1800) {
 let modalClose = null;
 function modal(html, onClose) {
   $('#modal-card').innerHTML = html;
-  $('#modal').classList.remove('hidden');
+  $('#modal').classList.remove('hidden'); document.body.classList.add('modal-open');
+  $('#toast').classList.remove('show'); // messages from before the dialog are stale
   modalClose = onClose || null;
   return $('#modal-card');
 }
 function closeModal() {
-  $('#modal').classList.add('hidden');
+  $('#modal').classList.add('hidden'); document.body.classList.remove('modal-open');
   const f = modalClose; modalClose = null;
   f && f();
 }
@@ -155,6 +160,9 @@ function beginBoard(b, chapter = 0) {
   $('#g-combo').classList.remove('show');
   const P = perks();
   if (G) { G.rush = G.tut ? 0 : P.rushStart; G.rushT = 0; G.free = G.tut ? {} : { undo: P.undo, hint: P.hint, shuffle: P.shuffle }; }
+  // make sure every new player experiences a Tea Rush early (meter pre-filled until the first one)
+  if (G && G.mode === 'level' && !G.tut && G.level >= 5 && !S.stats.rush) G.rush = Math.max(G.rush, 65);
+  updateStreakHud();
   refreshWallet();
   document.body.classList.remove('rush'); $('#g-rush').style.width = (G ? G.rush : 0) + '%';
   board.start(b, {
@@ -247,12 +255,16 @@ function ensureOrders() {
   const day = todayStr();
   if (S.orders.day === day && S.orders.list.length) return;
   const rnd = L.mulberry32(L.hashString('orders:' + day));
-  const types = L.shuffleArr(Object.keys(ORDER_TYPES).filter((k) => !ORDER_TYPES[k].need || cleared(ORDER_TYPES[k].need)), rnd).slice(0, 3);
+  // beginners get gentle orders they can finish in their first session
+  const beginner = Object.keys(S.stars).length < 12;
+  const pool = beginner ? ['levels', 'three', 'gold', 'rush'] : Object.keys(ORDER_TYPES).filter((k) => !ORDER_TYPES[k].need || cleared(ORDER_TYPES[k].need));
+  const types = L.shuffleArr(pool, rnd).slice(0, 3);
+  const EASY = { levels: 3, three: 2, gold: 2, rush: 1 };
   const guests = L.shuffleArr(GUESTS.slice(), rnd);
   S.orders = {
     day, bonus: false,
     list: types.map((k, i) => {
-      const T = ORDER_TYPES[k], goal = (T.min + Math.floor(rnd() * (T.max - T.min + 1))) * (T.mul || 1);
+      const T = ORDER_TYPES[k], goal = beginner ? EASY[k] : (T.min + Math.floor(rnd() * (T.max - T.min + 1))) * (T.mul || 1);
       return { type: k, goal, prog: 0, guest: guests[i], stars: T.stars, coins: 40 + Math.floor(rnd() * 5) * 10, done: false, claimed: false };
     }),
   };
@@ -359,6 +371,7 @@ const ACH = [
   { id: 'allareas', name: 'Grand Teahouse', desc: 'Restore all 7 areas', rw: 300, goal: AREAS.length, val: () => S.areas.filter((x) => x.every(Boolean)).length },
   { id: 'daily', name: 'Regular Guest', desc: 'Reach a 3-day daily streak', rw: 60, goal: 3, val: () => S.daily.best },
   { id: 'endless', name: 'Endless Steeping', desc: 'Score 2,000 in Endless', rw: 80, goal: 2000, val: () => S.endlessBest },
+  { id: 'streak', name: 'On a Roll', desc: 'Clear 10 levels in a row', rw: 100, goal: 10, val: () => S.bestStreak },
   { id: 'master', name: 'Tea Master', desc: 'Clear every level', rw: 500, goal: NUM_LEVELS, val: () => Object.keys(S.stars).length },
 ];
 const achQueue = []; let achShowing = false;
@@ -388,35 +401,102 @@ function openTrophies() {
   }).join('')}</div><div class="btns"><button class="btn primary" id="tr-ok">Close</button></div>`);
   card.querySelector('#tr-ok').onclick = closeModal;
 }
-function giftReady() { return S.gift !== todayStr(); }
+// ---------------- daily login calendar (next-day retention) ----------------
+const LOGIN = [
+  { coins: 50, short: '50 coins', txt: '50 coins' },
+  { coins: 50, hint: 2, short: '2 Hints', txt: '2 Hints + 50 coins' },
+  { coins: 100, short: '100 coins', txt: '100 coins' },
+  { shuffle: 2, stars: 1, short: '2 Shuffles +1\u2605', txt: '2 Shuffles + 1 star' },
+  { coins: 150, hint: 2, short: '150 + 2 Hints', txt: '150 coins + 2 Hints' },
+  { undo: 3, stars: 2, short: '3 Undos +2\u2605', txt: '3 Undos + 2 stars' },
+  { skin: 'cherry', stars: 3, short: 'Tile skin +3\u2605', txt: 'Cherry Lacquer tile backs + 3 stars' },
+];
+const yesterdayStr = () => { const y = new Date(); y.setDate(y.getDate() - 1); return todayStr(y); };
+function giftReady() { return S.login.last !== todayStr(); }
+// day (1-7) that can be claimed today, or that was claimed today
+function loginDay() {
+  if (S.login.last === todayStr()) return S.login.day;
+  return S.login.last === yesterdayStr() ? (S.login.day % 7) + 1 : 1;
+}
+const tomorrowDay = () => (giftReady() ? loginDay() % 7 : S.login.day % 7) + 1;
 function refreshGift() {
   const b = $('#gift-btn'); if (!b) return;
   const ready = giftReady();
   b.classList.toggle('ready', ready); b.classList.toggle('gold', ready);
-  $('#gift-lbl').textContent = ready ? 'Daily gift' : 'Gift tomorrow';
+  $('#gift-lbl').textContent = ready ? `Day ${loginDay()} gift` : `Day ${tomorrowDay()} tomorrow`;
   $('#title-trophies').textContent = `${ACH.filter((a) => S.ach[a.id]).length}/${ACH.length}`;
 }
-function openGift() {
-  if (!giftReady()) { toast('Your next gift is ready tomorrow!'); return; }
-  const card = modal(`${mascot(0)}<h2>Lucky Teapot</h2><p>Tap the teapot to pour today's gift!</p>
-    <div class="gift-pot" id="pot">${icon('gift')}</div><div id="prize"></div>
-    <div class="btns"><button class="btn primary hidden" id="g-ok">Collect</button></div>`);
-  let opened = false;
-  card.querySelector('#pot').onclick = () => {
-    if (opened) return; opened = true;
-    card.querySelector('#pot').classList.add('shake'); Audio.play('shuffle');
-    setTimeout(() => {
-      const r = Math.random();
-      let txt;
-      if (r < 0.2) { S.coins += 40; txt = '+40 coins'; } else if (r < 0.45) { S.coins += 60; txt = '+60 coins'; } else if (r < 0.6) { S.coins += 120; txt = '+120 coins!'; }
-      else if (r < 0.75) { S.boosters.hint += 2; txt = '+2 Hints'; } else if (r < 0.9) { S.boosters.shuffle += 2; txt = '+2 Shuffles'; } else { S.bank += 2; txt = '+2 Stars!'; }
-      S.gift = todayStr(); save(); refreshWallet(); refreshGift();
-      card.querySelector('#prize').innerHTML = `<div class="gift-prize">${txt}</div>`;
-      card.querySelector('#g-ok').classList.remove('hidden');
-      Audio.play('win'); CG.happytime();
-    }, 1000);
+function claimLogin() {
+  const d = loginDay(), R = LOGIN[d - 1];
+  let txt = R.txt;
+  if (R.coins) S.coins += R.coins;
+  if (R.hint) S.boosters.hint += R.hint;
+  if (R.shuffle) S.boosters.shuffle += R.shuffle;
+  if (R.undo) S.boosters.undo += R.undo;
+  if (R.stars) S.bank += R.stars;
+  if (R.skin) { if (S.skins.includes(R.skin)) { S.coins += 300; txt = '300 coins + 3 stars'; } else { S.skins.push(R.skin); } }
+  S.login = { day: d, last: todayStr() };
+  save(); refreshWallet(); refreshGift();
+  return txt;
+}
+// Calendar dialog. welcome = returning player summary (tips collected, new orders, new daily puzzle).
+function openGift(opts = {}) {
+  const ready = giftReady(), d = loginDay();
+  let welcome = '';
+  if (opts.welcome) {
+    const tips = tipsPending();
+    if (tips > 0) { S.coins += tips; S.tipT = Date.now(); save(); refreshWallet(); }
+    ensureOrders();
+    welcome = `<div class="welcome">${tips > 0 ? `<div>${icon('gift')} Your guests left <b>${tips} coins</b> in tips while you were away</div>` : ''}
+      <div>${icon('house')} <b>3 new guest orders</b> are waiting for you</div>
+      <div>${icon('sun')} A new <b>Daily Puzzle</b> is ready</div></div>`;
+  }
+  const tiles = LOGIN.map((R, i) => {
+    const n = i + 1, claimed = n < d || (n === d && !ready), today = n === d && ready;
+    return `<div class="day ${claimed ? 'claimed' : ''} ${today ? 'today' : ''} ${n === 7 ? 'big' : ''}"><small>Day ${n}</small><div class="dr">${icon(claimed ? 'check' : R.skin ? 'star' : R.hint || R.shuffle || R.undo ? 'bulb' : 'gift')}</div><b>${R.short}</b></div>`;
+  }).join('');
+  const card = modal(`${mascot(ready ? 1 : 0)}<h2>${opts.welcome ? 'Welcome back!' : 'Daily gifts'}</h2>${welcome}
+    <p>${opts.firstTime ? 'Come back every day: the gifts get bigger! ' : ''}Day 7: <b>Cherry Lacquer tile backs + 3 stars</b>. Missing a day starts again at Day 1.</p>
+    <div class="cal">${tiles}</div><div id="cal-msg"></div>
+    <div class="btns">${ready ? `<button class="btn primary big pulse" id="cal-claim">${icon('gift')} Claim Day ${d}</button>` : `<button class="btn primary" id="cal-ok">Continue</button>`}</div>`, opts.after);
+  const done = (txt) => {
+    card.querySelector('#cal-msg').innerHTML = `<div class="gift-prize">+${txt}</div><p class="tmr">${icon('sun')} Tomorrow: Day ${tomorrowDay()} \u2014 ${LOGIN[tomorrowDay() - 1].txt}</p>`;
+    card.querySelectorAll('.day')[d - 1].classList.add('claimed', 'pop');
+    card.querySelectorAll('.day')[d - 1].classList.remove('today');
+    const b = card.querySelector('#cal-claim'); b.outerHTML = '<button class="btn primary" id="cal-ok">Continue</button>';
+    card.querySelector('#cal-ok').onclick = closeModal;
   };
-  card.querySelector('#g-ok').onclick = closeModal;
+  const cl = card.querySelector('#cal-claim');
+  if (cl) cl.onclick = () => { const txt = claimLogin(); Audio.play('win'); Audio.play('chime'); CG.happytime(); done(txt); };
+  const ok = card.querySelector('#cal-ok'); if (ok) ok.onclick = closeModal;
+}
+
+// ---------------- session hooks (10-minute retention) ----------------
+const sessionStart = Date.now();
+let tomorrowShown = false;
+// one or two short lines with the nearest goals: the next teahouse piece and the closest guest order
+function nextGoalHtml(area) {
+  const lines = [];
+  const A = AREAS[area];
+  if (areaUnlocked(area)) {
+    const todo = A.tasks.map((t, k) => ({ t, k })).filter((x) => !S.areas[area][x.k]).sort((a, b) => a.t.cost - b.t.cost)[0];
+    if (todo) {
+      const perk = todo.t.perk ? PERK_TEXT[todo.t.perk[0]](todo.t.perk[1]) : todo.t.desc;
+      lines.push(S.bank >= todo.t.cost
+        ? `${icon('house')} Ready to restore: <b>${todo.t.name}</b> <span class="pk">(${perk})</span>`
+        : `${icon('star')} <b>${todo.t.cost - S.bank}\u2605 more</b> for the ${todo.t.name} <span class="pk">(${perk})</span>`);
+    }
+  }
+  ensureOrders();
+  const o = S.orders.list.filter((x) => !x.done).sort((a, b) => b.prog / b.goal - a.prog / a.goal)[0];
+  if (o) lines.push(`${icon('house')} ${o.guest}: ${ORDER_TYPES[o.type].txt(o.goal)} <b>${o.prog}/${o.goal}</b>`);
+  else if (S.orders.list.some((x) => x.done && !x.claimed)) lines.push(`${icon('house')} <b>A guest order is ready to serve!</b>`);
+  return lines.length ? `<div class="goals">${lines.map((l) => `<div>${l}</div>`).join('')}</div>` : '';
+}
+function updateStreakHud() {
+  const el = $('#g-streak');
+  el.classList.toggle('hidden', !(G && G.mode === 'level' && S.streak >= 2));
+  el.querySelector('b').textContent = `\u00d7${S.streak}`;
 }
 
 function onWin() {
@@ -437,7 +517,13 @@ function onWin() {
   const gained = Math.max(0, stars - prev);
   S.stars[n] = Math.max(prev, stars);
   S.bank += gained;
-  const coins = Math.round((10 + stars * 5 + (first ? 10 : 0)) * (1 + perks().coins / 100));
+  const tut = !!LEVELS[n - 1].tut;
+  if (!tut) { S.streak++; S.bestStreak = Math.max(S.bestStreak, S.streak); }
+  const streakPct = tut ? 0 : Math.min(5, S.streak - 1) * 10;
+  const dailyFirst = !tut && S.firstWin !== todayStr();
+  if (dailyFirst) { S.firstWin = todayStr(); S.bank += 1; }
+  let coins = Math.round((10 + stars * 5 + (first ? 10 : 0)) * (1 + (perks().coins + streakPct) / 100));
+  if (dailyFirst) coins *= 2;
   S.coins += coins; S.played++;
   orderEvent('levels'); if (stars === 3) orderEvent('three');
   save(); refreshWallet(); checkAch();
@@ -458,18 +544,24 @@ function onWin() {
   const firstPrompt = canRestore && !S.housePrompted;
   if (firstPrompt) { S.housePrompted = true; save(); }
   const nextLocked = n < NUM_LEVELS && !levelUnlocked(n + 1);
+  const showTomorrow = !tomorrowShown && !firstPrompt && Date.now() - sessionStart > 8 * 60000;
+  if (showTomorrow) tomorrowShown = true;
   const card = modal(`${mascot(stars === 3 ? 1 : 0)}
     <h2>${['', 'Cleared!', 'Well brewed!', 'Perfect cup!'][stars]}</h2>
     <div class="stars-big">${starRow(stars, true)}</div>
     <p>Time ${fmt(G.t)} · ${G.used ? `${G.used} booster${G.used > 1 ? 's' : ''} used` : 'no boosters'}</p>
     <div class="rewards">
       <div class="pill coin"><b>+${coins}</b></div>
-      ${gained ? `<div class="pill star"><b>+${gained}</b></div>` : ''}
+      ${gained || dailyFirst ? `<div class="pill star"><b>+${gained + (dailyFirst ? 1 : 0)}</b></div>` : ''}
     </div>
+    ${dailyFirst ? `<p class="bonus-l">${icon('sun')} Daily first win: +1 star &amp; double coins!</p>` : ''}
+    ${streakPct ? `<p class="bonus-l">${icon('flame')} Hot streak \u00d7${S.streak}: +${streakPct}% coins</p>` : ''}
     ${stars < 3 ? `<p class="sub">${G.t > G.par ? `Finish under ${fmt(G.par)}` : ''}${G.t > G.par && G.used ? ' and ' : ''}${G.used ? 'clear it without Hint/Shuffle' : ''} for 3 stars.</p>` : ''}
     ${CG.rewardedAvailable() ? `<div class="btns">
       <button class="btn gold" id="w-double">${icon('film')} Double coins</button>
     </div>` : ''}
+    ${firstPrompt ? '' : nextGoalHtml(area)}
+    ${showTomorrow ? `<p class="tmr">${icon('sun')} Tomorrow: Day ${tomorrowDay()} gift (${LOGIN[tomorrowDay() - 1].txt}) + 3 new guest orders</p>` : ''}
     ${firstPrompt ? `<p class="hook">${icon('star')} You can restore your first teahouse piece now!</p>
     <div class="btns"><button class="btn primary big pulse" id="w-house">${icon('house')} Restore the teahouse</button></div>` : ''}
     <div class="btns">
@@ -490,7 +582,12 @@ function onWin() {
   };
   // midgame ads only at the level-to-level break (Next), never on navigation buttons (Map / Teahouse)
   card.querySelector('#w-map').onclick = () => { closeModal(); openMap(chapterOf(Math.min(n + 1, NUM_LEVELS))); };
-  const nx = card.querySelector('#w-next'); if (nx) nx.onclick = async () => { closeModal(); if (n >= 3) await CG.midgame(); startLevel(n + 1); };
+  const nx = card.querySelector('#w-next'); if (nx) nx.onclick = async () => {
+    closeModal(); if (n >= 3) await CG.midgame();
+    // first session: introduce the daily gift calendar once (plants the reason to come back tomorrow)
+    if (n >= 5 && !S.day1Shown && giftReady()) { S.day1Shown = true; save(); openGift({ firstTime: true, after: () => startLevel(n + 1) }); return; }
+    startLevel(n + 1);
+  };
   const wh = card.querySelector('#w-house'); if (wh) wh.onclick = () => { closeModal(); openHouse(Math.min(chapterOf(n), AREAS.length - 1)); };
 }
 
@@ -503,18 +600,21 @@ function onStuck() {
     return;
   }
   G.paused = true; board.paused = true; board.cancelInput(); CG.gameplayStop();
+  // chapter 1 is a no-frustration zone: getting stuck there costs nothing (and no star)
+  const freeShuf = G.mode === 'level' && G.level <= LEVELS_PER_CHAPTER;
   Audio.play('lose');
   const card = modal(`${mascot(2)}
     <h2>No moves left!</h2>
     <p>No pair can be matched and no slide lines one up.</p>
     <div class="col">
-      <button class="btn primary" id="st-shuffle">${icon('shuffle')} Shuffle ${S.boosters.shuffle > 0 ? `(${S.boosters.shuffle} left)` : `· ${PRICES.shuffle} coins`}</button>
+      <button class="btn primary" id="st-shuffle">${icon('shuffle')} ${freeShuf ? 'Free shuffle' : `Shuffle ${S.boosters.shuffle > 0 ? `(${S.boosters.shuffle} left)` : `\u00b7 ${PRICES.shuffle} coins`}`}</button>
       ${board.canUndo() ? `<button class="btn" id="st-undo">${icon('undo')} Undo last move</button>` : ''}
       ${CG.rewardedAvailable() ? `<button class="btn gold" id="st-ad">${icon('film')} Watch ad: free shuffle</button>` : ''}
       <button class="btn red" id="st-quit">Give up</button>
     </div>`);
   const resume = () => { closeModal(); G.paused = false; board.paused = false; CG.gameplayStart(); };
   card.querySelector('#st-shuffle').onclick = () => {
+    if (freeShuf) { resume(); board.shuffle(Math.random); return; }
     if (S.boosters.shuffle > 0) S.boosters.shuffle--;
     else if (S.coins >= PRICES.shuffle) S.coins -= PRICES.shuffle;
     else return toast('Not enough coins');
@@ -531,6 +631,8 @@ function onStuck() {
 
 function levelFailed() {
   G.done = true; CG.gameplayStop();
+  if (G.mode === 'level' && S.streak >= 2) toast(`Hot streak \u00d7${S.streak} lost`, 2200);
+  if (G.mode === 'level') { S.streak = 0; save(); }
   const n = G.level, mode = G.mode;
   const card = modal(`${mascot(2)}
     <h2>Out of moves</h2>
@@ -582,7 +684,7 @@ function buyBooster(kind) {
   const names = { hint: 'Hint', shuffle: 'Shuffle', undo: 'Undo' };
   const desc = { hint: 'Shows a good move — including slides.', shuffle: 'Rearranges the tiles into a solvable layout.', undo: 'Takes back your last move.' };
   const wasPaused = G && G.paused;
-  if (G) { G.paused = true; board.paused = true; }
+  if (G) { G.paused = true; board.paused = true; CG.gameplayStop(); }
   const card = modal(`
     <h2>Out of ${names[kind]}s</h2>
     <p>${desc[kind]}</p>
@@ -591,7 +693,7 @@ function buyBooster(kind) {
       ${CG.rewardedAvailable() ? `<button class="btn gold" id="bb-ad">${icon('film')} Watch ad: +2 ${names[kind]}s</button>` : ''}
       <button class="btn" id="bb-close">Not now</button>
     </div>
-    <p class="sub">You have ${S.coins} coins.</p>`, () => { if (G) { G.paused = wasPaused; board.paused = wasPaused; } });
+    <p class="sub">You have ${S.coins} coins.</p>`, () => { if (G) { G.paused = wasPaused; board.paused = wasPaused; if (!wasPaused && !G.done) CG.gameplayStart(); } });
   card.querySelector('#bb-coins').onclick = () => {
     if (S.coins < PRICES[kind] * 2) return toast('Not enough coins — clear levels to earn more');
     S.coins -= PRICES[kind] * 2; S.boosters[kind] += 3; save(); refreshWallet(); Audio.play('coin'); closeModal();
@@ -770,7 +872,9 @@ function tutAfterMove() {
 
 const TIPS = {
   3: 'Tip: dragging a tile pushes every tile in front of it along.',
-  4: 'Golden pair! Match the shimmering gold tiles for bonus coins. Fast matches fill the Tea Rush meter.',
+  4: 'Golden pair! Match the shimmering gold tiles for bonus coins.',
+  5: 'Match quickly to fill the Tea Rush meter under the timer \u2014 when it\u2019s full, the clock stops!',
+  7: 'Pro move: drag one tile so it pushes 3+ tiles into a match \u2014 MEGA SLIDE!',
   6: 'Stuck? Hint, Undo and Shuffle are below the board.',
   13: 'New: mossy stones never move and block lines.',
   25: 'New tiles: flowers! Corner letters help tell them apart.',
@@ -898,6 +1002,7 @@ function openTitle() {
   const n = nextLevel();
   $('#title-lvl').textContent = S.played || cleared(1) ? `· Level ${n}` : '';
   refreshGift(); refreshOrderDots();
+  $('#s-title [data-act=daily]').classList.toggle('pulse', S.daily.last !== todayStr() && cleared(3));
   $('#title-streak').textContent = S.daily.streak && S.daily.last >= todayStr(new Date(Date.now() - 864e5)) ? `· ${S.daily.streak} day${S.daily.streak > 1 ? 's' : ''}` : '';
 }
 
@@ -959,6 +1064,23 @@ function renderMap() {
 
 // ---------------- teahouse ----------------
 let houseArea = 0, houseBack = 'title';
+function maybeIntroGuests() {
+  if (S.introOrders || !S.areas.flat().some(Boolean)) return;
+  S.introOrders = true; save();
+  setTimeout(() => {
+    if (current !== 's-house' || modalOpen()) { S.introOrders = false; save(); return; }
+    ensureOrders();
+    const card = modal(`${mascot(1)}<h2>Guests are coming!</h2>
+      <div class="howto">
+        <div><b class="n">${icon('star')}</b><span>Every piece you restore gives a <b>permanent perk</b> (check them under Perks). Choose wisely!</span></div>
+        <div><b class="n">${icon('house')}</b><span>Guests now visit with <b>orders</b>. Serve them for extra stars and coins. New guests arrive every day.</span></div>
+        <div><b class="n">${icon('gift')}</b><span>Happy guests leave <b>tips</b> \u2014 even while you\u2019re away. Collect them from the tip jar.</span></div>
+      </div>
+      <div class="btns"><button class="btn" id="io-later">Later</button><button class="btn primary" id="io-orders">See orders</button></div>`);
+    card.querySelector('#io-later').onclick = closeModal;
+    card.querySelector('#io-orders').onclick = () => { closeModal(); openOrders(); };
+  }, 700);
+}
 function openHouse(a) {
   const from = current;
   houseBack = from === 's-map' ? 'map' : 'title';
@@ -967,6 +1089,7 @@ function openHouse(a) {
   houseArea = a;
   show('s-house'); refreshWallet();
   renderHouse();
+  maybeIntroGuests();
 }
 function renderHouse(anim = -1) {
   const c = houseArea, A = AREAS[c];
@@ -1005,10 +1128,25 @@ function renderHouse(anim = -1) {
     if (btn) btn.onclick = () => restoreTask(c, k);
     list.appendChild(d);
   });
-  refreshTips(); refreshOrderDots();
+  refreshTips(); refreshOrderDots(); fitScene();
   const affordable = unlocked && A.tasks.some((t, k) => !S.areas[c][k] && S.bank >= t.cost);
   $('#s-house [data-act=play]').classList.toggle('pulse', !affordable && levelUnlocked(nextLevel()));
 }
+// Size the 16:9 teahouse scene to the space actually left next to / above the task cards, so the
+// scene and the cards always fit on screen together (portrait phones, 4:3 tablets, short landscape).
+function fitScene() {
+  const body = $('#s-house .house-body'), sc = $('#scene'), tasks = $('#tasks');
+  if (!body || current !== 's-house') return;
+  const br = body.getBoundingClientRect(), cs = getComputedStyle(body);
+  const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight), padY = parseFloat(cs.paddingBottom);
+  const column = cs.flexDirection === 'column', gap = parseFloat(cs.columnGap || cs.gap) || 12;
+  let aw = br.width - padX, ah = br.height - padY;
+  if (column) ah -= tasks.getBoundingClientRect().height + gap; else aw -= tasks.getBoundingClientRect().width + gap;
+  const w = Math.max(120, Math.min(aw, ah * 16 / 9));
+  sc.style.width = w + 'px'; sc.style.maxHeight = 'none';
+}
+window.addEventListener('resize', () => fitScene());
+
 function restoreTask(c, k) {
   const t = AREAS[c].tasks[k];
   if (S.bank < t.cost) {
@@ -1018,6 +1156,23 @@ function restoreTask(c, k) {
   }
   S.bank -= t.cost; S.areas[c][k] = true; if (!S.tipT) S.tipT = Date.now(); save(); setTimeout(checkAch, 1500);
   if (t.perk) setTimeout(() => toast(`New perk: ${PERK_TEXT[t.perk[0]](t.perk[1])}!`, 2600), 700);
+  if (!S.introOrders && !areaDone(c)) {
+    S.introOrders = true; save();
+    setTimeout(() => {
+      // only while the player is still in the teahouse; otherwise show it on the next visit
+      if (current !== 's-house' || modalOpen()) { S.introOrders = false; save(); return; }
+      ensureOrders();
+      const card = modal(`${mascot(1)}<h2>Guests are coming!</h2>
+        <div class="howto">
+          <div><b class="n">${icon('star')}</b><span>Every piece you restore gives a <b>permanent perk</b> (check them under Perks). Choose wisely!</span></div>
+          <div><b class="n">${icon('house')}</b><span>Guests now visit with <b>orders</b>. Serve them for extra stars and coins. New guests arrive every day.</span></div>
+          <div><b class="n">${icon('gift')}</b><span>Happy guests leave <b>tips</b> \u2014 even while you\u2019re away. Collect them from the tip jar.</span></div>
+        </div>
+        <div class="btns"><button class="btn" id="io-later">Later</button><button class="btn primary" id="io-orders">See orders</button></div>`);
+      card.querySelector('#io-later').onclick = closeModal;
+      card.querySelector('#io-orders').onclick = () => { closeModal(); openOrders(); };
+    }, 1600);
+  }
   Audio.play('build'); bump($('#house-stars').parentElement);
   refreshWallet();
   renderHouse(k);
@@ -1160,7 +1315,10 @@ async function boot() {
   Audio.loadSamples({ pour: 'assets/audio/sfx/pour.mp3', chime: 'assets/audio/sfx/chime.mp3' });
   // lazy-load the teahouse art in the background
   setTimeout(() => preload(AREAS.flatMap((a) => [`assets/img/bg/${a.bg}.webp`, ...a.tasks.map((t) => `assets/img/items/${t.img}.webp`)]), () => {}), 1500);
+  const returning = S.played > 0 && S.lastSeen && S.lastSeen !== todayStr();
+  S.lastSeen = todayStr(); save();
   if (!cleared(1) && !S.played) startLevel(1); else openTitle();
+  if (returning && giftReady()) setTimeout(() => openGift({ welcome: true }), 400);
   $('#loading').classList.remove('show');
 }
 

@@ -152,7 +152,7 @@ Afterwards, whenever a restoration becomes affordable, the result screen shows a
 | **Mega Slide** | A push that moves 3+ tiles into a match: big burst, bonus coins (3 × tiles), extra meter. 5+ tiles = "AVALANCHE!". 2-tile pushes show "Chain slide!". | Rewards mastering the core mechanic. |
 | **Golden pair** | One pair per level (from level 4, plus Daily and every Endless board) has a shimmering gold rim: +20 coins (Endless: +5 s, +150 points). | Visual only, no effect on solvability. |
 | **Trophies** | 16 achievements (combos, mega slides, golden pairs, rushes, tied tiles, 3-star levels, stars, areas, daily streak, endless score, all levels), each with a coin reward, a pop-up, and a Trophies screen with progress bars. | Tracked in `S.stats` / `S.ach` (Data Module save). |
-| **Lucky Teapot** | A free daily gift on the title screen (coins, hints, shuffles or 2 stars). | Retention hook; no ads required. |
+| **Daily gift calendar** | Replaced the Lucky Teapot; see the retention section. | |
 
 
 ## Meaningful stars: perks, guest orders and tips
@@ -164,3 +164,42 @@ Players said stars "only buy fixed decorations". Now every star purchase changes
 | **Perks** | Each of the 35 restorations grants a permanent, stacking bonus (shown on its card; a "Perks" screen shows the totals). Types: +% level coins, Tea Rush fills faster, Tea Rush lasts longer, +% par time (easier 3 stars), free Undo / Hint / Shuffle every level (HUD badge shows FREE), golden pairs pay more, extra golden pair per level, Tea Rush meter starts partly full, guest tips per hour. Within an area you choose which perk to buy first. Totals when complete: +70% coins, +40% par, Tea Rush +4 s / fills +50% / starts 75%, 3 free undos, 2 free hints, 1 free shuffle, +2 golden pairs, +50 coins per golden pair. Defined in `js/meta.js` (`perk`, `PERK_TEXT`). |
 | **Guest orders** | 3 daily requests from named guests, seeded by date (clear N levels, 3-star N levels, N Mega Slides, N golden pairs, N Tea Rushes, a ×N combo, untie N red cords, the Daily Puzzle, an Endless score). Serving an order pays 1–2 stars + 40–80 coins; serving all three pays a daily bonus of +2 stars and +100 coins. Progress pops up in-game; red dots on Title/Map/Teahouse show orders ready to serve. |
 | **Guest tips** | Restored pieces attract guests: 3 coins/hour per restored piece plus tip perks (up to about 280/h when complete), stored for up to 12 h. Collect them from the tip jar in the teahouse. |
+
+
+## Retention pass (target: 10-minute retention and day-1 retention)
+
+**First session (10 minutes).** A new player reaches the first real level 0 clicks and about 0.5 s after load, and is guided to the first restoration after level 3. Then:
+
+| Hook | What it does |
+|---|---|
+| Next-goal line | Every result screen shows the nearest goals: the next teahouse piece and its perk ("2★ more for the Bonsai Pine (+10% time for 3 stars)" or "Ready to restore …"), and the closest guest order with progress. |
+| Hot streak | Consecutive clears add +10% coins per level, up to +50%. A flame counter shows in the HUD, and giving up resets it ("one more level" pull). Trophy "On a Roll" for 10 in a row. |
+| Guaranteed early Tea Rush | From level 5 the meter starts at 65% until the player's first Tea Rush. Tips at level 5 (Tea Rush) and level 7 (Mega Slide). |
+| No-frustration chapter 1 | Getting stuck in levels 1–12 offers a free shuffle (no booster, no star lost). |
+| Guests intro | After the first restoration, Momo explains perks, guest orders and tips. It shows only while the player is in the teahouse, otherwise on the next visit. |
+| Beginner orders | Until 12 levels are cleared, guest orders are easy (clear 3 levels, 3-star 2 levels, 2 golden pairs, 1 Tea Rush), so new players serve their first order in session one. |
+
+**Coming back (day 1).**
+
+| Hook | What it does |
+|---|---|
+| 7-day gift calendar | Day 1: 50 coins → Day 2: 2 Hints → Day 3: 100 coins → Day 4: 2 Shuffles + 1★ → Day 5: 150 coins + 2 Hints → Day 6: 3 Undos + 2★ → Day 7: Cherry Lacquer tile backs + 3★ (300 coins if already owned). Missing a day restarts at Day 1. New players see it in session one, right after level 5, with "Tomorrow: Day 2 …" shown after claiming. |
+| Welcome back | A returning player opening the game on a new day gets a "Welcome back!" card: overnight tips collected, 3 new guest orders, the new Daily Puzzle, and today's calendar claim. |
+| Daily first win | The first campaign level cleared each day gives +1 star and double coins. |
+| Tomorrow preview | After about 8 minutes of play, one result screen shows what tomorrow brings (next calendar gift and new guest orders). The Title gift button reads "Day N tomorrow". |
+| Daily Puzzle nudge | The Daily button pulses until today's puzzle is done. |
+
+`tests/retention.cjs` checks all of these (15 checks) for a first session and a simulated next-day return.
+
+## Mobile and compatibility pass
+
+- `tests/mobile.cjs` sweeps 16 screens and dialogs on 9 viewports (iPhone SE/14, small Android, Pixel 7, iPad; portrait and landscape). It checks that every button is on screen and tappable, button text fits, the board sits clear of the HUD and boosters, tiles are at least 26 px, and there is no page overflow or JS errors. Result: no issues.
+- The run is repeated with the canvas `roundRect` removed (`LEGACY=1`) to simulate Safari below 16. `js/compat.js` polyfills it.
+- Fixes from this pass:
+  - The teahouse top bar wrapped on small phones and Orders couldn't be tapped. It was rebuilt: actions in the top bar (icon-only on narrow screens), the area switcher on its own row, and the scene sized in code so the scene and all 5 restoration cards fit together.
+  - Portrait cards are a compact list, two columns on tablets.
+  - A hidden achievement pop-up box peeked out over the timer on every screen.
+  - Stale messages covered dialog buttons.
+  - Short-landscape dialogs are tighter, and the map banner and tutorial bubble widths were fixed.
+  - The HUD is slimmer on very short landscape screens.
+- SDK: `gameplayStart`/`Stop` toggles closer than 1 s are coalesced, because the SDK throttles them and logs errors. The booster purchase dialog counts as a gameplay break. An `adsDisabled` error (Basic Launch) hides rewarded buttons, like adblock does (`tests/sdk.cjs` now has a Basic Launch mode).

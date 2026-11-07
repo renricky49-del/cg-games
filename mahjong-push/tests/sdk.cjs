@@ -13,8 +13,8 @@ window.CrazyGames = { SDK: {
   game: { settings: { muteAudio: false }, addSettingsChangeListener() {},
     loadingStart: () => log('loadingStart'), loadingStop: () => log('loadingStop'),
     gameplayStart: () => log('gameplayStart'), gameplayStop: () => log('gameplayStop'), happytime: () => log('happytime') },
-  ad: { hasAdblock: async () => ${adblock},
-    requestAd: (type, cb) => { log('requestAd:' + type); setTimeout(() => { log('adStarted'); cb.adStarted && cb.adStarted();
+  ad: { hasAdblock: async () => ${adblock === true},
+    requestAd: (type, cb) => { log('requestAd:' + type); if (${adblock === 'disabled'}) { setTimeout(() => cb.adError && cb.adError({ code: 'adsDisabled' }), 50); return; } setTimeout(() => { log('adStarted'); cb.adStarted && cb.adStarted();
       window.__duringAd = { blocked: !!document.elementFromPoint(5, 5) && document.elementFromPoint(5, 5).style.zIndex === '99' };
       setTimeout(() => { log('adFinished'); cb.adFinished && cb.adFinished(); }, 400); }, 200); } },
   data: { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = v; log('data.setItem'); }, removeItem: (k) => { delete store[k]; } },
@@ -76,5 +76,20 @@ async function run(browser, adblock) {
   const browser = await chromium.launch();
   console.log('normal  :', JSON.stringify(await run(browser, false)));
   console.log('adblock :', JSON.stringify(await run(browser, true)));
+  // Basic Launch: ads disabled by the platform -> after the first adsDisabled error no rewarded buttons
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+    await ctx.route('https://sdk.crazygames.com/**', (r) => r.fulfill({ contentType: 'application/javascript', body: MOCK('disabled') }));
+    const p = await ctx.newPage(); const errs = []; p.on('pageerror', (e) => errs.push(e.message));
+    await p.goto('http://localhost:8123/index.html'); await p.waitForFunction(() => window.__tts && window.__tts.state.screen === 's-game');
+    await p.evaluate(() => { const S = window.__tts.state.S; S.stars[1] = 3; S.stars[2] = 3; S.boosters.hint = 0; window.__tts.startLevel(3); });
+    await p.waitForTimeout(400); await p.keyboard.press('h'); await p.waitForTimeout(300);
+    const before = !!(await p.$('#bb-ad'));
+    if (before) { await p.click('#bb-ad'); await p.waitForTimeout(400); await p.click('#bb-close'); }
+    await p.waitForTimeout(200); await p.keyboard.press('h'); await p.waitForTimeout(300);
+    const after = !!(await p.$('#bb-ad'));
+    console.log('adsDisabled (Basic Launch): rewarded button before first try', before, '-> hidden after adsDisabled error', !after, errs.length ? errs : 'no errors');
+    await ctx.close();
+  }
   await browser.close();
 })();

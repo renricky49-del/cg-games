@@ -59,7 +59,7 @@ async function record(browser, { name, w, h, coverBg, coverScale, coverTop, leve
   // teahouse: restore the last piece of the courtyard (before -> after, Momo cheers)
   await p.evaluate(() => {
     const S = window.__tts.state.S; S.bank = 12; for (let i = 1; i <= 12; i++) S.stars[i] = 3;
-    S.areas[0] = [true, true, true, true, false]; window.__tts.openHouse(0);
+    S.areas[0] = [true, true, true, true, false]; S.introOrders = true; window.__tts.openHouse(0);
   });
   await p.waitForTimeout(1300);
   await p.click('#tasks .task:nth-child(5) button');

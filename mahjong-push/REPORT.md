@@ -1,19 +1,26 @@
 # Report — Teahouse Tile Slide (folder `mahjong-push/`, branch `game/mahjong-push`)
 
-- **Content:** 84 solver-verified levels in 7 chapters (2 interactive tutorials). 7 teahouse areas × 5 restorations, each with an AI "before" background that cross-fades to the restored one.
-- **Gameplay and modes:** click-to-match and drag-to-push with live chain preview; Hint (including pushes), Shuffle (solvable) and Undo; dead-board detection with a loss path; 1–3 stars; Daily Puzzle + streak; Endless with combos.
-- **Second pass:**
-  - Momo the red-panda mascot in the tutorial and on result screens.
-  - Painted UI kit: parchment modals, lacquer title banners, jade level nodes.
-  - 4 tile-back skins sold for coins (a coin sink).
-  - Ambient overlays: petals, snow, fireflies, dust motes, lantern glow.
-  - 2-track music playlist (90 s + 30 s).
-  - Recorded tea-pour and chime foley.
-- **Platform:** CG SDK v3 adapter with standalone fallback; settings, pause and persistent save; high-contrast tiles; portrait board transpose.
-- **Tests:**
-  - `tests/play.cjs`: levels 1–3 won by real mouse input, failed push reverts, a loss reached, save survives reload, mobile portrait and landscape; 0 console errors.
-  - `tests/perf.cjs`: ~60 fps (p95 16.7 ms); +0.4 MB heap over 80 levels.
-  - `tools/balance.mjs`: casual-bot win rate per chapter 99 / 74 / 56 / 47 / 26 / 46 / 29 % (chapter 6 is a deliberate breather).
-- **Size:** upload zip 6.3 MB (`tools/package.sh`): 3.1 MB backgrounds, 2 MB music, 1.1 MB sprites. About 1 MB loads before the title screen; music and teahouse art stream in afterwards. `store/raw/`, `dist/` and `tests/shots/` are git-ignored, and the store art is JPG.
-- **Credits:** 47.94 of the 80 cap (logged in `store/ASSET_LOG.md`).
-- **TODO_CREDITS:** only the trailer video remains.
+**Game:** 84 solver-verified levels in 7 chapters. Click-to-match and push-to-slide. Obstacles: stones and red-cord tied tiles. Juice: Tea Rush, Mega Slide and golden pairs.
+
+**Meta:** a teahouse with 35 restorations, each granting a perk, with before/after scenes. Also guest orders, tips, 17 trophies, a 7-day gift calendar, hot streaks and a daily first win. Modes: Daily Puzzle and Endless. Momo the mascot appears throughout.
+
+**CrazyGames:**
+- SDK v3 with Data Module saves.
+- Ads: midgame only on Next/Retry/Again; rewarded hidden with adblock, with ads disabled, and during a 90 s cooldown.
+- No Escape key, and new players land in gameplay with 0 clicks.
+- Covers show the title only, and both preview videos are 1080p, about 20 s and silent.
+
+**Tests (all passing, 0 console errors):**
+- `play.cjs`
+- `sdk.cjs` (normal, adblock and Basic Launch modes)
+- `retention.cjs` (15 checks)
+- `mobile.cjs` (9 viewports × 16 screens, plus a legacy-Safari pass)
+- `fuzz.cjs`
+- `trap.cjs`
+- `pace.cjs`
+- `perf.cjs` (60 fps, +0.4 MB heap over 80 levels)
+- `tools/stress.mjs` and `tools/balance.mjs`
+
+**Upload:** `bash tools/package.sh` → `dist/teahouse-tile-slide.zip` (about 6.3 MB). Portal values are in `store/SUBMISSION.md`.
+
+**Credits:** 47.94 of the 80 cap. Only a stylized trailer remains in TODO_CREDITS.

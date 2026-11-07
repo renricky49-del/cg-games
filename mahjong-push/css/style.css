@@ -171,8 +171,9 @@ svg.i { width: 1.15em; height: 1.15em; vertical-align: -0.2em; fill: currentColo
 @media (max-aspect-ratio: 4/3) {
   :root { --u: min(1.6vw, 1vh); --fs: clamp(13px, 3.4vw, 19px); }
   .house-body { flex-direction: column; }
-  #tasks { width: auto; flex-direction: row; overflow-x: auto; overflow-y: hidden; flex: none; padding-bottom: .3em; }
-  .task { flex-direction: column; min-width: 7.4em; text-align: center; }
+  #tasks { width: 100%; flex-direction: column; overflow-y: auto; flex: none; gap: .4em; }
+  .task { padding: .35em .5em; }
+  .task img { width: 2.6em; height: 2.6em; }
   .area-title { min-width: 0; padding: .3em .8em; }
   .ch-title { min-width: 11em; padding: .35em 1em; }
   .topbar { padding: .5em .6em; gap: .4em; }
@@ -293,8 +294,90 @@ body.rush .timer { box-shadow: 0 0 0 3px #ffd23a, 0 0 22px rgba(255, 200, 60, .9
 .bonus { font-size: .9em; font-weight: 700; color: #7a2e12; padding: .3em; }
 #tip-jar b { background: rgba(0,0,0,.15); border-radius: .6em; padding: 0 .4em; }
 .btn .dot.hidden { display: none; }
-@media (max-aspect-ratio: 4/3) { #s-house .topbar { flex-wrap: wrap; } #s-house [data-act=perks] { display: none; } }
 
 #s-house .area-title { flex: none; min-width: 14em; }
 #s-house .topbar { gap: .45em; }
 #s-house .topbar .btn { padding: .5em .8em; }
+
+/* teahouse layout v2: actions in the top bar, area switcher on its own row, scene + cards stacked */
+#s-house .area-nav { position: absolute; left: 0; right: 0; top: calc(var(--u) * 4.2 + 30px); display: flex; align-items: center; justify-content: center; gap: .6em; z-index: 2; pointer-events: none; }
+#s-house .area-nav > * { pointer-events: auto; }
+#s-house .house-body { top: calc(var(--u) * 4.2 + 30px + 3.3em); }
+#s-house .topbar { flex-wrap: nowrap; }
+@media (max-aspect-ratio: 4/3) {
+  #s-house .house-body { justify-content: flex-start; gap: .8em; }
+  #s-house #scene-wrap { flex: none; }
+  #s-house .area-nav { top: calc(2.9em + 8px); }
+  #s-house .house-body { top: calc(2.9em + 8px + 3.4em); }
+}
+@media (max-width: 520px) {
+  #s-house .topbar .lbl { display: none; }
+  #s-house .topbar .btn { padding: .5em .65em; }
+}
+@media (max-height: 460px) {
+  #s-house .topbar .lbl { display: none; }
+  #s-house .area-nav { top: calc(2.6em + 6px); font-size: .9em; }
+  #s-house .house-body { top: calc(2.6em + 6px + 3em); padding-bottom: .5em; }
+}
+
+#s-house #scene-wrap { flex: none; }
+#s-house .house-body { justify-content: center; align-items: center; }
+#s-house #tasks { align-self: stretch; }
+@media (max-aspect-ratio: 4/3) { #s-house #tasks { align-self: stretch; } }
+
+/* very short landscape phones: slimmer HUD so big boards keep readable tiles */
+@media (max-height: 400px) {
+  #s-game .topbar { padding: .3em .6em; }
+  #s-game .timer { padding: .1em .8em; }
+  #g-time { font-size: 1.1em; }
+  #s-game .lvl-label, #s-game .pill { padding-top: .2em; padding-bottom: .2em; }
+}
+
+/* mobile polish pass */
+@media (max-aspect-ratio: 4/3) and (min-width: 600px) {
+  #s-house #tasks { display: grid; grid-template-columns: 1fr 1fr; }
+}
+@media (max-aspect-ratio: 4/3) { #tut-bubble { width: min(92vw, 30em); } }
+body.modal-open #ach-pop { top: auto; bottom: 12px; transform: translate(-50%, 160%); }
+body.modal-open #ach-pop.show { transform: translate(-50%, 0); }
+@media (max-height: 500px) { #ach-pop { top: 6px; font-size: .9em; } }
+@media (max-height: 460px) {
+  .card { border-image-width: 22px; border-width: 22px; padding: .1em .7em .3em; }
+  .card h2 { font-size: 1.2em; margin-bottom: .3em; }
+  .card p { margin: .3em 0; }
+  .card .btns { margin-top: .5em; }
+  .stars-big svg { width: 2.6em; height: 2.6em; } .stars-big svg:nth-child(2) { width: 3em; height: 3em; }
+}
+#ch-name { white-space: nowrap; }
+@media (max-width: 700px) { #ch-name { font-size: 1.05em; } .ch-title { padding: .45em 1.7em .55em; min-width: 0; } }
+
+/* hidden achievement pop-up must be fully invisible (its empty box used to peek out over the timer) */
+#ach-pop { opacity: 0; visibility: hidden; transition: transform .45s cubic-bezier(.2, 1.4, .4, 1), opacity .25s, visibility .45s; }
+#ach-pop.show { opacity: 1; visibility: visible; }
+/* toasts raised while a dialog is open go to the top so they never cover dialog buttons */
+body.modal-open #toast { bottom: auto; top: 14px; }
+
+/* retention UI: streak, goals, calendar */
+.streak { display: flex; align-items: center; gap: .15em; background: linear-gradient(#ff9a3d, #e8521f); color: #fff; border-radius: 1em; padding: .25em .6em .25em .45em; font-weight: 800; box-shadow: 0 2px 6px rgba(0,0,0,.3); animation: bump .5s; }
+.streak svg { color: #fff3b0; }
+.goals { margin: .4em 0 .2em; display: grid; gap: .25em; font-size: .88em; text-align: left; background: rgba(120, 80, 30, .08); border-radius: .7em; padding: .45em .7em; }
+.goals svg { color: #c98d0a; }
+.goals .pk { color: #1d7d58; font-weight: 700; }
+.bonus-l { margin: .2em 0; font-weight: 800; color: #b8501a; font-size: .92em; }
+.bonus-l svg { color: #e8521f; }
+.tmr { font-weight: 700; color: #1d6b8a; font-size: .9em; }
+.tmr svg { color: #f0a91c; }
+.welcome { display: grid; gap: .3em; text-align: left; font-size: .92em; background: rgba(31, 138, 99, .1); border-radius: .8em; padding: .5em .8em; margin: .3em 0 .5em; }
+.welcome svg { color: var(--jade); }
+.cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: .35em; margin: .5em 0; }
+.cal .day { background: rgba(120, 80, 30, .08); border-radius: .7em; padding: .35em .2em; display: flex; flex-direction: column; align-items: center; gap: .15em; min-width: 0; }
+.cal .day small { font-size: .7em; opacity: .75; font-weight: 700; }
+.cal .day .dr svg { width: 1.6em; height: 1.6em; color: #c98d0a; }
+.cal .day b { font-size: max(10px, .62em); line-height: 1.15; text-align: center; }
+.cal .day.claimed { background: rgba(31, 138, 99, .16); }
+.cal .day.claimed .dr svg { color: var(--jade); }
+.cal .day.today { background: linear-gradient(#fff3c4, #ffd96a); box-shadow: 0 0 0 2px #f0a91c, 0 0 12px rgba(240, 169, 28, .6); }
+.cal .day.big { background: linear-gradient(#fbe1e8, #f4b6c6); }
+.cal .day.big.today, .cal .day.big.claimed { background: linear-gradient(#fff3c4, #ffd96a); }
+.cal .day.pop { animation: pop .45s cubic-bezier(.2, 1.6, .4, 1); }
+@media (max-width: 520px) { .cal { grid-template-columns: repeat(4, 1fr); } }

@@ -8,6 +8,15 @@ let lastMidgame = Date.now(); // counts from session start so no ad right at the
 let gameplayOn = false;
 let adblock = false, lastRewarded = 0, adBusy = false;
 const hooks = { pause: () => {}, resume: () => {}, muteChange: () => {} };
+let sentOn = false, lastSent = 0, flushT = null;
+function syncGameplay() {
+  clearTimeout(flushT);
+  if (gameplayOn === sentOn) return;
+  const wait = lastSent + 1050 - Date.now();
+  if (wait > 0) { flushT = setTimeout(syncGameplay, wait); return; }
+  sentOn = gameplayOn; lastSent = Date.now();
+  try { if (sdk) (sentOn ? sdk.game.gameplayStart() : sdk.game.gameplayStop()); } catch (e) { /* */ }
+}
 
 export const CG = {
   get env() { return env; },
@@ -40,14 +49,10 @@ export const CG = {
 
   loadingStart() { try { sdk && sdk.game.loadingStart(); } catch (e) { /* */ } },
   loadingStop() { try { sdk && sdk.game.loadingStop(); } catch (e) { /* */ } },
-  gameplayStart() {
-    if (gameplayOn) return; gameplayOn = true;
-    try { sdk && sdk.game.gameplayStart(); } catch (e) { /* */ }
-  },
-  gameplayStop() {
-    if (!gameplayOn) return; gameplayOn = false;
-    try { sdk && sdk.game.gameplayStop(); } catch (e) { /* */ }
-  },
+  // gameplayStart/Stop are coalesced: the SDK throttles calls closer than 1 s (and logs an error), so
+  // rapid toggles (tutorial auto-advance, quick shuffle after "no moves") collapse into the final state.
+  gameplayStart() { gameplayOn = true; syncGameplay(); },
+  gameplayStop() { gameplayOn = false; syncGameplay(); },
   happytime() { try { sdk && sdk.game.happytime(); } catch (e) { /* */ } },
 
   canMidgame() { return Date.now() - lastMidgame >= MIDGAME_MIN_GAP; },
@@ -59,7 +64,8 @@ export const CG = {
     return this._ad('midgame').then((ok) => ok, () => false);
   },
 
-  // Rewarded offers are shown only when an ad can actually play: never with an adblocker
+  // Rewarded offers are shown only when an ad can actually play: never with an adblocker or when the
+  // platform has ads disabled (Basic Launch)
   // (CrazyGames rule: no rewarded buttons that do nothing) and not again right after one was watched.
   rewardedAvailable() { return !adblock && !adBusy && Date.now() - lastRewarded >= REWARDED_COOLDOWN; },
 
@@ -88,7 +94,8 @@ export const CG = {
             adFinished: () => end(true),
             adError: (err) => {
               const code = err && (err.code || err.message || err);
-              if (code === 'adblock') adblock = true;
+              // adblock, or ads switched off (e.g. Basic Launch): hide rewarded offers from now on
+              if (code === 'adblock' || code === 'adsDisabled') adblock = true;
               console.warn('ad error', code); end(false);
             },
           });

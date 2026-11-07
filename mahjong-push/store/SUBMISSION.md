@@ -13,7 +13,7 @@ Field names in the portal may be worded slightly differently; the values below m
 | Account integration / user module | No |
 | Multiplayer | No |
 | In-game purchases (real money) | No (coins are earned in-game only) |
-| Orientation | Landscape (the layout also adapts to portrait; choose "both" if the form offers it) |
+| Orientation | Both (fully tested on phones and tablets in portrait and landscape); if only one can be chosen: Landscape |
 | Mobile support | Yes — touch supported on phones and tablets (portrait and landscape) |
 | Languages | English |
 | Age suitability | Everyone / PEGI 3-level content (no violence, no text chat, no gambling) — compliant with the PEGI 12 requirement |
@@ -45,8 +45,9 @@ Features:
 - Interactive tutorial: learn matching, then sliding
 - Red-cord tied tiles: they match but never slide, and block any chain they are in
 - Tea Rush: fill the meter with fast matches to freeze the clock and earn bonus coins
-- Mega Slides, golden pairs and 16 trophies to collect
-- A Lucky Teapot gift every day
+- Mega Slides, golden pairs and 17 trophies to collect
+- Daily gift calendar: bigger gifts every day, with tile backs and stars on Day 7
+- Hot streaks: clear levels in a row for bonus coins, plus a daily first-win bonus
 - Every teahouse restoration grants a permanent perk (more coins, longer Tea Rush, free undos, extra golden pairs...)
 - Daily guest orders that pay stars and coins, and guests who leave tips
 - Teahouse renovation: 35 restorations across 7 areas, with before/after transformations
@@ -78,6 +79,6 @@ Keyboard: H = Hint, Z = Undo, S = Shuffle, P = Pause.
 | Landscape cover 16:9 | `store/cover_1920x1080.jpg` | 1920×1080, title text only, no borders/icons |
 | Portrait cover 2:3 | `store/cover_800x1200.jpg` | 800×1200, title text only |
 | Square cover 1:1 | `store/cover_800x800.jpg` | 800×800, title text only |
-| Preview video landscape | `store/preview_landscape_1920x1080.mp4` | 1920×1080, 19.6 s, H.264, no audio, 4.6 MB, opens on the cover, no cursor |
-| Preview video portrait | `store/preview_portrait_1080x1620.mp4` | 1080×1620 (2:3), 20.0 s, H.264, no audio, 4.1 MB, opens on the cover, no cursor |
+| Preview video landscape | `store/preview_landscape_1920x1080.mp4` | 1920×1080, 19.7 s, H.264, no audio, 4.8 MB, opens on the cover, no cursor |
+| Preview video portrait | `store/preview_portrait_1080x1620.mp4` | 1080×1620 (2:3), 20.0 s, H.264, no audio, 4.2 MB, opens on the cover, no cursor |
 | Screenshots (if asked) | `store/screenshots/*.jpg` | gameplay, map, teahouse before/after, mobile |
