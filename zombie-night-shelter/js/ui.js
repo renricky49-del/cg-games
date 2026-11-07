@@ -63,8 +63,6 @@ export class HUD {
     act('act-bed', () => this.doAction('bed'));
     act('act-repair', () => this.doAction('repair'));
     act('act-door', () => this.doAction('door'));
-    act('act-adscrap', () => { if (this.g.adScrapUses >= 2) return; this.app.rewarded('scrap'); });
-    act('act-adrepair', () => { if (this.g.adRepairUsed) return; this.app.rewarded('repair'); });
     document.querySelector('.tut-skip').addEventListener('click', () => {
       this.tut = null; $('tutorial').classList.add('hidden'); $('tut-arrow').classList.add('hidden');
       this.app.save.tutDone = true; this.app.persist();
@@ -72,7 +70,7 @@ export class HUD {
     });
     act('act-flash', () => this.armAbility('flash'));
     act('act-molotov', () => this.armAbility('molotov'));
-    for (const id of ['act-bed', 'act-repair', 'act-door', 'act-adscrap', 'act-adrepair', 'act-flash', 'act-molotov']) {
+    for (const id of ['act-bed', 'act-repair', 'act-door', 'act-flash', 'act-molotov']) {
       $(id).addEventListener('mouseenter', () => { this.hoverBtn = id; Audio.play('hover'); });
       $(id).addEventListener('mouseleave', () => { if (this.hoverBtn === id) this.hoverBtn = null; this.hideTip(); });
     }
@@ -230,9 +228,6 @@ export class HUD {
     const cd = g.canDoor(s);
     set('act-door', cd, 'Lv' + room.doorLvl, cb.req && cd.ok ? ' ready' : '');
     $('act-door').querySelector('.sub').textContent = `${fmt(doorMaxHp(room.doorLvl + 1))} HP`;
-    // ads
-    const sc = $('act-adscrap');
-    sc.classList.toggle('hidden', g.adScrapUses >= 2 || g.phase === 'rush');
     for (const k of ['flash', 'molotov']) {
       const el = $(k === 'flash' ? 'act-flash' : 'act-molotov'), c = g.canAbility(k), A = ABILITIES[k];
       const st = 'act abil ' + (c.ok ? 'afford' : c.locked ? 'locked disabled' : 'poor') + (this.aiming === k ? ' armed' : '') + (g.phase === 'rush' ? ' hidden' : '');
@@ -241,8 +236,6 @@ export class HUD {
       const cs = el.querySelector('.cost span'); if (cs.textContent !== t) cs.textContent = t;
       el.querySelector('.cd').style.height = c.cd ? (100 * c.cd / g.abilityCdMax(k)).toFixed(0) + '%' : '0';
     }
-    sc.querySelector('.sub').textContent = '+' + fmt(g.adScrapAmount());
-    $('act-adrepair').classList.toggle('hidden', g.adRepairUsed || g.phase !== 'night' || frac > 0.5);
   }
 
   btnTip(id) {
@@ -259,9 +252,7 @@ export class HUD {
       html = `<b>Repair door (R)</b><br>Restores ${Math.round(g.repairFrac(s) * 100)}% door HP for ${fmt(c.cost)}.<br>Cooldown ${Math.round(g.repairCdMax(s) / PACE)}s.`;
     } else if (id === 'act-door') {
       html = `<b>Door Lv${room.doorLvl} (U)</b><br>Upgrade: max HP ${fmt(g.doorMax(room))} → <span class="good">${fmt(Math.round(g.doorMax(room) * doorMaxHp(room.doorLvl + 1) / doorMaxHp(room.doorLvl)))}</span> and fully repairs.`;
-    } else if (id === 'act-adscrap') html = `<b>Watch an ad</b><br>Get ${fmt(g.adScrapAmount())} scrap instantly. (${2 - g.adScrapUses} left tonight)`;
-    else if (id === 'act-adrepair') html = '<b>Watch an ad</b><br>Fully repair your door. Once per night.';
-    else if (id === 'act-flash' || id === 'act-molotov') {
+    } else if (id === 'act-flash' || id === 'act-molotov') {
       const A = ABILITIES[id === 'act-flash' ? 'flash' : 'molotov'];
       html = `<b>${A.name} (${A.key})</b><br>${A.desc}<br>Recharge ${Math.round(g.abilityCdMax(id === 'act-flash' ? 'flash' : 'molotov') / PACE)}s. Click the button, then click the map (or press ${A.key} with the mouse over the spot).`;
     }

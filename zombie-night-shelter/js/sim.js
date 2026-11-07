@@ -42,8 +42,7 @@ export class Game {
     this.survivors = [];
     this.stats = { earned: 0, built: 0, repairs: 0, bossKilled: false, timeSurvived: 0, realTime: 0, wave: 1, minionsKilled: 0 };
     this.continueUsed = false;
-    this.adRepairUsed = false;
-    this.adScrapUses = 0;
+    this.headStartUsed = false;
     this.abilCd = { flash: 0, molotov: 0 };
     this.fires = [];          // molotov fire zones
     this.crates = [];         // supply drops
@@ -309,7 +308,6 @@ export class Game {
       s.wantLie = true;
     }
   }
-  adScrapAmount() { return Math.max(150, Math.round(this.income(this.player) * 40)); }
   // ---------------------------------------------------------- player abilities
   abilityCdMax(k) { return ABILITIES[k].cd * ((this.hero.cd && this.hero.cd[k]) || 1); }
   abilityUnlocked(k) { return this.endless || ABILITIES[k].unlock <= this.night.n; }

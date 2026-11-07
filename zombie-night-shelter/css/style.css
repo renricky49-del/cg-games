@@ -246,6 +246,7 @@ canvas#game.aim { cursor: crosshair; }
 #res-stats span:nth-child(even) { color: var(--gold); text-align: right; }
 #res-medals { display: flex; align-items: center; gap: 6px; font-size: 30px; color: var(--gold); }
 #res-medals img { width: 40px; }
+body.no-ads .ad { display: none !important; }
 .fake-ad { position: fixed; inset: 0; z-index: 100; background: #000; color: #fff; display: grid; place-items: center; font: 24px system-ui, sans-serif; }
 
 /* ---------------- Responsive ---------------- */

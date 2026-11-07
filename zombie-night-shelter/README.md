@@ -131,9 +131,12 @@ earnings) Nights 7–12 become 75–100 % survivable. The game expects players t
 - `loadingStart/Stop` around asset loading; `gameplayStart` when a night begins / resumes, `gameplayStop` on pause,
   results, menus and during ads; `happytime` on wins.
 - Midgame ad when starting a night from results/night select — never on the first night of a session, at most every 3 min.
-- Rewarded ads only on explicit buttons: "Free scrap" (2× per night), "Full repair" (once per night, shown when the door
-  is below 50 %), "Continue" after your door breaks (once per night), "Double medals" on the results screen.
-  Ad failure / adblock → toast "Ad not available right now", no reward.
+- Rewarded ads only on explicit buttons and never on the active gameplay screen: "Head start" on the pre-night card,
+  "Continue" on the door-broken screen (once per night), "Double medals" on the results screen, "Claim double" on the
+  daily-supplies card. Ad failure → toast, no reward. `adsDisabled` (Basic Launch) / `adblock` errors or
+  `ad.hasAdblock()` hide every rewarded button for the session (`body.no-ads`) so no button is left without effect.
+- Escape never pauses (it exits fullscreen on CrazyGames); it only closes menus. Focus loss pauses locally without
+  sending `gameplayStop` (the platform handles focus).
 - Audio muted + game paused in `adStarted`, restored in `adFinished`/`adError`; respects `SDK.game.settings.muteAudio`
   and the settings-change listener.
 - Saves via `SDK.data.setItem/getItem` with localStorage fallback (all storage access wrapped in try/catch).

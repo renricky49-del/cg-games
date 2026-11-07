@@ -42,7 +42,7 @@ const App = {
     this.bindUI();
     this.bindInput();
     window.addEventListener('resize', () => { this.renderer.resize(); this.hud.layout(); });
-    document.addEventListener('visibilitychange', () => { if (document.hidden && this.screen === 'game' && !this.paused && this.game && !this.isOver()) this.pause(); });
+    document.addEventListener('visibilitychange', () => { if (document.hidden && this.screen === 'game' && !this.paused && this.game && !this.isOver()) this.pause(true); });
     this.showTitle();
     let last = performance.now();
     const loop = (now) => {
@@ -197,6 +197,9 @@ const App = {
     const HS = SKINS.find((q) => q.id === this.save.skin) || SKINS[0], H = HEROES[HS.id];
     $('intro-hero').innerHTML = `<img src="assets/img/${HS.id}.png" alt=""><span><b>${HS.name} · ${H.title}</b><br>${H.desc}</span>`;
     this.prepareGame(night);
+    const hs = $('btn-headstart'); hs.classList.remove('off');
+    hs.innerHTML = `<img src="assets/img/i_ad.png" alt=""> Head start: +${this.headStartAmount()} scrap`;
+    this.applyAdsOff();
     this.show('intro');
     $('hud').classList.add('hidden');
   },
@@ -224,9 +227,9 @@ const App = {
     Audio.play('alarm');
   },
 
-  pause() {
+  pause(focusLoss) {
     if (!this.game || this.isOver()) return;
-    this.paused = true; CG.gameplayStop();
+    this.paused = true; if (!focusLoss) CG.gameplayStop();
     $('pause-music').checked = this.save.music; $('pause-sfx').checked = this.save.sfx;
     this.show('pause');
   },
@@ -371,9 +374,12 @@ const App = {
   async rewarded(kind) {
     const g = this.game;
     const ok = await CG.requestAd('rewarded');
-    if (!ok) { this.toast('Ad not available right now', 'bad'); return false; }
-    if (kind === 'scrap' && g) { const n = g.adScrapAmount(); g.adScrapUses++; g.grantScrap(g.player, n); Audio.play('upgrade'); }
-    if (kind === 'repair' && g) { g.adRepairUsed = true; g.fullRepair(g.player); Audio.play('repair'); }
+    if (!ok) { this.toast(CG.adsOff ? 'Ads are not available right now' : 'Ad not available right now', 'bad'); this.applyAdsOff(); return false; }
+    if (kind === 'headstart' && g && !g.headStartUsed) {
+      g.headStartUsed = true; g.player.scrap += this.headStartAmount(); g.player.earned += this.headStartAmount();
+      $('btn-headstart').classList.add('off'); $('btn-headstart').innerHTML = `<img src="assets/img/i_ad.png" alt=""> +${this.headStartAmount()} scrap ready!`;
+      Audio.play('upgrade');
+    }
     if (kind === 'continue' && g) {
       if (g.continueAfterLoss()) { this.resultsShown = false; this.endTimer = 0; this.show(null); CG.gameplayStart(); this.hud.banner('BACK IN THE FIGHT!', 'Door rebuilt', 1.6); }
     }
@@ -386,6 +392,10 @@ const App = {
   },
 
   toast(text, cls) { this.hud.toast(text, cls); },
+  // optional rewarded bonus offered on the pre-night card only (never on the active gameplay screen)
+  headStartAmount() { const n = this.game && this.game.night && this.game.night.n; return n ? 80 + 20 * n : 200; },
+  // ads disabled for this session (Basic Launch, adblock, kids mode): hide every rewarded button instead of leaving dead buttons
+  applyAdsOff() { if (CG.adsOff) document.body.classList.add('no-ads'); },
 
   // ---------------------------------------------------------------- UI bindings
   bindUI() {
@@ -418,6 +428,7 @@ const App = {
       this.persist(); this.toast('Progress reset'); this.showTitle();
     });
     click('btn-start', () => this.beginPlay());
+    click('btn-headstart', () => { if (this.game && !this.game.headStartUsed && !CG.adActive) this.rewarded('headstart'); });
     click('btn-daily', () => this.claimDaily(false));
     click('btn-daily-ad', () => this.claimDaily(true));
     click('btn-pause', () => this.pause());
@@ -508,11 +519,11 @@ const App = {
     window.addEventListener('keydown', (e) => {
       const k = e.key.toLowerCase();
       if (this.screen !== 'game' || !this.game) {
-        if ((k === 'escape' || k === 'p') && this.screen === 'pause') this.resume();
+        if (k === 'p' && this.screen === 'pause') this.resume();
         return;
       }
       if (moveKeys[k]) { keys.add(k); applyMove(); e.preventDefault(); return; }
-      if (k === 'escape') { if (this.hud.aiming) { this.hud.aiming = null; this.renderer.aim = null; $('game').classList.remove('aim'); return; } if (this.hud.menuOpen()) this.hud.closeMenus(); else this.pause(); return; }
+      if (k === 'escape') { if (this.hud.aiming) { this.hud.aiming = null; this.renderer.aim = null; $('game').classList.remove('aim'); return; } if (this.hud.menuOpen()) this.hud.closeMenus(); return; }
       if (k === 'p') { this.pause(); return; }
       if (e.repeat) return;
       this.hud.hotkey(k);

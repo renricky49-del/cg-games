@@ -13,6 +13,7 @@ export const CG = {
   ready: false,
   inGameplay: false,
   adActive: false,
+  adsOff: false,     // true once the SDK says ads are disabled for this session or an adblocker is detected
   onAdStart: null,   // set by game: pause + mute
   onAdEnd: null,     // set by game: resume + unmute
   onMuteChange: null,
@@ -26,6 +27,9 @@ export const CG = {
         this.env = S.environment || 'crazygames';
         // 'local' (localhost) and 'disabled' (not on CrazyGames) run in standalone mode with simulated ads
         if (this.env === 'disabled' || this.env === 'local') this.sdk = null;
+        if (this.sdk && this.sdk.ad && this.sdk.ad.hasAdblock) {
+          try { if (await this.sdk.ad.hasAdblock()) this.adsOff = true; } catch (e) { /* ignore */ }
+        }
         if (this.sdk && this.sdk.game && this.sdk.game.addSettingsChangeListener) {
           try {
             this.sdk.game.addSettingsChangeListener((s) => {
@@ -79,7 +83,12 @@ export const CG = {
           this.sdk.ad.requestAd(type, {
             adStarted: start,
             adFinished: () => finish(true),
-            adError: (err) => { console.warn('[cg] ad error', err && err.code); finish(false); },
+            adError: (err) => {
+              const code = err && err.code;
+              console.warn('[cg] ad error', code);
+              if (code === 'adsDisabled' || code === 'adblock' || code === 'adsDisabledBasicLaunch') this.adsOff = true;
+              finish(false);
+            },
           });
         } catch (e) { finish(false); }
         return;
