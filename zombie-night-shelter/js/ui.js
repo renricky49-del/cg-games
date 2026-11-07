@@ -225,6 +225,7 @@ export class HUD {
     const cr = g.canRepair(s);
     const frac = g.minDoorFrac(room);
     set('act-repair', cr, null, cr.ok && frac < 0.5 ? ' ready' : '');
+    { const rs = `+${Math.round(g.repairFrac(s) * 100)}% door`, se = $('act-repair').querySelector('.sub'); if (se.textContent !== rs) se.textContent = rs; }
     $('act-repair').querySelector('.cd').style.height = cr.cd ? (100 * cr.cd / g.repairCdMax(s)).toFixed(0) + '%' : '0';
     const cd = g.canDoor(s);
     set('act-door', cd, 'Lv' + room.doorLvl, cb.req && cd.ok ? ' ready' : '');
@@ -238,7 +239,7 @@ export class HUD {
       if (el.className !== st) el.className = st;
       const t = c.locked ? `Night ${A.unlock}` : c.cd ? `${Math.ceil(c.cd / PACE)}s` : this.aiming === k ? 'Aim!' : 'Ready';
       const cs = el.querySelector('.cost span'); if (cs.textContent !== t) cs.textContent = t;
-      el.querySelector('.cd').style.height = c.cd ? (100 * c.cd / A.cd).toFixed(0) + '%' : '0';
+      el.querySelector('.cd').style.height = c.cd ? (100 * c.cd / g.abilityCdMax(k)).toFixed(0) + '%' : '0';
     }
     sc.querySelector('.sub').textContent = '+' + fmt(g.adScrapAmount());
     $('act-adrepair').classList.toggle('hidden', g.adRepairUsed || g.phase !== 'night' || frac > 0.5);
@@ -255,14 +256,14 @@ export class HUD {
       if (!c.max) html += `<br><small>Lv${room.bedLvl + 2} will need Door Lv${bedDoorReq(room.bedLvl + 2)}</small>`;
     } else if (id === 'act-repair') {
       const c = g.canRepair(s);
-      html = `<b>Repair door (R)</b><br>Restores ${Math.round(REPAIR_FRAC * 100)}% door HP for ${fmt(c.cost)}.<br>Cooldown ${Math.round(g.repairCdMax(s) / PACE)}s.`;
+      html = `<b>Repair door (R)</b><br>Restores ${Math.round(g.repairFrac(s) * 100)}% door HP for ${fmt(c.cost)}.<br>Cooldown ${Math.round(g.repairCdMax(s) / PACE)}s.`;
     } else if (id === 'act-door') {
       html = `<b>Door Lv${room.doorLvl} (U)</b><br>Upgrade: max HP ${fmt(g.doorMax(room))} → <span class="good">${fmt(Math.round(g.doorMax(room) * doorMaxHp(room.doorLvl + 1) / doorMaxHp(room.doorLvl)))}</span> and fully repairs.`;
     } else if (id === 'act-adscrap') html = `<b>Watch an ad</b><br>Get ${fmt(g.adScrapAmount())} scrap instantly. (${2 - g.adScrapUses} left tonight)`;
     else if (id === 'act-adrepair') html = '<b>Watch an ad</b><br>Fully repair your door. Once per night.';
     else if (id === 'act-flash' || id === 'act-molotov') {
       const A = ABILITIES[id === 'act-flash' ? 'flash' : 'molotov'];
-      html = `<b>${A.name} (${A.key})</b><br>${A.desc}<br>Recharge ${Math.round(A.cd / PACE)}s. Click the button, then click the map (or press ${A.key} with the mouse over the spot).`;
+      html = `<b>${A.name} (${A.key})</b><br>${A.desc}<br>Recharge ${Math.round(g.abilityCdMax(id === 'act-flash' ? 'flash' : 'molotov') / PACE)}s. Click the button, then click the map (or press ${A.key} with the mouse over the spot).`;
     }
     const r = $(id).getBoundingClientRect();
     this.showTip(html, r.left + r.width / 2, r.top - 8, true);
@@ -381,11 +382,10 @@ export class HUD {
     for (const el of this.bm.querySelectorAll('.bm-item')) {
       const type = el.dataset.type, c = g.canBuild(s, type, t.tx, t.ty);
       const cls = 'bm-item ' + (c.ok ? 'ok' : c.locked ? 'locked' : c.power ? 'nopower' : 'poor');
-      if (el.className !== cls) {
-        el.className = cls;
-        const cv = el.querySelector('.cv');
-        cv.textContent = c.locked ? `Night ${BUILDINGS[type].unlock}` : c.power ? `${BUILDINGS[type].power}⚡` : fmt(BUILDINGS[type].cost);
-      }
+      if (el.className !== cls) el.className = cls;
+      const cv = el.querySelector('.cv');
+      const ct = c.locked ? `Night ${BUILDINGS[type].unlock}` : c.power ? `${g.powerOf(type, s.room)}⚡` : fmt(c.cost);
+      if (cv.textContent !== ct) cv.textContent = ct;
     }
     if (this.bmHover) {
       const c = g.canBuild(s, this.bmHover, t.tx, t.ty);
@@ -395,8 +395,8 @@ export class HUD {
   bmTip(type, el) {
     const g = this.g, D = BUILDINGS[type], t = this.bmTile;
     const c = g.canBuild(g.player, type, t.tx, t.ty);
-    let html = `<b>${D.name}</b> · ${fmt(D.cost)} scrap${D.power > 0 ? ` · ${D.power}⚡ power` : D.power < 0 ? ` · +${-D.power}⚡` : ''}<br>${D.desc}`;
-    if (D.kind === 'turret') { const st = turretStats(type, 1, g.perks); html += `<br>Damage ${fmt(st.dmg)} · ${st.rate.toFixed(1)}/s · Range ${st.range.toFixed(1)}`; }
+    let html = `<b>${D.name}</b> · ${fmt(c.cost)} scrap${D.power > 0 ? ` · ${g.powerOf(type, g.player.room)}⚡ power` : D.power < 0 ? ` · +${-D.power}⚡` : ''}<br>${D.desc}`;
+    if (D.kind === 'turret') { const st = turretStats(type, 1, g.pperks); html += `<br>Damage ${fmt(st.dmg)} · ${st.rate.toFixed(1)}/s · Range ${st.range.toFixed(1)}`; }
     if (!c.ok) html += `<br><span class="bad">${c.reason}</span>`;
     // show under the menu (or above it when there is no room below) so it never covers the items
     const m = this.bm.getBoundingClientRect();
@@ -428,7 +428,7 @@ export class HUD {
       html = `<button class="x" data-a="close">&times;</button><h3><img src="assets/img/${spriteFor(b.type, b.lvl)}.png" alt="">${D.name} <small>Lv${b.lvl}</small></h3><div class="desc">${D.desc}${b.disabledT > 0 ? '<br><span style="color:#b8e02a">Jammed by acid!</span>' : ''}</div>`;
       const nx = !cu.max;
       if (D.kind === 'turret') {
-        const a = turretStats(b.type, b.lvl, g.perks), n = turretStats(b.type, b.lvl + 1, g.perks);
+        const a = turretStats(b.type, b.lvl, g.pperks), n = turretStats(b.type, b.lvl + 1, g.pperks);
         html += stat('Damage', fmt(a.dmg), nx ? fmt(n.dmg) : null) + stat('Fire rate', a.rate.toFixed(2) + '/s', nx ? n.rate.toFixed(2) + '/s' : null) + stat('Range', a.range.toFixed(1), nx ? n.range.toFixed(1) : null);
       } else if (b.type === 'generator') html += stat('Power', '+' + D.powerUp * b.lvl, nx ? '+' + D.powerUp * (b.lvl + 1) : null);
       else if (b.type === 'freezer') html += stat('Slow', Math.round(100 * Math.min(D.slowMax, D.slow + D.slowUp * (b.lvl - 1))) + '%', nx ? Math.round(100 * Math.min(D.slowMax, D.slow + D.slowUp * b.lvl)) + '%' : null) + stat('Range', (D.range + D.rangeUp * (b.lvl - 1)).toFixed(1), nx ? (D.range + D.rangeUp * b.lvl).toFixed(1) : null);

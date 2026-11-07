@@ -102,10 +102,11 @@ export function totalSpent(type, lvl) {
 export function turretStats(type, lvl, perks) {
   const b = BUILDINGS[type];
   const dmgPerk = 1 + 0.08 * (perks ? perks.dmg || 0 : 0);
+  const h = (perks && perks.hero) || {}; // the player's survivor bonus
   return {
-    dmg: b.dmg * Math.pow(b.dmgMul, lvl - 1) * dmgPerk,
-    rate: b.rate * (1 + 0.04 * (lvl - 1)),
-    range: b.range + b.rangeUp * (lvl - 1),
+    dmg: b.dmg * Math.pow(b.dmgMul, lvl - 1) * dmgPerk * ((h.dmg && h.dmg[type]) || 1),
+    rate: b.rate * (1 + 0.04 * (lvl - 1)) * ((h.rate && h.rate[type]) || 1),
+    range: b.range + b.rangeUp * (lvl - 1) + ((h.range && h.range[type]) || 0),
   };
 }
 export function spriteFor(type, lvl) {
@@ -213,6 +214,22 @@ export const SKINS = [
   { id: 's10', name: 'Granny Mae', stars: 55 },
   { id: 's11', name: 'Cosmo', stars: 63 },
 ];
+// Every survivor has a passive bonus that applies to the player while they play as them.
+export const HEROES = {
+  s0: { title: 'Handyman', desc: 'Repairs restore 45% instead of 35%.', repair: 0.10 },
+  s1: { title: 'Sprinter', desc: '+35% running speed in the room rush and +40 starting scrap.', speed: 1.35, startScrap: 40 },
+  s6: { title: 'Lucky Rabbit', desc: 'Supply crates drop 30% more often and give +50% scrap.', crateEvery: 0.7, crateScrap: 1.5 },
+  s2: { title: 'Drill Sergeant', desc: 'Nail Guns fire 20% faster.', rate: { nail: 1.2 } },
+  s7: { title: 'Head Chef', desc: 'Vending Machines make +50% scrap, bed income +5%.', vending: 1.5, bed: 0.05 },
+  s3: { title: 'Sharpshooter', desc: 'Crossbows deal +25% damage and reach +0.5 tiles further.', dmg: { bow: 1.25 }, range: { bow: 0.5 } },
+  s8: { title: 'Contractor', desc: 'All buildings and their upgrades cost 15% less.', buildCost: 0.85 },
+  s4: { title: 'Pyromaniac', desc: 'Fire Sprayers and Molotovs deal +30% damage; Molotov recharges 25% faster.', dmg: { flame: 1.3 }, molotovDmg: 1.3, cd: { molotov: 0.75 } },
+  s9: { title: 'Ironclad', desc: 'Door upgrades cost 15% less and Spike Traps reflect +50% more.', doorCost: 0.85, reflect: 1.5 },
+  s5: { title: 'Frostbite', desc: 'Chill Traps slow 15% more; Flashbang stuns last 50% longer.', slow: 0.15, stun: 1.5 },
+  s10: { title: 'Good Neighbour', desc: 'Helping allies costs 30% less, team bounties pay +50%, and allies return favours more readily.', aidCost: 0.7, bounty: 1.5, goodwill: 1.5 },
+  s11: { title: 'Tech Whiz', desc: 'Tesla Coils deal +30% damage and need 1 less power; abilities recharge 20% faster.', dmg: { tesla: 1.3 }, teslaPower: 1, cd: { flash: 0.8, molotov: 0.8 } },
+};
+
 // thresholds before the 22-night update; used once to keep skins old saves had already unlocked
 export const OLD_SKIN_STARS = { s0: 0, s1: 3, s6: 5, s2: 8, s7: 10, s3: 14, s8: 17, s4: 20, s9: 24, s5: 27, s10: 30, s11: 36 };
 

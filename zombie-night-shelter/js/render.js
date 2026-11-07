@@ -811,7 +811,7 @@ export class Renderer {
     if (!type) { this.preview = null; return; }
     const D = BUILDINGS[type];
     let r = D.range ? D.range + (D.rangeUp || 0) * (lvl - 1) : 0.6;
-    if (D.kind === 'turret') r = turretStats(type, lvl).range;
+    if (D.kind === 'turret') r = turretStats(type, lvl, this.g && this.g.pperks).range;
     this.preview = {
       x: tx + 0.5, y: ty + 0.5, r,
       color: ok ? 'rgba(125,255,138,0.9)' : 'rgba(255,90,70,0.9)',

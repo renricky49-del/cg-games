@@ -228,6 +228,10 @@ canvas#game.aim { cursor: crosshair; }
 @keyframes float { to { transform: translateY(-10px) scale(1.04); } }
 .intro-name { font-size: 36px; color: var(--red); text-shadow: 0 3px 0 #000; }
 .intro-desc { font-family: system-ui, sans-serif; color: var(--muted); font-size: 15px; }
+.intro-hero { font-size: 14px; color: #ffd84a; font-family: system-ui, sans-serif; display: flex; align-items: center; gap: 8px; text-align: left; max-width: 360px; }
+.intro-hero img { width: 36px; height: 36px; object-fit: contain; }
+.skin .bonus { font-size: 11px; color: var(--muted); font-family: system-ui, sans-serif; text-align: center; line-height: 1.25; }
+.skin .bonus b { color: var(--gold); font-family: var(--font); font-weight: normal; font-size: 13px; display: block; }
 .intro-unlock { font-size: 17px; color: var(--green); }
 #daily-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; width: 100%; }
 .day { background: var(--panel); border: 2px solid var(--line); border-radius: 10px; padding: 4px 2px; display: flex; flex-direction: column; align-items: center; font-size: 12px; gap: 2px; }

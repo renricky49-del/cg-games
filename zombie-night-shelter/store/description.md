@@ -29,7 +29,7 @@ Survive until dawn for a star, keep every ally alive for two, and destroy every 
 - Co-op with AI allies: send scrap, repair or reinforce their doors, and they help you back; team bounty for every boss kill
 - Boss levels up as it smashes doors — escalating tension every night
 - Interactive tutorial on Night 1
-- Permanent perks, 12 unlockable survivors, star ratings for every night
+- Permanent perks, 12 unlockable survivors with their own bonuses, star ratings for every night
 - Mouse-first controls with hotkeys, full touch support
 
 ## Controls

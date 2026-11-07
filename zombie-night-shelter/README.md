@@ -152,6 +152,11 @@ earnings) Nights 7–12 become 75–100 % survivable. The game expects players t
   auto-rest on arrival to reduce friction.
 - Speed toggle (x1/x2) added for idle-style players.
 - The camera follows the player during the rush until they pan manually; drag/pinch/wheel to look around.
+- Every survivor has a passive bonus for the player (`HEROES` in data.js): Rook repairs 45 %, Dash runs 35 % faster + 40
+  scrap, Bun gets more/better crates, Sarge +20 % Nail Gun rate, Chef Remy +50 % vending / +5 % bed, Ivy +25 % crossbow
+  damage +0.5 range, Hardhat −15 % building costs, Flash +30 % fire damage / faster Molotov, Spike −15 % door upgrades +50 %
+  spike reflect, Drizzle stronger chill + longer flashbang, Granny Mae cheaper aid / +50 % team bounty / more goodwill,
+  Cosmo +30 % Tesla, −1 Tesla power, −20 % ability recharge. Shown on the Survivors screen and the night intro.
 - 12 survivor skins (6 extra generated in the polish pass), unlocked by total stars: 0, 3, 7, 12, 17, 23, 29, 34, 40, 47, 55, 63
   (max 66; the last three need stars from Nights 13–22). Unlocked skins are kept in `save.skinsOwned`, and saves from before
   the 22-night update keep whatever the old thresholds had unlocked.

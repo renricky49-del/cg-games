@@ -4,7 +4,7 @@ import { Audio } from './audio.js';
 import { loadImages, IMG } from './assets.js';
 import { Renderer, TS } from './render.js';
 import { Game, fmt } from './sim.js';
-import { NIGHTS, ENDLESS, BOSSES, bossKinds, nightKinds, ABILITIES, PERKS, SKINS, OLD_SKIN_STARS, BUILD_ORDER, BUILDINGS } from './data.js';
+import { NIGHTS, ENDLESS, BOSSES, bossKinds, nightKinds, ABILITIES, PERKS, SKINS, HEROES, OLD_SKIN_STARS, BUILD_ORDER, BUILDINGS } from './data.js';
 import { roomAt } from './map.js';
 import { HUD } from './ui.js';
 
@@ -160,7 +160,7 @@ const App = {
       const un = this.skinOwned(S, stars);
       const el = document.createElement('button');
       el.className = 'skin' + (this.save.skin === S.id ? ' sel' : '') + (un ? '' : ' locked');
-      el.innerHTML = `<img class="p" src="assets/img/${S.id}.png" alt=""><div>${S.name}</div>${un ? (this.save.skin === S.id ? '<div class="req">Selected</div>' : '<div class="req">Tap to pick</div>') : `<div class="req"><img src="assets/img/i_star.png" alt="">${S.stars}</div>`}`;
+      el.innerHTML = `<img class="p" src="assets/img/${S.id}.png" alt=""><div>${S.name}</div><div class="bonus"><b>${HEROES[S.id].title}</b>${HEROES[S.id].desc}</div>${un ? (this.save.skin === S.id ? '<div class="req">Selected</div>' : '<div class="req">Tap to pick</div>') : `<div class="req"><img src="assets/img/i_star.png" alt="">${S.stars}</div>`}`;
       el.onclick = () => { if (!un) { Audio.play('error'); this.toast(`Collect ${S.stars} stars to unlock ${S.name}`); return; } this.save.skin = S.id; this.persist(); Audio.play('click'); this.showSkins(); };
       grid.appendChild(el);
     }
@@ -194,6 +194,8 @@ const App = {
     const newB = idx < 0 ? null : BUILD_ORDER.filter((t) => BUILDINGS[t].unlock === night.n).map((t) => BUILDINGS[t].name)
       .concat(Object.values(ABILITIES).filter((a) => a.unlock === night.n).map((a) => `${a.name} (${a.key})`));
     $('intro-unlock').textContent = newB && newB.length ? 'New: ' + newB.join(', ') + '!' : '';
+    const HS = SKINS.find((q) => q.id === this.save.skin) || SKINS[0], H = HEROES[HS.id];
+    $('intro-hero').innerHTML = `<img src="assets/img/${HS.id}.png" alt=""><span><b>${HS.name} · ${H.title}</b><br>${H.desc}</span>`;
     this.prepareGame(night);
     this.show('intro');
     $('hud').classList.add('hidden');

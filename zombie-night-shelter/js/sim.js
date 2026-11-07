@@ -2,7 +2,7 @@
 import {
   RUSH_TIME, GRACE_TIME, PACE, AI_COUNT, AID_FRAC, AID_FRAC_REPAIR, AID_CD, TEAM_BOUNTY_S, MAX_BED, MAX_DOOR, bedIncome, bedCost, bedDoorReq,
   doorMaxHp, doorCost, repairCost, REPAIR_FRAC, REPAIR_CD,
-  BUILDINGS, upgradeCost, totalSpent, turretStats, BOSSES, bossBase, bossKinds, nightKinds, GROUP_HP, GROUP_DMG, HUNT_CHANCE, ABILITIES, CRATE_EVERY, CRATE_LIFE, BOSS_LVL_HP, BOSS_LVL_DMG, bossXpNeed,
+  BUILDINGS, HEROES, upgradeCost, totalSpent, turretStats, BOSSES, bossBase, bossKinds, nightKinds, GROUP_HP, GROUP_DMG, HUNT_CHANCE, ABILITIES, CRATE_EVERY, CRATE_LIFE, BOSS_LVL_HP, BOSS_LVL_DMG, bossXpNeed,
   PERSONALITIES, AI_NAMES,
 } from './data.js';
 import { buildMap } from './map.js';
@@ -73,11 +73,14 @@ export class Game {
         pers: isPlayer ? PERSONALITIES[3] : pers[(i - 1) % pers.length],
         aiT: 0, goal: null, targetRoom: null, decideDelay: 0, walkT: 0, vx: 0, vy: 0, deadT: 0,
       };
-      if (isPlayer) s.scrap = 25 * (this.perks.start || 0);
+      if (isPlayer) s.scrap = 25 * (this.perks.start || 0) + ((HEROES[s.skin] || {}).startScrap || 0);
+      if (isPlayer) s.speed *= (HEROES[s.skin] || {}).speed || 1;
       if (!isPlayer) s.decideDelay = 0.4 + this.rng() * 2.5 * s.pers.react;
       this.survivors.push(s);
     }
     this.player = this.survivors[0];
+    this.hero = HEROES[this.player.skin] || {};           // the player's survivor bonus
+    this.pperks = Object.assign({}, this.perks, { hero: this.hero }); // perks + hero, for the player's turrets
     // two bosses per night
     this.bosses = this._makeBossGroup(nightKinds(this.night), this.diff, this.night.lvl || 1);
   }
@@ -111,9 +114,9 @@ export class Game {
     if (!s.room || s.state !== 'inroom') return 0;
     const r = s.room;
     let inc = s.lying ? bedIncome(r.bedLvl) : 0;
-    if (s.isPlayer) inc *= 1 + 0.1 * (this.perks.bed || 0);
+    if (s.isPlayer) inc *= 1 + 0.1 * (this.perks.bed || 0) + (this.hero.bed || 0);
     for (const b of r.buildings) {
-      if (b.type === 'vending' && b.disabledT <= 0) inc += BUILDINGS.vending.income * Math.pow(BUILDINGS.vending.incomeMul, b.lvl - 1);
+      if (b.type === 'vending' && b.disabledT <= 0) inc += BUILDINGS.vending.income * Math.pow(BUILDINGS.vending.incomeMul, b.lvl - 1) * (s.isPlayer ? this.hero.vending || 1 : 1);
     }
     return inc;
   }
@@ -122,10 +125,16 @@ export class Game {
     for (const b of room.buildings) {
       const d = BUILDINGS[b.type];
       if (b.type === 'generator') cap += d.powerUp * b.lvl;
-      else used += d.power;
+      else used += this.powerOf(b.type, room);
     }
     return { cap, used };
   }
+  powerOf(type, room) {
+    const p = BUILDINGS[type].power;
+    return type === 'tesla' && room && room.owner && room.owner.isPlayer ? Math.max(0, p - (this.hero.teslaPower || 0)) : p;
+  }
+  costMul(s, kind) { return s && s.isPlayer ? (kind === 'door' ? this.hero.doorCost : this.hero.buildCost) || 1 : 1; }
+  repairFrac(s) { return REPAIR_FRAC + (s && s.isPlayer ? this.hero.repair || 0 : 0); }
   repairCdMax(s) { return REPAIR_CD * (s && s.isPlayer ? 1 - 0.12 * (this.perks.fix || 0) : 1); }
   unlocked(type) {
     if (this.endless) return true;
@@ -154,7 +163,7 @@ export class Game {
   canDoor(s) {
     const r = s.room; if (!r || !r.alive) return { ok: false, reason: 'No room' };
     if (r.doorLvl >= MAX_DOOR) return { ok: false, reason: 'Max level', max: true };
-    const cost = doorCost(r.doorLvl);
+    const cost = Math.round(doorCost(r.doorLvl) * this.costMul(s, 'door'));
     if (s.scrap < cost) return { ok: false, reason: 'Not enough scrap', cost, poor: true };
     return { ok: true, cost };
   }
@@ -177,7 +186,7 @@ export class Game {
     const r = s.room, m = this.doorMax(r);
     s.scrap -= c.cost; r.repairCd = this.repairCdMax(s);
     for (const d of r.doors) {
-      d.hp = Math.min(m, d.hp + m * REPAIR_FRAC);
+      d.hp = Math.min(m, d.hp + m * this.repairFrac(s));
       this.emit('repair', { room: r, s, x: d.tx + 0.5, y: d.ty + 0.5 });
     }
     if (s.isPlayer) this.stats.repairs++;
@@ -194,8 +203,9 @@ export class Game {
       if (s.scrap < 20) return { ok: false, reason: 'Not enough scrap', cost: 20, poor: true };
       return { ok: true, cost: amount, amount };
     }
+    const aidMul = s.isPlayer ? this.hero.aidCost || 1 : 1;
     if (kind === 'repair') {
-      const cost = repairCost(room.doorLvl);
+      const cost = Math.round(repairCost(room.doorLvl) * aidMul);
       if (room.aidCd > 0) return { ok: false, reason: 'Cooling down', cost, cd: room.aidCd };
       if (this.minDoorFrac(room) >= 0.999) return { ok: false, reason: 'Their door is full', cost, full: true };
       if (s.scrap < cost) return { ok: false, reason: 'Not enough scrap', cost, poor: true };
@@ -203,7 +213,7 @@ export class Game {
     }
     if (kind === 'reinforce') {
       if (room.doorLvl >= MAX_DOOR) return { ok: false, reason: 'Max level', max: true };
-      const cost = doorCost(room.doorLvl);
+      const cost = Math.round(doorCost(room.doorLvl) * aidMul);
       if (s.scrap < cost) return { ok: false, reason: 'Not enough scrap', cost, poor: true };
       return { ok: true, cost };
     }
@@ -221,7 +231,7 @@ export class Game {
     if (kind === 'reinforce') { room.doorLvl++; this._setDoorHpFull(room); }
     // goodwill: survivors remember who helped them and return the favour
     o.goodwill = o.goodwill || {};
-    o.goodwill[s.id] = (o.goodwill[s.id] || 0) + c.cost;
+    o.goodwill[s.id] = (o.goodwill[s.id] || 0) + c.cost / (s.isPlayer && this.hero.aidCost ? this.hero.aidCost : 1) * (s.isPlayer ? this.hero.goodwill || 1 : 1);
     s.aidGiven = (s.aidGiven || 0) + 1;
     if (s.isPlayer) this.stats.aid = (this.stats.aid || 0) + 1;
     if (o.isPlayer) this.stats.aidReceived = (this.stats.aidReceived || 0) + 1;
@@ -240,15 +250,15 @@ export class Game {
   }
   canBuild(s, type, tx, ty) {
     const r = s.room; if (!r || !r.alive || s.state !== 'inroom') return { ok: false, reason: 'No room' };
-    const d = BUILDINGS[type];
-    if (!this.unlocked(type)) return { ok: false, reason: `Unlocks on Night ${d.unlock}`, locked: true, cost: d.cost };
-    if (tx != null && !this.tileFree(r, tx, ty)) return { ok: false, reason: 'Tile occupied', cost: d.cost };
-    if (d.power > 0) {
+    const d = BUILDINGS[type], cost = Math.round(d.cost * this.costMul(s, 'build')), pw = this.powerOf(type, r);
+    if (!this.unlocked(type)) return { ok: false, reason: `Unlocks on Night ${d.unlock}`, locked: true, cost };
+    if (tx != null && !this.tileFree(r, tx, ty)) return { ok: false, reason: 'Tile occupied', cost };
+    if (pw > 0) {
       const p = this.power(r);
-      if (p.used + d.power > p.cap) return { ok: false, reason: `Needs ${d.power} power`, cost: d.cost, power: true };
+      if (p.used + pw > p.cap) return { ok: false, reason: `Needs ${pw} power`, cost, power: true };
     }
-    if (s.scrap < d.cost) return { ok: false, reason: 'Not enough scrap', cost: d.cost, poor: true };
-    return { ok: true, cost: d.cost };
+    if (s.scrap < cost) return { ok: false, reason: 'Not enough scrap', cost, poor: true };
+    return { ok: true, cost };
   }
   build(s, type, tx, ty) {
     const c = this.canBuild(s, type, tx, ty); if (!c.ok) return c;
@@ -262,7 +272,7 @@ export class Game {
   canUpgradeB(s, b) {
     const d = BUILDINGS[b.type];
     if (b.lvl >= d.maxLvl) return { ok: false, reason: 'Max level', max: true };
-    const cost = upgradeCost(b.type, b.lvl);
+    const cost = Math.round(upgradeCost(b.type, b.lvl) * this.costMul(s, 'build'));
     if (s.scrap < cost) return { ok: false, reason: 'Not enough scrap', cost, poor: true };
     return { ok: true, cost };
   }
@@ -300,6 +310,7 @@ export class Game {
   }
   adScrapAmount() { return Math.max(150, Math.round(this.income(this.player) * 40)); }
   // ---------------------------------------------------------- player abilities
+  abilityCdMax(k) { return ABILITIES[k].cd * ((this.hero.cd && this.hero.cd[k]) || 1); }
   abilityUnlocked(k) { return this.endless || ABILITIES[k].unlock <= this.night.n; }
   canAbility(k) {
     const A = ABILITIES[k];
@@ -311,12 +322,12 @@ export class Game {
   useAbility(k, x, y) {
     const c = this.canAbility(k); if (!c.ok) return c;
     const A = ABILITIES[k];
-    this.abilCd[k] = A.cd;
+    this.abilCd[k] = this.abilityCdMax(k);
     const from = this.player.room ? { x: this.player.room.bed.x, y: this.player.room.bed.y } : { x: this.player.x, y: this.player.y };
     if (k === 'flash') {
       for (const e of this.enemies) {
         if (!e.alive || e.rise > 0 || dist(e.x, e.y, x, y) > A.radius + e.r * 0.5) continue;
-        e.stunT = Math.max(e.stunT || 0, e.kind === 'boss' ? A.stunBoss : A.stunMinion);
+        e.stunT = Math.max(e.stunT || 0, (e.kind === 'boss' ? A.stunBoss : A.stunMinion) * (this.hero.stun || 1));
         e.atkCd = Math.max(e.atkCd, 0.6); e.charging = false;
       }
     } else if (k === 'molotov') {
@@ -332,7 +343,7 @@ export class Game {
       f.t -= dt;
       for (const e of this.enemies) {
         if (!e.alive || e.rise > 0 || dist(e.x, e.y, f.x, f.y) > f.r + e.r * 0.4) continue;
-        const pct = e.kind === 'boss' ? ABILITIES.molotov.bossPct : ABILITIES.molotov.minionPct;
+        const pct = (e.kind === 'boss' ? ABILITIES.molotov.bossPct : ABILITIES.molotov.minionPct) * (this.hero.molotovDmg || 1);
         this._damage(e, e.maxHp * pct * dt, this.player.room, 'fire', true, true);
       }
     }
@@ -341,7 +352,7 @@ export class Game {
     if (this.phase === 'night') {
       this.crateT -= dt;
       if (this.crateT <= 0) {
-        this.crateT = CRATE_EVERY[0] + this.rng() * (CRATE_EVERY[1] - CRATE_EVERY[0]);
+        this.crateT = (CRATE_EVERY[0] + this.rng() * (CRATE_EVERY[1] - CRATE_EVERY[0])) * (this.hero.crateEvery || 1);
         const c = this.map.corridor;
         const kinds = ['scrap', 'scrap', 'recharge', 'repair'];
         const crate = { id: NEXT_ID++, x: 6.5 + this.rng() * (c.x1 - 8), y: c.y0 + 0.7 + this.rng() * 1.6, t: CRATE_LIFE, drop: 1.2, kind: kinds[Math.floor(this.rng() * kinds.length)] };
@@ -359,7 +370,7 @@ export class Game {
     this.crates = this.crates.filter((c) => c !== cr);
     let text = '';
     if (cr.kind === 'scrap') {
-      const n = Math.max(60, Math.round(this.income(s) * 25));
+      const n = Math.round(Math.max(60, this.income(s) * 25) * (this.hero.crateScrap || 1));
       s.scrap += n; s.earned += n; this.stats.earned += n; text = `+${fmt(n)} scrap`;
     } else if (cr.kind === 'recharge') {
       for (const k in this.abilCd) this.abilCd[k] = 0; text = 'Abilities recharged!';
@@ -574,7 +585,7 @@ export class Game {
     for (const b of this.buildings) {
       const D = BUILDINGS[b.type];
       if (D.kind !== 'turret' || !b.room.alive) continue;
-      const st = turretStats(b.type, b.lvl, b.room.owner && b.room.owner.isPlayer ? this.perks : null);
+      const st = turretStats(b.type, b.lvl, b.room.owner && b.room.owner.isPlayer ? this.pperks : null);
       if (dist(b.x, b.y, door.fx, door.fy) <= st.range) dps += st.dmg * st.rate;
     }
     return dps;
@@ -620,7 +631,7 @@ export class Game {
       for (const b of this.buildings) {
         if (b.type !== 'freezer' || b.disabledT > 0 || !b.room.alive) continue;
         const D = BUILDINGS.freezer;
-        if (dist(b.x, b.y, e.x, e.y) <= D.range + D.rangeUp * (b.lvl - 1)) slow = Math.max(slow, Math.min(D.slowMax, D.slow + D.slowUp * (b.lvl - 1)));
+        if (dist(b.x, b.y, e.x, e.y) <= D.range + D.rangeUp * (b.lvl - 1)) { const hs = b.room.owner && b.room.owner.isPlayer ? this.hero.slow || 0 : 0; slow = Math.max(slow, Math.min(D.slowMax + hs, D.slow + D.slowUp * (b.lvl - 1) + hs)); }
       }
       e.slow = slow;
       const spd = e.baseSpeed * (1 - slow) * (e.charging ? 3.6 : 1);
@@ -760,7 +771,7 @@ export class Game {
     for (const b of r.buildings) {
       if (b.type === 'spikes' && b.disabledT <= 0) {
         const D = BUILDINGS.spikes;
-        this._damage(e, dmg * (D.reflect + D.reflectUp * (b.lvl - 1)), r, 'spike');
+        this._damage(e, dmg * (D.reflect + D.reflectUp * (b.lvl - 1)) * (r.owner && r.owner.isPlayer ? this.hero.reflect || 1 : 1), r, 'spike');
       }
     }
     if (t.door.hp <= 0) { t.door.hp = 0; this._breakRoom(r, e); }
@@ -827,7 +838,7 @@ export class Game {
       const D = BUILDINGS[b.type];
       if (D.kind !== 'turret' || !b.room.alive || this.phase !== 'night') continue;
       const owner = b.room.owner;
-      const st = turretStats(b.type, b.lvl, owner && owner.isPlayer ? this.perks : null);
+      const st = turretStats(b.type, b.lvl, owner && owner.isPlayer ? this.pperks : null);
       // signal tower boost
       let boost = 0;
       for (const o of b.room.buildings) {
@@ -933,7 +944,7 @@ export class Game {
         // team bounty: every living survivor gets paid and every door gets patched
         for (const sv of this.survivors) {
           if (sv.state !== 'inroom' || !sv.room || !sv.room.alive) continue;
-          const n = Math.round(bedIncome(sv.room.bedLvl) * TEAM_BOUNTY_S);
+          const n = Math.round(bedIncome(sv.room.bedLvl) * TEAM_BOUNTY_S * (sv.isPlayer ? this.hero.bounty || 1 : 1));
           sv.scrap += n; sv.earned += n; if (sv.isPlayer) this.stats.earned += n;
           const m = this.doorMax(sv.room);
           for (const d of sv.room.doors) d.hp = Math.min(m, d.hp + m * 0.25);
