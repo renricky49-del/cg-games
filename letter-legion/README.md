@@ -11,7 +11,7 @@ python3 -m http.server 8123
 # open http://127.0.0.1:8123/
 ```
 
-To publish, run `./build_release.sh 1.1`. It writes `release/letter-legion-v1.1.zip`, containing only `index.html`, `css/`, `js/` and `assets/`, with `index.html` at the zip root. Upload that zip to the CrazyGames developer portal. The field-by-field submission sheet and the requirements checklist are in `store/SUBMISSION_CN.md`. The covers and the two required preview videos are in `store/` and `store/video/`.
+To publish, run `./build_release.sh 1.2`. It writes `release/letter-legion-v1.2.zip`, containing only `index.html`, `css/`, `js/` and `assets/`, with `index.html` at the zip root. Upload that zip to the CrazyGames developer portal. The field-by-field submission sheet and the requirements checklist are in `store/SUBMISSION_CN.md`. The covers and the two required preview videos are in `store/` and `store/video/`.
 
 Total size: about 2.6 MB for the game files (store/ and tests/ are not needed in the upload) (images are WebP, music is a 96 kbps MP3, fonts are woff2).
 
@@ -82,6 +82,8 @@ These need a static server on port 8123 (see above). Chromium and Playwright are
 - `node tests/layout.cjs`: checks that no board, HUD, spell strip or info panel overlaps another, and that no two HUD controls overlap. Runs across 1280x720, 1920x1080, 1366x768, iPhone portrait/landscape, 568x270, 640x360 and 360x640, on all 4 maps. Saves screenshots.
 - `node tests/features.cjs`: the v1.1 mechanics through the real UI: the blessing draft pauses the battle, reroll and key picks work, the Hex button sends a Brute, a CPU hex lands on your road, a ★ completes MAGE, quick merges pay a combo, and quests can be claimed.
 - `node tests/edge_cases.mjs`: regression checks for review findings. A draft that opens on the match's final tick is void. A Hex fired as the final wave clears still lands. Shields block a sudden-death leak. Gilded Quill gives exactly 3 free summons. Stacked blessings stay within their floors.
+- `node tests/sdk_battle.cjs`: CrazyGames ad rules during a whole v1.2 battle against a mock SDK. No ad request from battle start to results (blessing draft, Hex, quests included). The draft reports gameplayStop and the pick reports gameplayStart. One midgame after Continue when 3+ minutes have passed, muted, with no battle running. No ad on quest claims.
+- `node tests/retention.cjs`: starter quests, the 7-day login streak (claim, next day, missed day), one-tap Next rival / Try again from results, and the Rally bonus after a loss.
 - `tests/glyphs.html`: a visual sheet of every letter, level and attack pose.
 - `node tests/store_shots.cjs`: regenerates the 1920×1080 store screenshots.
 
@@ -122,6 +124,17 @@ These need a static server on port 8123 (see above). Chromium and Playwright are
     - A Brute that is still about to spawn counts as "board not clear" at the final judgement.
     - Draft cards ignore keys and clicks in the first 0.7 s, so mashing 1–3 to deploy can't pick an unseen card.
     - A CPU that never spells doesn't value the spelling blessings.
+- **v1.2 retention pass** (aimed at 10-minute and next-day retention):
+  - **One tap to the next battle.** The results screen's main button is *Next rival* after a ladder win, *Try again* after a loss and *Play again* in Daily/Quick. A smaller *Menu* button goes to the hub. The midgame ad still plays at that break when one is due.
+  - **Rally after a loss.** Each consecutive loss to the same ladder rival makes the next attempt 8% easier (up to 24%), and its Head start is free. The pre-battle screen says so plainly. A win resets it. This keeps a hard rival from becoming a wall that ends the session.
+  - **Starter quests.** A brand-new player's first day has three quick quests (win your first duel, spell 3 heroes, choose 2 blessings). They can all be finished in the first session, and claiming them levels you up toward the next hero.
+  - **7-day login streak** on a strip at the top of the hub: Day 1 60 coins, Day 2 100, Day 3 a Rare weapon, Day 4 150, Day 5 200 coins + 100 XP, Day 6 an Epic weapon, Day 7 a Legendary weapon + 250 coins. Missing a day restarts at Day 1. After claiming, the strip shows tomorrow's reward and the time left until the reset.
+  - The results screen shows today's quest progress and the XP still needed for the next hero unlock.
+- **CrazyGames details (v1.2).**
+  - `happytime()` fires only when you beat a new ladder rival, not after every win.
+  - Pause is documented as P, because Esc exits fullscreen. Esc still works.
+  - One-time battle tips are small toasts instead of a bubble over the boards.
+  - Phones: on every screen of iPhone SE/13, Pixel 7, a 360×740 Android and iPad Mini (portrait and landscape), an automated audit found no sideways scrolling, no off-screen controls and no text under 10.5 px. The results and draft dialogs keep their buttons pinned at the bottom. Tap-to-summon, tap-to-place works with touch input.
 - **Tutorial.** It uses a scripted summon order (S, S, then golden K-I-N-G). Waves are held until the player has summoned, deployed, merged and spelled their first hero, then the match continues against a passive practice rival for 6 waves.
 - **Input.** Desktop mouse first: hover highlights, tooltips for every unit and button, pointer and grab cursors, and drop-target colours (blue = move, green = merge). Touch works with the same drag flow. Keyboard shortcuts are optional.
 - **Layout.** In landscape, the game tries both stacked and side-by-side arrangements of your board and the rival's mirrored, smaller board. It keeps whichever gives the biggest readable tiles. Leftover space becomes a duel panel with a live scoreboard and a next-wave preview of enemy icons. The HUD sits in a side panel drawn in its own design space, scaled 0.5×–1.5× so it fits phones in landscape and 1080p alike. Portrait puts the HUD at the bottom. `tests/layout.cjs` checks automatically that nothing overlaps.

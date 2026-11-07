@@ -3,7 +3,7 @@ const { chromium, devices } = require('playwright');
 const OUT = process.argv[2] || '/tmp/claude-0/shots/layout';
 const VIEWS = [['1280x720', { viewport: { width: 1280, height: 720 } }], ['1920x1080', { viewport: { width: 1920, height: 1080 } }], ['1366x768', { viewport: { width: 1366, height: 768 } }],
   ['phone_portrait', devices['iPhone 13']], ['phone_landscape', devices['iPhone 13 landscape']],
-  ['cg_907x510', { viewport: { width: 907, height: 510 } }], ['cg_821x462', { viewport: { width: 821, height: 462 } }], ['cg_800x450', { viewport: { width: 800, height: 450 } }], ['cg_1077x606', { viewport: { width: 1077, height: 606 } }], ['cg_1080x607', { viewport: { width: 1080, height: 607 } }], ['cg_1536x864', { viewport: { width: 1536, height: 864 } }],
+  ['cg_907x510', { viewport: { width: 907, height: 510 } }], ['cg_1216x684', { viewport: { width: 1216, height: 684 } }], ['cg_821x462', { viewport: { width: 821, height: 462 } }], ['cg_800x450', { viewport: { width: 800, height: 450 } }], ['cg_1077x606', { viewport: { width: 1077, height: 606 } }], ['cg_1080x607', { viewport: { width: 1080, height: 607 } }], ['cg_1536x864', { viewport: { width: 1536, height: 864 } }],
   ['tiny_568x270', { viewport: { width: 568, height: 270 } }], ['tiny_640x360', { viewport: { width: 640, height: 360 } }], ['portrait_360x640', { viewport: { width: 360, height: 640 } }]];
 const MAPS = ['ember', 'marsh', 'bay', 'iron'];
 const inter = (a, b) => a && b && a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;

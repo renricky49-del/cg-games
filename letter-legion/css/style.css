@@ -312,7 +312,62 @@ button.slot { cursor: pointer; } button.slot:hover { background: rgba(255,80,80,
 .q-text { font-size: 14px; font-weight: 600; }
 .q-bar { position: relative; height: 14px; border-radius: 7px; background: rgba(255,255,255,0.1); margin-top: 4px; overflow: hidden; }
 .q-bar i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #7fd7ff, #7fe08a); border-radius: 7px; }
-.q-bar span { position: relative; display: block; text-align: center; font-size: 10px; line-height: 14px; font-weight: 700; text-shadow: 0 1px 1px #000; }
+.q-bar span { position: relative; display: block; text-align: center; font-size: 11px; line-height: 14px; font-weight: 700; text-shadow: 0 1px 1px #000; }
 .q-rew { display: flex; flex-direction: column; align-items: center; font-weight: 700; font-size: 13px; white-space: nowrap; }
-.q-rew small { font-size: 10px; color: #b9b2dc; font-weight: 600; }
+.q-rew small { font-size: 11px; color: #b9b2dc; font-weight: 600; }
 .q-done { font-size: 20px; color: #7fe08a; width: 56px; text-align: center; }
+
+/* ---------- phones & small iframes ---------- */
+/* results: the buttons stay pinned to the bottom of the dialog, the content scrolls behind them */
+.results > .row.center:last-child { position: sticky; bottom: -20px; z-index: 2; margin: 8px -12px -20px; padding: 10px 12px 14px; background: linear-gradient(rgba(29,22,68,0), #1d1644 35%); }
+.drop { max-width: min(360px, 100%); box-sizing: border-box; }
+.drop > div:last-child { min-width: 0; }
+.draft-foot { position: sticky; bottom: -18px; margin: 0 -20px -18px; padding: 8px 20px 12px; background: linear-gradient(rgba(29,22,68,0), #1d1644 35%); }
+@media (max-width: 560px) {
+  .results { min-width: 0; }
+  .modal { padding: 14px 14px; }
+  .results > .row.center:last-child { bottom: -14px; margin: 8px -14px -14px; }
+  .draft-foot { bottom: -14px; margin: 0 -14px -14px; padding: 8px 14px 10px; }
+  .res-title { font-size: 36px; } .res-grid div { font-size: 11.5px; padding: 5px 3px; } .res-grid b { font-size: 17px; }
+  .draft-h { font-size: clamp(18px, 5.6vw, 24px); white-space: nowrap; }
+  .modal.draft .muted { font-size: 12.5px; }
+  .draft-cards { gap: 6px; margin: 6px 0; }
+  .boon-card { padding: 7px 10px; gap: 8px; } .boon-card img { width: 44px; height: 44px; }
+  .navbar { gap: 6px; padding: 6px 8px 8px; flex-wrap: nowrap; }
+  .nav { flex: 1 1 0; min-width: 0; padding: 6px 2px; font-size: 20px; border-radius: 12px; }
+  .nav span { font-size: 11.5px; }
+}
+@media (max-height: 520px) {
+  .navbar { padding: 4px 10px 6px; flex-wrap: nowrap; }
+  .nav { flex-direction: row; gap: 6px; padding: 6px 12px; min-width: 0; font-size: 18px; }
+  .nav span { font-size: 13px; }
+  .res-title { font-size: 30px; letter-spacing: 1px; }
+  .res-grid { grid-template-columns: repeat(6, 1fr); margin: 6px 0; }
+  .res-grid div { font-size: 11px; padding: 4px 2px; }
+  .drop { padding: 4px 12px; } .drop > div[style*="background-image"] { transform: scale(0.75); margin: -10px; }
+  .levelup, .newbest { margin: 3px 0; font-size: 14px; }
+}
+.toast { max-width: min(560px, 90vw); text-align: center; line-height: 1.35; } .toast b { color: var(--gold); }
+@media (max-height: 520px) { #toasts { top: 46px; } .toast { font-size: 13.5px; padding: 6px 12px; } }
+@media (max-height: 520px) and (min-width: 561px) { .draft-foot { bottom: -10px; margin: 0 -14px -10px; padding: 6px 14px 8px; } }
+
+/* ---------- retention: login streak, rally, results quests ---------- */
+.streak-strip { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding: 8px 14px; border-radius: 16px; background: linear-gradient(90deg, rgba(255,210,74,0.22), rgba(255,140,60,0.12)); border: 2px solid var(--gold); box-shadow: 0 0 18px rgba(255,210,74,0.25); }
+.streak-strip.done { border-color: rgba(255,210,74,0.35); box-shadow: none; background: rgba(255,210,74,0.07); }
+.ss-gift { font-size: 30px; }
+.streak-strip:not(.done) .ss-gift { animation: pulse 1.4s ease-in-out infinite; }
+.ss-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.ss-main b { font-size: 15px; } .ss-main small { font-size: 12px; color: #d9d2ff; }
+.ss-days { display: flex; gap: 4px; }
+.ss-days span { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font: bold 11px 'Fredoka', sans-serif; background: rgba(255,255,255,0.1); color: #c8c0ee; }
+.ss-days span.got { background: #3fbf6a; color: #fff; }
+.ss-days span.today { background: var(--gold); color: #4a2400; box-shadow: 0 0 8px var(--gold); }
+.ss-days span:last-child { border: 1px solid var(--gold); }
+.rally { margin-top: 10px; text-align: center; background: rgba(127,224,138,0.12); border: 1px solid rgba(127,224,138,0.5); border-radius: 12px; padding: 6px 12px; font-size: 14px; }
+.res-quests { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; margin: 6px 0; }
+.rq { font-size: 12px; background: rgba(0,0,0,0.28); border-radius: 10px; padding: 3px 8px; color: #d9d2ff; }
+.rq.done { color: #7fe08a; } .rq.new { border: 1px solid #7fe08a; }
+@media (max-width: 560px) { .streak-strip { padding: 6px 10px; gap: 8px; } .ss-gift { font-size: 24px; } .ss-main b { font-size: 13.5px; } .ss-days span { width: 19px; height: 19px; } }
+@media (max-height: 520px) { .rq { font-size: 11px; padding: 2px 6px; } .res-quests { margin: 3px 0; } }
+.res-next { max-width: 360px; margin: 4px auto 6px; font-size: 12.5px; color: #d9d2ff; } .res-next .xpbig { margin-bottom: 3px; height: 8px; }
+@media (max-width: 560px) { .results > .row.center:last-child { gap: 6px; } .results > .row.center:last-child .btn { padding: 8px 14px; font-size: 15px; } }

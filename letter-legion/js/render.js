@@ -691,7 +691,9 @@ export class MatchView {
     for (const [i, row] of rows.entries()) {
       if (y + fs > r.y + r.h - 8) break;
       g.font = i === 0 ? `bold ${fs * 0.8}px ${FONT2}` : `bold ${fs}px ${FONT2}`;
-      g.fillStyle = '#b9b2dc'; g.textAlign = 'left'; g.fillText(row[0], c1, y);
+      let lab = row[0]; const room = c2 - c1 - fs * 1.9;
+      if (g.measureText(lab).width > room) lab = { 'Best letter': 'Best', 'Hexes sent': 'Hexes', 'Blessings': 'Boons' }[lab] || lab;
+      g.fillStyle = '#b9b2dc'; g.textAlign = 'left'; g.fillText(lab, c1, y);
       g.textAlign = 'center'; g.fillStyle = i === 0 ? '#7fd7ff' : '#fff'; g.fillText(String(row[1]), c2, y);
       g.fillStyle = i === 0 ? '#ffb3bb' : '#fff'; g.fillText(String(row[2]), c3, y);
       y += fs * 1.45;

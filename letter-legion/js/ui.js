@@ -1,7 +1,7 @@
 // DOM menus & meta screens
-import { HEROES, HERO_BY_ID, RIVALS, MAPS, MAP_BY_ID, ITEMS, ITEM_BY_ID, ITEM_PRICES, RARITIES, WEAPON_BASES, LOADOUT, UNITS, xpForLevel, DAILY_BUFFS, BOON_BY_ID, QUEST_BY_ID, QUEST_ALL_BONUS } from './data.js';
+import { HEROES, HERO_BY_ID, RIVALS, MAPS, MAP_BY_ID, ITEMS, ITEM_BY_ID, ITEM_PRICES, RARITIES, WEAPON_BASES, LOADOUT, UNITS, xpForLevel, DAILY_BUFFS, BOON_BY_ID, QUEST_BY_ID, QUEST_ALL_BONUS, STREAK_REWARDS, RALLY_STEP, RALLY_MAX } from './data.js';
 import { boonIconUrl } from './glyphs.js';
-import { P, saveProfile, unlockedHeroIds, mapUnlocked, dailyInfo, refreshShop, REROLL_COST, equippedWeapons, resetProfile, rolloverDaily, claimQuest } from './save.js';
+import { P, saveProfile, unlockedHeroIds, mapUnlocked, dailyInfo, refreshShop, REROLL_COST, equippedWeapons, resetProfile, rolloverDaily, claimQuest, streakInfo, claimStreak, untilReset } from './save.js';
 import { stripCss } from './assets.js';
 import { Audio } from './audio.js';
 import { CG } from './cg.js';
@@ -60,7 +60,7 @@ function title() {
         ${P.tutorialDone ? '' : '<button class="btn small ghost" id="skipTut">I know this genre — skip tutorial</button>'}
         <button class="btn" data-go="settings">Settings</button>
       </div>
-      <div class="foot">v1.1 · Rivals are computer-controlled (CPU)</div>
+      <div class="foot">v1.2 · Rivals are computer-controlled (CPU)</div>
     </div>`);
   $('#play').onclick = () => { if (!P.tutorialDone) api.startTutorial(); else show('hub'); };
   if ($('#skipTut')) $('#skipTut').onclick = () => { P.tutorialDone = true; saveProfile(); show('prematch', { mode: 'ladder', rivalIndex: 0 }); };
@@ -75,8 +75,19 @@ function hub() {
   const next = RIVALS[Math.min(P.ladder, RIVALS.length - 1)];
   const done = P.ladder >= RIVALS.length;
   const d = dailyInfo();
+  const sk = streakInfo();
+  const rwLabel = r => r.weapon ? `<span style="color:${rarityOf(r.weapon).color}">${rarityOf(r.weapon).name} weapon</span>${r.coins ? ` + 🪙${r.coins}` : ''}` : `🪙 ${r.coins}${r.xp ? ` + ${r.xp} XP` : ''}`;
   h(`${topBar('Letter Legion', 'title')}
     <div class="hub">
+      <div class="streak-strip ${sk.claimed ? 'done' : ''}">
+        <div class="ss-gift">🎁</div>
+        <div class="ss-main">
+          <b>${sk.claimed ? `Day ${sk.day} login reward claimed` : `Day ${sk.day} login reward: ${rwLabel(sk.reward)}`}</b>
+          <div class="ss-days">${STREAK_REWARDS.map((r, i) => `<span class="${i + 1 < sk.day || (sk.claimed && i + 1 === sk.day) ? 'got' : i + 1 === sk.day ? 'today' : ''}" title="Day ${i + 1}: ${r.weapon ? rarityOf(r.weapon).name + ' weapon' : r.coins + ' coins'}">${i + 1}</span>`).join('')}</div>
+          <small>${sk.claimed ? `Tomorrow (in ${untilReset()}): ${rwLabel(sk.next)}` : sk.restarted ? 'Your streak restarted. Log in every day: Day 7 is a Legendary weapon!' : 'Log in every day. Day 7 is a Legendary weapon!'}</small>
+        </div>
+        ${sk.claimed ? '' : '<button class="btn gold small" id="claimStreak">Claim</button>'}
+      </div>
       <div class="card campaign">
         <div class="card-h">⚔ Rival Ladder <span class="muted">${Math.min(P.ladder, RIVALS.length)}/${RIVALS.length} beaten</span></div>
         <div class="rival-row">${rivalAvatar(next, 88)}
@@ -93,7 +104,7 @@ function hub() {
         <div class="row"><button class="btn green" id="dailyGo">Play daily</button><button class="btn small" data-go="daily">Board</button></div>
       </div>
       <div class="card quests">
-        <div class="card-h">📋 Daily quests <span class="muted">new every day</span></div>
+        <div class="card-h">📋 Daily quests <span class="muted">new in ${untilReset()}</span></div>
         ${P.quests.list.map((q, i) => { const d = QUEST_BY_ID[q.id]; const ok = q.prog >= d.goal;
           return `<div class="quest ${q.claimed ? 'claimed' : ok ? 'ready' : ''}">
             <div class="q-main"><div class="q-text">${d.text}</div><div class="q-bar"><i style="width:${Math.min(100, q.prog / d.goal * 100)}%"></i><span>${Math.floor(Math.min(q.prog, d.goal))}/${d.goal}</span></div></div>
@@ -135,6 +146,12 @@ function hub() {
   $('#fight').onclick = () => show('prematch', { mode: 'ladder', rivalIndex: Math.min(P.ladder, RIVALS.length - 1) });
   $('#dailyGo').onclick = () => show('prematch', { mode: 'daily' });
   $('#tut').onclick = () => api.startTutorial();
+  if ($('#claimStreak')) $('#claimStreak').onclick = () => {
+    const r = claimStreak(); if (!r) return;
+    Audio.play(r.weapon ? 'drop' : 'coin');
+    toast(`Day ${r.day} reward: ${[r.coins ? `+${r.coins} coins` : '', r.xp ? `+${r.xp} XP` : '', r.weapon ? `<b>${r.weapon.name}</b> (${rarityOf(r.weapon.rarity).name})` : ''].filter(Boolean).join(' · ')}`, 2600);
+    hub();
+  };
   root().querySelectorAll('[data-claim]').forEach(b => b.onclick = () => {
     const r = claimQuest(+b.dataset.claim); if (!r) return;
     Audio.play(r.levelUps.length ? 'levelup' : 'coin');
@@ -216,6 +233,9 @@ function prematch(arg) {
   if (arg.mode === 'daily') { rival = d.rival; map = d.map; buff = d.buff; seed = d.seed; arg.rivalIndex = RIVALS.indexOf(rival); }
   else { rival = RIVALS[arg.rivalIndex]; map = MAP_BY_ID[arg.mapId || rival.map]; seed = (Date.now() & 0x7fffffff); buff = d.buff; }
   const lo = P.loadout; const eq = equippedWeapons();
+  // Rally after losses to this ladder rival: a free head start and a slightly weaker rival (said on screen)
+  const losses = arg.mode === 'ladder' ? Math.min(RALLY_MAX, P.lossStreak[rival.id] || 0) : 0;
+  if (losses) rival = { ...rival, power: rival.power * (1 - RALLY_STEP * losses) };
   const itemChip = it => { const def = ITEM_BY_ID[it.id]; const r = RARITIES[it.r]; return `<div class="chip" style="border-color:${r.color}" title="${def.name}: ${def.desc(def.vals[it.r])}"><div style="${stripCss('items', def.icon, 34)}"></div><span>${def.name}</span></div>`; };
   h(`${topBar(arg.mode === 'daily' ? 'Daily Duel' : arg.mode === 'quick' ? 'Quick Battle' : 'Ladder Battle', arg.mode === 'daily' ? 'daily' : 'hub')}
     <div class="prematch">
@@ -233,6 +253,7 @@ function prematch(arg) {
           <div class="loadout"><span class="muted">Weapons:</span> ${Object.values(eq).map(w => `<span class="wtag" style="color:${rarityOf(w.rarity).color}">${w.hero}: ${w.name}</span>`).join(' ') || '<span class="muted">none — win battles for drops</span>'}</div>
         </div>
       </div>
+      ${losses ? `<div class="rally">💪 <b>Rally!</b> After ${losses} loss${losses > 1 ? 'es' : ''}, ${rival.name} is ${Math.round(RALLY_STEP * losses * 100)}% weaker this time and your Head start is free.</div>` : ''}
       <div class="headstart" id="hs">
         <span class="hs-label">⚡ <b>Head start</b>: +60 Ink & +1 Shovel this battle</span>
         <button class="btn small" id="hsCoins" ${P.coins < HEADSTART_COST ? 'disabled' : ''}>🪙 ${HEADSTART_COST}</button>
@@ -242,9 +263,10 @@ function prematch(arg) {
       <div class="go-row"><button class="btn gold big" id="go">To battle!</button></div>
     </div>`);
   wireGo();
-  let headStart = null; // 'coins' | 'ad'
+  let headStart = null; // 'coins' | 'ad' | 'rally'
   const hsDone = how => { headStart = how; $('#hs').innerHTML = `<span class="hs-label">⚡ <b>Head start ready!</b> +60 Ink & +1 Shovel ${how === 'coins' ? `(🪙 ${HEADSTART_COST} on start)` : ''}</span>`; Audio.play('coin'); };
   $('#hsCoins').onclick = () => { if (P.coins >= HEADSTART_COST) hsDone('coins'); };
+  if (losses) { headStart = 'rally'; $('#hs').innerHTML = '<span class="hs-label">⚡ <b>Head start ready!</b> +60 Ink & +1 Shovel (free Rally bonus)</span>'; }
   if ($('#hsAd')) $('#hsAd').onclick = async () => { $('#hsAd').disabled = true; const ok = await api.rewarded(); if (ok) hsDone('ad'); else { toast('Ad unavailable right now'); if ($('#hsAd')) $('#hsAd').disabled = false; } };
   $('#go').onclick = () => {
     if (headStart === 'coins') { if (P.coins >= HEADSTART_COST) { P.coins -= HEADSTART_COST; saveProfile(); } else headStart = null; }
@@ -378,7 +400,7 @@ function settings() {
           <li><b>Blessings</b>: before waves 3, 7, 11, 15, 19 pick 1 of 3 (keys 1–3, R rerolls).</li>
           <li><b>Hex</b> (H): when charged, send a Hexed Brute down the rival's road.</li>
           <li><b>★ Wild letters</b> count as any letter when spelling.</li>
-          <li>Drag to the ✖ bin to sell. Q / W use items. F toggles speed. N calls the next wave. Esc pauses.</li>
+          <li>Drag to the ✖ bin to sell. Q / W use items. F toggles speed. N calls the next wave. P pauses.</li>
         </ul>
       </div>
       <div class="muted small">Fonts: Titan One & Fredoka (SIL Open Font License). All rivals are computer-controlled.</div>
@@ -475,14 +497,16 @@ export function resultsScreen(res, rewards, onContinue) {
       </div>
       ${res.stats.boonList && res.stats.boonList.length ? `<div class="res-boons">${boonChips(res.stats.boonList)}</div>` : ''}
       ${rewards.newBest ? '<div class="newbest">★ New personal best on this map!</div>' : ''}
-      ${rewards.questsDone && rewards.questsDone.length ? `<div class="levelup">📋 Daily quest complete: <b>${rewards.questsDone.map(id => QUEST_BY_ID[id].text).join(', ')}</b> — claim it in the hub!</div>` : ''}
+      ${rewards.quests && !res.opts.tutorial ? `<div class="res-quests">${rewards.quests.map(q => { const d = QUEST_BY_ID[q.id]; const done = q.prog >= d.goal; return `<span class="rq ${done ? 'done' : ''} ${rewards.questsDone.includes(q.id) ? 'new' : ''}">${done ? '✔' : '📋'} ${d.text} <b>${Math.min(q.prog, d.goal)}/${d.goal}</b></span>`; }).join('')}${rewards.questsDone.length ? '<div class="small" style="color:#7fe08a">Quest complete! Claim the reward in the menu.</div>' : ''}</div>` : ''}
       <div class="rewards"><div class="rw">🪙 <b id="coinsAmt">${rewards.coins}</b> coins</div><div class="rw">✦ <b>${rewards.xp}</b> XP</div></div>
+      ${(() => { const nx = HEROES.find(x => x.unlock > P.level); if (!nx || res.opts.tutorial) return ''; const need = xpForLevel(P.level); const lv = nx.unlock;
+        return `<div class="res-next"><div class="xpbig"><i style="width:${Math.min(100, P.xp / need * 100)}%"></i></div><span>Lv ${P.level} · ${P.xp}/${need} XP · next hero <b style="color:${nx.color}">${nx.word}</b> at Lv ${lv}</span></div>`; })()}
       ${w ? `<div class="drop" style="--rc:${wr.color}"><div class="drop-glow"></div><div style="${stripCss('weapons', WEAPON_BASES[w.hero].icon, 80)}"></div><div><div class="muted small">Weapon drop!</div><div class="wname" style="color:${wr.color}">${w.name}</div><div class="small">${wr.name} · for ${w.hero}</div></div></div>` : ''}
       ${rewards.levelUps.length ? `<div class="levelup">LEVEL UP! You are now level ${P.level}${rewards.unlocks.length ? ' — new hero: <b>' + rewards.unlocks.join(', ') + '</b>' : ''}</div>` : ''}
       ${rewards.ladderUp ? `<div class="levelup">Next rival unlocked: <b>${rewards.ladderUp}</b></div>` : ''}
       <div class="row center">
         ${rewards.coins > 0 && CG.rewardedAvailable() ? '<button class="btn green" id="dbl">▶ Double coins (ad)</button>' : ''}
-        <button class="btn gold" id="cont">Continue</button>
+        ${rewards.next ? `<button class="btn gold" id="next">${rewards.next.label}</button><button class="btn ghost" id="cont">Menu</button>` : '<button class="btn gold" id="cont">Continue</button>'}
       </div></div>`, 'res');
   const q = x => m.el.querySelector(x);
   let usedRewarded = false; // a rewarded ad watched on THIS results screen (head-start ads belong to the previous break)
@@ -492,5 +516,6 @@ export function resultsScreen(res, rewards, onContinue) {
     if (ok) { P.coins += rewards.coins; saveProfile(); q('#coinsAmt').textContent = rewards.coins * 2; Audio.play('coin'); toast(`+${rewards.coins} bonus coins!`); q('#dbl').remove(); }
     else { toast('Ad unavailable right now'); q('#dbl').disabled = false; }
   };
-  q('#cont').onclick = () => { m.close(); onContinue(usedRewarded); };
+  q('#cont').onclick = () => { m.close(); onContinue(usedRewarded, false); };
+  if (q('#next')) q('#next').onclick = () => { m.close(); onContinue(usedRewarded, true); };
 }

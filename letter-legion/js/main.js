@@ -39,6 +39,7 @@ const hooks = {
   sync: () => syncGameplay(),
   spellbook: () => { const c = ctl; if (!c || c.ended) return; c.hold('book'); syncGameplay(); spellbookModal(() => { c.release('book'); syncGameplay(); }); },
   toast: t => toast(t, 1400),
+  notice: html => toast(html, 4500),
   hint: setHint,
   cursor: c => { canvas.style.cursor = c; },
   setFast: on => { P.settings.fast = on; saveProfile(); },
@@ -118,27 +119,42 @@ function computeRewards(res) {
   P.stats.matches++; if (res.won) P.stats.wins++; P.stats.heroes += res.stats.heroes; P.stats.kills += res.stats.kills;
   if (tutorial) P.tutorialDone = true;
   const questsDone = (!tutorial && !res.forfeit) ? questProgress({ won: res.won, mode: o.mode, stats: res.stats, lives: res.lives }) : [];
+  // Rally: consecutive real losses to a ladder rival make the next attempt easier (shown on the pre-battle screen)
+  if (o.mode === 'ladder' && o.rival && !res.forfeit) { if (res.won) delete P.lossStreak[o.rival.id]; else P.lossStreak[o.rival.id] = (P.lossStreak[o.rival.id] || 0) + 1; }
   if (!res.forfeit) refreshShop(false);
   saveProfile(true);
-  return { coins, xp, weapon, ladderUp, newBest, levelUps, unlocks, questsDone };
+  return { coins, xp, weapon, ladderUp, newBest, levelUps, unlocks, questsDone, next: nextStep(res), quests: P.quests.list.map(q => ({ ...q })) };
+}
+// one tap from the results screen straight into the next battle (keeps the session going)
+function nextStep(res) {
+  const o = res.opts; if (o.tutorial) return null;
+  if (o.mode === 'ladder') {
+    if (res.won && P.ladder < RIVALS.length && P.ladder > o.rivalIndex) return { label: 'Next rival ▶', screen: 'prematch', arg: { mode: 'ladder', rivalIndex: P.ladder } };
+    return { label: res.won ? 'Rematch ▶' : 'Try again ▶', screen: 'prematch', arg: { mode: 'ladder', rivalIndex: o.rivalIndex } };
+  }
+  if (o.mode === 'daily') return { label: 'Play again ▶', screen: 'prematch', arg: { mode: 'daily' } };
+  return { label: 'Play again ▶', screen: 'prematch', arg: { mode: o.mode, rivalIndex: o.rivalIndex, mapId: o.mapId } };
 }
 
 function endMatch(res) {
   // close anything still open over the battle (pause menu, spellbook)
   if (pauseModal) { pauseModal.close(); pauseModal = null; }
   document.querySelectorAll('#modals .modal-bg').forEach(m => m.remove());
+  document.querySelectorAll('#toasts .toast').forEach(t => t.remove()); // battle tips don't follow you onto the results
   if (ctl) ctl.dispose();
   const rewards = computeRewards(res);
-  if (res.won) CG.happytime();
+  // happytime is for special moments only: beating a new ladder rival
+  if (rewards.ladderUp) CG.happytime();
   if (rewards.levelUps.length) Audio.play('levelup'); else if (rewards.weapon) Audio.play('drop');
   setHint(null);
-  resultsScreen(res, rewards, async (usedRewarded) => {
+  resultsScreen(res, rewards, async (usedRewarded, goNext) => {
     const wasTutorial = res.opts.tutorial;
     ctl = null; canvas.style.display = 'none'; Audio.setTrack('menu');
     // natural break → midgame ad (rate-limited inside the adapter; never right after session start)
     // ...but never a midgame ad in the same break as a rewarded ad (CrazyGames ad rules)
     if (!wasTutorial && !usedRewarded) await CG.midgame();
     if (wasTutorial && P.ladder === 0) { show('prematch', { mode: 'ladder', rivalIndex: 0 }); toast('Tutorial complete! Your first duel awaits ⚔', 2600); }
+    else if (goNext && rewards.next) show(rewards.next.screen, rewards.next.arg);
     else show('hub');
   });
 }

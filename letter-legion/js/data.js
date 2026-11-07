@@ -266,7 +266,16 @@ export const QUESTS = [
   { id: 'flawless', text: 'Win a duel without losing a life',    goal: 1,   coins: 120, xp: 50, m: r => r.won && r.stats.leaks === 0 ? 1 : 0 },
   { id: 'merges',   text: 'Merge letters 40 times',              goal: 40,  coins: 60,  xp: 30, m: r => r.stats.merges },
   { id: 'wild',     text: 'Spell a hero with a ★ wild letter',   goal: 1,   coins: 80,  xp: 35, m: r => r.stats.wildSpells || 0 },
+  // starter set: a brand-new player's first day gets three quick wins
+  { id: 'win1',     text: 'Win your first duel',                 goal: 1,   coins: 60,  xp: 50, m: r => r.won ? 1 : 0, starter: true },
+  { id: 'spell3',   text: 'Spell 3 heroes',                      goal: 3,   coins: 60,  xp: 40, m: r => r.stats.heroes, starter: true },
+  { id: 'boons2',   text: 'Choose 2 blessings',                  goal: 2,   coins: 50,  xp: 40, m: r => r.stats.boons || 0, starter: true },
 ];
+export const STARTER_QUESTS = ['win1', 'spell3', 'boons2'];
+// 7-day login streak (missing a day restarts at Day 1)
+export const STREAK_REWARDS = [{ coins: 60 }, { coins: 100 }, { weapon: 'blue' }, { coins: 150 }, { coins: 200, xp: 100 }, { weapon: 'purple' }, { weapon: 'gold', coins: 250 }];
+// losing to the same ladder rival makes your next attempt easier (free head start; the rival is up to 24% weaker)
+export const RALLY_STEP = 0.08, RALLY_MAX = 3;
 export const QUEST_BY_ID = Object.fromEntries(QUESTS.map(q => [q.id, q]));
 export const QUEST_ALL_BONUS = 80; // coins for claiming all three
 

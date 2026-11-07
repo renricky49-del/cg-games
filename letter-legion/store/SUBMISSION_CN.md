@@ -10,7 +10,7 @@
 
 | 用途 | 文件（在 `letter-legion/` 下） | 规格 |
 |---|---|---|
-| **游戏包** | `release/letter-legion-v1.1.zip` | 3.6 MB；53 个文件；`index.html` 在 zip 根目录 |
+| **游戏包** | `release/letter-legion-v1.2.zip` | 3.6 MB；53 个文件；`index.html` 在 zip 根目录 |
 | 横版封面 16:9 | `store/cover_1920x1080.jpg` | 1920×1080，画面里只有游戏标题文字 |
 | 竖版封面 2:3 | `store/cover_800x1200.jpg` | 800×1200 |
 | 方形封面 1:1 | `store/cover_800x800.jpg` | 800×800 |
@@ -18,7 +18,7 @@
 | 竖版预览视频（必填） | `store/video/preview_portrait_1080x1620.mp4` | 1080×1620（2:3），18.5 秒，无声，6.2 MB |
 | 截图（如需要） | `store/screenshots/*.jpg` | 1920×1080，10 张（`10_blessings.jpg` 是新的祝福三选一界面） |
 
-以后改了代码要重新打包：在 `letter-legion/` 下运行 `./build_release.sh 1.2`，会生成 `release/letter-legion-v1.2.zip`。
+以后改了代码要重新打包：在 `letter-legion/` 下运行 `./build_release.sh 1.3`，会生成 `release/letter-legion-v1.3.zip`。
 
 ---
 
@@ -33,6 +33,8 @@ Letter Legion
 **Main file / 入口文件**：`index.html`
 
 **SDK**：已接入 CrazyGames HTML5 SDK v3。用到了 loading、gameplay、happytime、midgame 广告、rewarded 广告和 data 存档。
+
+**⚠️ Progress Save / 进度存档开关：提交时一定要打开。** 官方说明 data 模块必须在提交时打开 "Progress Save" 开关才会生效，不开的话玩家进度（金币、等级、任务、连续登录）只存在本地浏览器。
 
 **Orientation / 方向**：Landscape（横屏）。竖屏手机也能玩；如果后台有"Both / 两者都支持"就选它。
 
@@ -83,7 +85,7 @@ Features:
 - A ladder of 9 CPU rivals, each with their own personality
 - Weapon drops in five rarities, an item shop and a limited loadout
 - Daily Duel with the map, seed and buff of the day, plus your personal best board
-- Three new daily quests every day
+- Three new daily quests every day and a 7-day login reward streak
 - 1-minute tutorial, 1x/2x speed, mouse and touch support
 
 All rivals are computer-controlled. No account needed: your progress is saved automatically.
@@ -97,7 +99,7 @@ Place golden letters in one row, left to right, to spell heroes.
 Drag a letter onto the X bin to sell it. Click a locked cell while holding a shovel to dig it.
 When your board is clear, click the wave bar to call the next wave early for bonus Ink.
 When your Hex is charged, click the purple orb to send a Hexed Brute at the rival.
-Keyboard (optional): Space = summon, 1-3 = auto-place a recruit (or pick a blessing), H = send Hex, N = next wave, Q/W = items, F = speed, Esc = pause
+Keyboard (optional): Space = summon, 1-3 = auto-place a recruit (or pick a blessing), H = send Hex, N = next wave, Q/W = items, F = speed, P = pause
 ```
 
 **以下几项按你自己的情况填**：
@@ -107,7 +109,7 @@ Keyboard (optional): Space = summon, 1-3 = auto-place a recruit (or pick a bless
 
 ---
 
-## 三、CrazyGames 要求核对（2026-11-06 对照官方文档；v1.1 加入新玩法后 2026-11-07 重新跑过全部测试）
+## 三、CrazyGames 要求核对（2026-11-07 重新对照官方文档最新版，v1.2 全部测试重跑通过）
 
 依据的文档：requirements/technical、gameplay、ads、game-covers、quality 等页面。✅ = 已满足并实测；⚠️ = 需要你在官方预览工具里再确认一次。
 
@@ -121,6 +123,8 @@ Keyboard (optional): Space = summon, 1-3 = auto-place a recruit (or pick a bless
 | 只用相对路径 | ✅ 扫描过，没有绝对路径 |
 | 唯一外部资源是 SDK | ✅ |
 | Chrome / Edge 能跑 | ✅ Chromium 下全部自动化测试通过，无报错 |
+| 手机显示与触屏 | ✅ iPhone SE / 13、Pixel 7、360×740 安卓、iPad Mini 横竖屏所有页面自动检查：无横向滚动、无按钮出屏、无小于 10.5px 的文字；点按召唤和点按部署都能用 |
+| Progress Save（data 模块）| ⚠️ 代码已接好；**提交时要打开后台的 "Progress Save" 开关**，不开就只存本地 |
 | 鼠标、键盘、触屏都支持 | ✅ |
 | 桌面横屏可玩 | ✅ |
 | 移动端 `user-select: none` | ✅ |
@@ -132,10 +136,13 @@ Keyboard (optional): Space = summon, 1-3 = auto-place a recruit (or pick a bless
 | 要求 | 结果 |
 |---|---|
 | 官方列出的 10 种 iframe 尺寸下文字都可读（DPR 1） | ✅ 907×510、821×462、800×450 等矮屏改用加大字体的紧凑版界面；所有尺寸都截图检查过，自动测试确认界面元素互不重叠 |
+| 官方列出的 1216×684 等全部 iframe 尺寸 | ✅ 布局自动测试覆盖全部 11 个官方尺寸 |
 | 不同刷新率下游戏速度一致 | ✅ 固定 60 Hz 逻辑步长，速度不随帧率变化 |
 | 英文 | ✅ |
 | 没有自带全屏按钮 | ✅ |
 | 没有交叉推广、外链、应用商店链接 | ✅ 扫描过，没有任何链接或 `window.open` |
+| happytime 只在特殊时刻用 | ✅ 只在击败新的天梯对手时触发，不是每胜一局都触发 |
+| 避免使用 Esc 键（会退出全屏）| ✅ 操作说明里暂停键改为 P；Esc 仍可用但不再写入说明 |
 | 内容原创 | ✅ 名字、角色、美术都是原创；字体是 OFL 开源授权，许可证文件已附带 |
 | 符合 PEGI 12，不面向儿童 | ✅ |
 | 新玩家最多点 1 次就进入游戏（Full Launch 要求） | ✅ 加载完 → 点一次 "PLAY — 1-MIN TUTORIAL" → 直接进入可玩的教程 |
@@ -151,6 +158,7 @@ Keyboard (optional): Space = summon, 1-3 = auto-place a recruit (or pick a bless
 | 同一个关卡间隙里不能既有激励广告又有插屏广告 | ✅ 结算页看过"双倍金币"后，本次不再播放 midgame，模拟 SDK 测过 |
 | 插屏广告每 3 分钟最多 1 次，开局时不播 | ✅ |
 | 广告期间游戏暂停 | ✅ |
+| 整局战斗中（含祝福选择、诅咒、任务领取）不请求任何广告 | ✅ 模拟 SDK 跑完整局验证（tests/sdk_battle.cjs）|
 | 新玩法不碰广告 | ✅ 祝福三选一、诅咒、每日任务都没有广告或激励按钮 |
 | 只在广告真正开始后静音 | ✅ |
 | 不惩罚装了广告拦截的玩家，被挡的功能有提示 | ✅ 检测到拦截时显示 "Ad bonus unavailable (ad blocker)"，金币选项照常可用 |

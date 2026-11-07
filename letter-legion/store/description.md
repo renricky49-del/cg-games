@@ -29,7 +29,7 @@ Features:
 - A ladder of 9 CPU rivals, each with their own personality
 - Weapon drops in five rarities, an item shop and a limited loadout
 - Daily Duel with the map, seed and buff of the day, plus your personal best board
-- Three new daily quests every day
+- Three new daily quests every day and a 7-day login reward streak
 - 1-minute tutorial, 1×/2× speed, mouse and touch support
 
 All rivals are computer-controlled. No account needed: your progress is saved automatically.
@@ -41,7 +41,7 @@ All rivals are computer-controlled. No account needed: your progress is saved au
 - Drag a letter onto the ✖ bin to sell it. Click a locked cell while holding a shovel to dig it.
 - When your board is clear, click the wave bar to call the next wave early for bonus Ink.
 - When your Hex is charged, click the purple orb to send a Hexed Brute at the rival.
-- **Keyboard (optional):** Space = summon · 1–3 = auto-place a recruit (or pick a blessing) · H = send Hex · N = next wave · Q / W = items · F = speed · Esc = pause
+- **Keyboard (optional):** Space = summon · 1–3 = auto-place a recruit (or pick a blessing) · H = send Hex · N = next wave · Q / W = items · F = speed · P = pause
 
 ## Assets in this folder
 - `cover_1920x1080.jpg`, `cover_800x1200.jpg`, `cover_800x800.jpg`: the three required covers (title is the only text)

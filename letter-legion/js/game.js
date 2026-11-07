@@ -98,8 +98,8 @@ export class MatchController {
       if (this.tut) this.tutGuard();
       // first-time explanations for the duel mechanics the tutorial doesn't cover
       if (!this.tutorial && !this.ended) {
-        if (!this.tipHex && this.me.canHex()) { this.tipHex = true; this.oneTimeHint('hex', 'Your <b>Hex</b> is charged! Click the purple orb (or press <b>H</b>) to send a <b>Hexed Brute</b> down the rival\'s road.'); }
-        if (!this.tipWild && this.me.heldGold().includes('*')) { this.tipWild = true; this.oneTimeHint('wild', 'A <b>★ wild letter</b>! It counts as <b>any</b> letter — drop it into the gap of a hero name.'); }
+        if (!this.tipHex && this.me.canHex()) { this.tipHex = true; this.oneTimeHint('hex', '<b>Hex charged!</b> Tap the purple orb (or press H) to send a Brute at the rival.'); }
+        if (!this.tipWild && this.me.heldGold().includes('*')) { this.tipWild = true; this.oneTimeHint('wild', '<b>★ Wild letter!</b> It counts as any letter in a hero name.'); }
       }
       // blessing draft: the match is frozen until the player picks one of three cards
       if (this.match.state === 'running' && this.match.draft && this.me.offers && !this.me.autoPick && !this.draftOpen) { this.draftOpen = true; this.hold('draft'); this.hooks.sync?.(); this.hooks.draft(this); }
@@ -119,8 +119,7 @@ export class MatchController {
   }
   oneTimeHint(id, html) {
     if (!this.hooks.tipOnce || !this.hooks.tipOnce(id)) return;
-    this.hintId = id; this.hooks.hint(html);
-    this.later(() => { if (this.hintId === id) { this.hintId = null; this.hooks.hint(null); } }, 7000);
+    this.hooks.notice ? this.hooks.notice(html) : this.hooks.hint(html); // a small toast that doesn't cover the boards
   }
   pickBoon(i) {
     if (!this.match.pickBoon(0, i)) return false;
@@ -256,7 +255,7 @@ export class MatchController {
     const T = {
       summon: ['Summon (Space)', 'Random letter, golden hero letter or shovel', 'Each summon costs more than the last'],
       callWave: this.match.canCallWave(0) ? ['Call the next wave now (N)', 'Your board is clear — skip the wait', this.match.curWave ? `+${this.match.callWaveBonus()} bonus ink` : 'Start the first wave right away'] : ['Next wave timer', 'Clear your board to call the next wave early for bonus ink'],
-      pause: ['Pause (Esc)'], speed: ['Game speed (F)'], book: ['Spellbook — all heroes & skills'],
+      pause: ['Pause (P)'], speed: ['Game speed (F)'], book: ['Spellbook — all heroes & skills'],
       hex: me.canHex() ? ['HEX READY! (H)', 'Curse the rival: a tough Hexed Brute marches down THEIR road', 'Defeating Brutes sent at you charges your own Hex'] : ['Hex (H)', `Charge ${Math.floor(me.hex)}/${me.hexNeed()} — defeat enemies to fill it (bosses & Brutes count extra)`, 'When full, send a Hexed Brute down the rival\'s road'],
     };
     if (b.id.startsWith('train')) { const L = ['S', 'L', 'B', 'K'][+b.id.slice(5)]; return { x, y, lines: [`Train ${UNITS[L].name}s`, `+18% damage for every ${L} on your board`, `Rank ${me.train[L]}/5`], col: UNITS[L].color }; }

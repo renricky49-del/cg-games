@@ -1,6 +1,6 @@
 // Persistent player profile (CrazyGames data module with localStorage fallback)
 import { CG } from './cg.js';
-import { HEROES, RIVALS, MAPS, ITEMS, ITEM_BY_ID, ITEM_PRICES, SHOP_RARITY_WEIGHTS, RARITIES, WEAPON_BASES, WEAPON_ADJ, DAILY_BUFFS, xpForLevel, QUESTS, QUEST_BY_ID, QUEST_ALL_BONUS } from './data.js';
+import { HEROES, RIVALS, MAPS, ITEMS, ITEM_BY_ID, ITEM_PRICES, SHOP_RARITY_WEIGHTS, RARITIES, WEAPON_BASES, WEAPON_ADJ, DAILY_BUFFS, xpForLevel, QUESTS, QUEST_BY_ID, QUEST_ALL_BONUS, STARTER_QUESTS, STREAK_REWARDS } from './data.js';
 import { RNG, hashStr, todayKey } from './rng.js';
 
 const KEY = 'letterlegion_save_v1';
@@ -16,6 +16,8 @@ export function defaultProfile() {
     seenHeroes: {},
     quests: { date: '', list: [], bonus: false },
     tips: {},
+    streak: { day: 0, last: '', claimed: '' },
+    lossStreak: {}, // ladder rival id → consecutive losses (for the Rally bonus)
   };
 }
 export let P = defaultProfile();
@@ -26,7 +28,7 @@ export function loadProfile() {
     if (raw) {
       const d = JSON.parse(raw); const def = defaultProfile();
       P = Object.assign(def, d);
-      for (const k of ['settings', 'daily', 'stats', 'loadout', 'quests']) P[k] = Object.assign(defaultProfile()[k], d[k] || {});
+      for (const k of ['settings', 'daily', 'stats', 'loadout', 'quests', 'streak']) P[k] = Object.assign(defaultProfile()[k], d[k] && typeof d[k] === 'object' ? d[k] : {});
       sanitize();
     }
   } catch (e) { console.warn('save load failed', e); P = defaultProfile(); }
@@ -47,6 +49,10 @@ function sanitize() {
   P.level = Math.max(1, Math.floor(P.level)); P.ladder = Math.min(Math.floor(P.ladder), RIVALS.length);
   if (!Array.isArray(P.daily.history)) P.daily.history = [];
   if (!P.tips || typeof P.tips !== 'object' || Array.isArray(P.tips)) P.tips = {};
+  const st = P.streak; st.day = Number.isInteger(st.day) ? Math.max(0, Math.min(7, st.day)) : 0;
+  for (const k of ['last', 'claimed']) if (typeof st[k] !== 'string') st[k] = '';
+  if (!P.lossStreak || typeof P.lossStreak !== 'object' || Array.isArray(P.lossStreak)) P.lossStreak = {};
+  for (const [k, v] of Object.entries(P.lossStreak)) if (!RIVALS.some(r => r.id === k) || !Number.isFinite(v) || v < 0) delete P.lossStreak[k];
   P.quests.list = (Array.isArray(P.quests.list) ? P.quests.list : []).filter(q => q && QUEST_BY_ID[q.id])
     .map(q => ({ id: q.id, prog: Number.isFinite(q.prog) ? Math.max(0, Math.min(q.prog, QUEST_BY_ID[q.id].goal)) : 0, claimed: !!q.claimed }));
   if (P.quests.list.length !== 3) P.quests.date = ''; // regenerate
@@ -93,7 +99,8 @@ export function rolloverDaily() {
   }
   if (P.quests.date !== k) {
     // three different quests a day (the same three for everyone on that date)
-    const rng = new RNG(hashStr('letter-legion-quests-' + k)); const pool = QUESTS.slice(); const list = [];
+    const rng = new RNG(hashStr('letter-legion-quests-' + k)); const pool = QUESTS.filter(q => !q.starter); let list = [];
+    if (!P.quests.date && !P.stats.matches) list = STARTER_QUESTS.map(id => ({ id, prog: 0, claimed: false })); // brand-new player
     while (list.length < 3) list.push({ id: pool.splice(rng.int(pool.length), 1)[0].id, prog: 0, claimed: false });
     P.quests = { date: k, list, bonus: false };
   }
@@ -118,6 +125,30 @@ export function claimQuest(i) {
   if (!P.quests.bonus && P.quests.list.every(x => x.claimed)) { P.quests.bonus = true; bonus = QUEST_ALL_BONUS; P.coins += bonus; }
   saveProfile(true);
   return { coins: def.coins, xp: def.xp, bonus, levelUps: ups };
+}
+// time until the daily quests, Daily Duel and login reward reset (local midnight)
+export function untilReset() { const n = new Date(); const t = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1); const m = Math.max(0, Math.round((t - n) / 60000)); return `${Math.floor(m / 60)}h ${m % 60}m`; }
+
+// ---------- login streak ----------
+function prevKey(k) { const [y, m, d] = k.split('-').map(Number); return todayKey(new Date(y, m - 1, d - 1)); }
+export function streakInfo() {
+  const k = todayKey(); const s = P.streak; const claimed = s.claimed === k;
+  const day = claimed ? s.day : (s.last && s.last === prevKey(k) ? s.day % 7 + 1 : 1);
+  return { day, claimed, reward: STREAK_REWARDS[day - 1], next: STREAK_REWARDS[day % 7], restarted: !claimed && day === 1 && s.day > 0 };
+}
+export function makeWeapon(rarity, rng = new RNG((Date.now() & 0x7fffffff) ^ (P.nextUid * 131))) {
+  const pool = unlockedHeroIds(); const hero = pool[rng.int(pool.length)];
+  return { uid: P.nextUid++, hero, rarity, name: `${WEAPON_ADJ[rarity][rng.int(3)]} ${WEAPON_BASES[hero].name}` };
+}
+export function claimStreak() {
+  const info = streakInfo(); if (info.claimed) return null;
+  const r = info.reward; let weapon = null, levelUps = [];
+  if (r.coins) P.coins += r.coins;
+  if (r.xp) levelUps = addXp(r.xp);
+  if (r.weapon) { weapon = makeWeapon(r.weapon); P.weapons.push(weapon); }
+  const k = todayKey(); P.streak = { day: info.day, last: k, claimed: k };
+  saveProfile(true);
+  return { ...r, weapon, levelUps, day: info.day };
 }
 export function questsClaimable() { return P.quests.list.filter(q => !q.claimed && q.prog >= (QUEST_BY_ID[q.id]?.goal ?? Infinity)).length; }
 
