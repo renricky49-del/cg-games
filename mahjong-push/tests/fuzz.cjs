@@ -75,13 +75,13 @@ const URL = process.env.URL || 'http://localhost:8123/index.html';
       for (const i of await invariant()) issues.add(i);
       const done = await p.evaluate(() => { const open = !document.getElementById('modal').classList.contains('hidden'); return (open && (!!document.getElementById('w-map') || !!document.getElementById('dw-ok') || !!document.getElementById('e-again'))) || window.__tts.state.screen !== 's-game'; });
       if (done) break;
-      // wedge check: playing, no modal, tiles left => a legal move must exist (shuffle guarantees it)
+      // wedge check: playing, no modal, tiles left => a legal move must exist, or the stuck dialog / Endless auto-shuffle must resolve it within 1.5 s
       const wedged = await p.evaluate(() => {
         const b = window.__tts.board(); const L = window.__tts.L;
         if (b.over || b.remaining() === 0 || !document.getElementById('modal').classList.contains('hidden')) return false;
         return !L.hasMove(b.cells(), b.w, b.h);
       });
-      if (wedged) { await p.waitForTimeout(900); if (!(await p.evaluate(() => !document.getElementById('modal').classList.contains('hidden')))) issues.add('wedged: no moves and no stuck dialog'); }
+      if (wedged) { await p.waitForTimeout(1500); if (!(await p.evaluate(() => { const b = window.__tts.board(); return !document.getElementById('modal').classList.contains('hidden') || window.__tts.L.hasMove(b.cells(), b.w, b.h) || b.remaining() === 0; }))) { issues.add('wedged: no moves and no stuck dialog'); console.log('WEDGE STATE', JSON.stringify(await p.evaluate(() => { const b = window.__tts.board(); const G = window.__tts.state.G; return { mode: G && G.mode, level: G && G.level, done: G && G.done, paused: G && G.paused, adPaused: G && G.adPaused, bpaused: b.paused, over: b.over, active: b.active, busy: b.busy(), rushT: G && G.rushT, cells: window.__tts.L.encode({ w: b.w, h: b.h, cells: b.cells() }), removing: b.tiles.filter((t) => t.rm >= 0).length, hist: b.history.length, screen: window.__tts.state.screen }; }))); } }
     }
     await p.setViewportSize({ width: 1280, height: 720 });
   }

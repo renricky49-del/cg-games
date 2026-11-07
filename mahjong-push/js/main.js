@@ -1,7 +1,7 @@
 // Teahouse Tile Slide — screens, progression, modes, boosters, ads, tutorial.
 import * as L from './logic.js';
 import { LEVELS } from './levels-data.js';
-import { AREAS, LEVELS_PER_CHAPTER } from './meta.js';
+import { AREAS, LEVELS_PER_CHAPTER, PERK_TEXT } from './meta.js';
 import { loadGlyphs, setSkin, SKINS, skinPreview } from './tiles.js';
 import { Ambient } from './ambient.js';
 import { BoardView } from './game.js';
@@ -24,6 +24,7 @@ const DEFAULT_SAVE = () => ({
   daily: { last: '', streak: 0, best: 0 }, endlessBest: 0, played: 0, seenAreaDone: [],
   skins: ['jade'], skin: 'jade',
   stats: { gold: 0, rush: 0, mega: 0, maxChain: 0, maxCombo: 0, tied: 0 }, ach: {}, gift: '',
+  orders: { day: '', list: [], bonus: false }, tipT: 0,
 });
 let S = DEFAULT_SAVE();
 async function loadSave() {
@@ -37,6 +38,7 @@ async function loadSave() {
       S.daily = Object.assign(DEFAULT_SAVE().daily, d.daily || {});
       S.stats = Object.assign(DEFAULT_SAVE().stats, d.stats || {});
       S.ach = d.ach || {};
+      S.orders = Object.assign(DEFAULT_SAVE().orders, d.orders || {});
       while (S.areas.length < AREAS.length) S.areas.push([false, false, false, false, false]);
     }
   } catch (e) { S = DEFAULT_SAVE(); }
@@ -101,7 +103,8 @@ function refreshWallet() {
   $('#house-stars').textContent = S.bank; $('#g-coins').textContent = S.coins;
   for (const k of ['hint', 'shuffle', 'undo']) {
     const b = $('#b-' + k); const n = S.boosters[k];
-    b.textContent = n > 0 ? n : '+'; b.classList.toggle('plus', n <= 0);
+    const free = G && G.free && G.free[k] > 0;
+    b.textContent = free ? 'FREE' : n > 0 ? n : '+'; b.classList.toggle('plus', !free && n <= 0); b.classList.toggle('free', !!free);
   }
 }
 const mascot = (pose, cls = '') => `<img class="mascot ${cls}" src="assets/img/mascot_${pose}.webp" alt="" draggable="false">`;
@@ -134,11 +137,11 @@ function startLevel(n) {
   const def = LEVELS[n - 1];
   const b = L.decode(def.s);
   const pairs = L.tileCount(b.cells) / 2;
-  G = { mode: 'level', level: n, t: 0, used: 0, paused: false, adPaused: false, par: def.tut ? 9999 : parFor(pairs, def.win ?? 0.6), pairs, tut: def.tut || null, done: false, reserve: !!(def.tut || TIPS[n]) };
+  G = { mode: 'level', level: n, t: 0, used: 0, paused: false, adPaused: false, par: def.tut ? 9999 : Math.round(parFor(pairs, def.win ?? 0.6) * (1 + perks().par / 100) / 5) * 5, pairs, tut: def.tut || null, done: false, reserve: !!(def.tut || TIPS[n]) };
   hideTutorial();
   $('#g-label').textContent = `Level ${n}`;
   $('#g-target').innerHTML = def.tut ? 'Tutorial' : `${icon('star')}${icon('star')}${icon('star')} under ${fmt(G.par)}`;
-  if (!def.tut && n >= 4) b.gold = pickGold(b.cells, n * 7919);
+  if (!def.tut && n >= 4) b.gold = pickGold(b.cells, n * 7919, 1 + perks().gpair);
   beginBoard(b, chapterOf(n));
   showLevelTip(n);
   if (G.tut) startTutorial(G.tut);
@@ -150,8 +153,10 @@ function beginBoard(b, chapter = 0) {
   board.hc = S.settings.hc;
   refreshWallet();
   $('#g-combo').classList.remove('show');
-  if (G) { G.rush = 0; G.rushT = 0; }
-  document.body.classList.remove('rush'); $('#g-rush').style.width = '0%';
+  const P = perks();
+  if (G) { G.rush = G.tut ? 0 : P.rushStart; G.rushT = 0; G.free = G.tut ? {} : { undo: P.undo, hint: P.hint, shuffle: P.shuffle }; }
+  refreshWallet();
+  document.body.classList.remove('rush'); $('#g-rush').style.width = (G ? G.rush : 0) + '%';
   board.start(b, {
     onMatch: onMatch, onWin: onWin, onStuck: onStuck,
     onFailedPush: () => { if (G && G.tut === 'push') tutBubble('Almost! The dragged tile must line up with its twin, with nothing in between.'); },
@@ -183,31 +188,134 @@ function onMatch(combo, m, a, b) {
 const RUSH_SECS = 6;
 let tiedToastShown = false;
 // golden pair: two tiles of one face get a gold rim and pay a bonus when matched (no effect on solvability)
-function pickGold(cells, seed) {
+function pickGold(cells, seed, pairs = 1) {
   const rnd = L.mulberry32(seed);
   const byFace = {};
   cells.forEach((v, i) => { if (v >= 0 && v < L.TIED) (byFace[v] = byFace[v] || []).push(i); });
-  const faces = Object.keys(byFace).filter((f) => byFace[f].length >= 2);
-  if (!faces.length) return [];
-  const list = L.shuffleArr(byFace[faces[Math.floor(rnd() * faces.length)]].slice(), rnd);
-  return list.slice(0, 2);
+  const faces = L.shuffleArr(Object.keys(byFace).filter((f) => byFace[f].length >= 2), rnd);
+  const out = [];
+  for (const f of faces.slice(0, pairs)) out.push(...L.shuffleArr(byFace[f].slice(), rnd).slice(0, 2));
+  return out;
+}
+// Permanent bonuses from every restored teahouse piece (see meta.js perk).
+function perks() {
+  const p = { coins: 0, fill: 0, rushT: 0, par: 0, undo: 0, hint: 0, shuffle: 0, gold: 0, gpair: 0, rushStart: 0, tips: 0 };
+  AREAS.forEach((A, c) => A.tasks.forEach((t, k) => { if (S.areas[c] && S.areas[c][k] && t.perk) p[t.perk[0]] += t.perk[1]; }));
+  return p;
+}
+function openPerks() {
+  const P = perks(), keys = Object.keys(P).filter((k) => P[k] > 0);
+  const card = modal(`<h2>Teahouse perks</h2><p>Every restored piece gives a permanent bonus. They stack!</p>
+    <div class="perks">${keys.length ? keys.map((k) => `<div class="perk on">${icon('check')} ${PERK_TEXT[k](P[k])}</div>`).join('') : '<p class="sub">Restore your first piece to unlock a perk.</p>'}</div>
+    <div class="btns"><button class="btn primary" id="pk-ok">Close</button></div>`);
+  card.querySelector('#pk-ok').onclick = closeModal;
+}
+
+// ---- guest tips: restored pieces attract guests who leave coins over time (max 12 h stored)
+function tipRate() { const P = perks(); const n = S.areas.flat().filter(Boolean).length; return n ? P.tips + 3 * n : 0; }
+function tipsPending() {
+  const r = tipRate(); if (!r) return 0;
+  if (!S.tipT) { S.tipT = Date.now(); save(); return 0; }
+  return Math.floor(Math.min(12, (Date.now() - S.tipT) / 3600000) * r);
+}
+function refreshTips() {
+  const n = tipsPending(), b = $('#tip-jar');
+  b.classList.toggle('hidden', !tipRate());
+  $('#tip-amt').textContent = n; b.classList.toggle('pulse', n >= 10); b.disabled = n < 1;
+  b.title = `Guests leave ${tipRate()} coins per hour (up to 12 hours)`;
+}
+function collectTips() {
+  const n = tipsPending(); if (n < 1) return;
+  S.coins += n; S.tipT = Date.now(); save(); refreshWallet(); refreshTips();
+  Audio.play('coin'); Audio.play('chime'); toast(`Guests left you ${n} coins in tips!`);
+}
+
+// ---- guest orders: 3 daily requests that pay stars + coins
+const GUESTS = ['Grandpa Lin', 'Auntie Mei', 'Poet Bai', 'Little Jun', 'Traveller Kai', 'Lady Hua', 'Fisherman Bo', 'Scholar Wen', 'Painter Yu'];
+const ORDER_TYPES = {
+  levels: { txt: (n) => `Clear ${n} levels`, min: 3, max: 5, stars: 1 },
+  three: { txt: (n) => `Earn 3 stars on ${n} levels`, min: 2, max: 3, stars: 2 },
+  mega: { txt: (n) => `Make ${n} Mega Slides (push 3+ tiles into a match)`, min: 2, max: 3, stars: 2 },
+  gold: { txt: (n) => `Match ${n} golden pairs`, min: 2, max: 4, stars: 1 },
+  rush: { txt: (n) => `Trigger ${n} Tea Rushes`, min: 2, max: 3, stars: 1 },
+  combo: { txt: (n) => `Reach a \u00d7${n} combo`, min: 6, max: 8, stars: 1, max_: true },
+  cords: { txt: (n) => `Untie ${n} red-cord tiles`, min: 4, max: 8, stars: 1, need: 27 },
+  daily: { txt: () => 'Clear today\u2019s Daily Puzzle', min: 1, max: 1, stars: 2 },
+  endless: { txt: (n) => `Score ${n} in one Endless run`, min: 8, max: 15, mul: 100, stars: 1, max_: true },
+};
+function ensureOrders() {
+  const day = todayStr();
+  if (S.orders.day === day && S.orders.list.length) return;
+  const rnd = L.mulberry32(L.hashString('orders:' + day));
+  const types = L.shuffleArr(Object.keys(ORDER_TYPES).filter((k) => !ORDER_TYPES[k].need || cleared(ORDER_TYPES[k].need)), rnd).slice(0, 3);
+  const guests = L.shuffleArr(GUESTS.slice(), rnd);
+  S.orders = {
+    day, bonus: false,
+    list: types.map((k, i) => {
+      const T = ORDER_TYPES[k], goal = (T.min + Math.floor(rnd() * (T.max - T.min + 1))) * (T.mul || 1);
+      return { type: k, goal, prog: 0, guest: guests[i], stars: T.stars, coins: 40 + Math.floor(rnd() * 5) * 10, done: false, claimed: false };
+    }),
+  };
+  save();
+}
+function orderEvent(type, val = 1) {
+  ensureOrders();
+  for (const o of S.orders.list) {
+    if (o.type !== type || o.done) continue;
+    o.prog = ORDER_TYPES[type].max_ ? Math.max(o.prog, val) : o.prog + val;
+    if (o.prog >= o.goal) { o.prog = o.goal; o.done = true; showOrderReady(o); }
+  }
+  refreshOrderDots(); save();
+}
+function showOrderReady(o) {
+  achQueue.push({ name: `${o.guest}'s order is ready!`, rw: 0, order: true }); showAch(); Audio.play('chime');
+}
+function refreshOrderDots() {
+  ensureOrders();
+  const ready = S.orders.list.some((o) => o.done && !o.claimed) || (!S.orders.bonus && S.orders.list.every((o) => o.claimed));
+  for (const id of ['#title-ord-dot', '#map-ord-dot', '#house-ord-dot']) { const d = $(id); if (d) d.classList.toggle('hidden', !ready); }
+}
+function openOrders() {
+  ensureOrders();
+  const draw = () => {
+    const L3 = S.orders.list, allClaimed = L3.every((o) => o.claimed);
+    const card = modal(`${mascot(0)}<h2>Guest orders</h2><p>Today's guests have requests. Serve them for stars and coins!</p>
+      <div class="orders">${L3.map((o, i) => `<div class="order ${o.claimed ? 'claimed' : o.done ? 'ready' : ''}">
+        <div class="og">${o.guest}</div><div class="ot">${ORDER_TYPES[o.type].txt(o.goal)}</div>
+        <div class="pb"><i style="width:${(o.prog / o.goal) * 100}%"></i></div>
+        <div class="or"><span>${o.prog}/${o.goal}</span><span class="rw">+${o.stars} ${icon('star')} +${o.coins} coins</span>
+        ${o.claimed ? `<span class="srv">${icon('check')} Served</span>` : o.done ? `<button class="btn primary pulse" data-serve="${i}">Serve</button>` : ''}</div></div>`).join('')}</div>
+      <div class="bonus ${allClaimed && !S.orders.bonus ? 'ready' : ''}">${S.orders.bonus ? `${icon('check')} Daily bonus collected — new guests arrive tomorrow` : allClaimed ? '<button class="btn gold pulse" id="ord-bonus">Collect daily bonus: +2 stars, +100 coins</button>' : 'Serve all three for a bonus: +2 stars, +100 coins'}</div>
+      <div class="btns"><button class="btn primary" id="ord-ok">Close</button></div>`);
+    card.querySelectorAll('[data-serve]').forEach((b) => b.onclick = () => {
+      const o = L3[+b.dataset.serve]; o.claimed = true; S.bank += o.stars; S.coins += o.coins;
+      save(); refreshWallet(); refreshOrderDots(); Audio.play('coin'); Audio.play('star', 2); CG.happytime(); draw();
+    });
+    const bb = card.querySelector('#ord-bonus');
+    if (bb) bb.onclick = () => { S.orders.bonus = true; S.bank += 2; S.coins += 100; save(); refreshWallet(); refreshOrderDots(); Audio.play('win'); draw(); };
+    card.querySelector('#ord-ok').onclick = () => { closeModal(); if (current === 's-house') renderHouse(); };
+  };
+  draw();
 }
 function funOnMatch(combo, m, a, b, c) {
   const st = S.stats, endless = G.mode === 'endless', rushing = G.rushT > 0;
+  const P = perks();
   let gain = 12 + 6 * Math.min(combo - 1, 5), coins = 0, pts = 0;
   st.maxCombo = Math.max(st.maxCombo, combo);
-  st.tied += (a.face >= L.TIED ? 1 : 0) + (b.face >= L.TIED ? 1 : 0);
+  const untied = (a.face >= L.TIED ? 1 : 0) + (b.face >= L.TIED ? 1 : 0);
+  st.tied += untied; if (untied) orderEvent('cords', untied);
+  if (combo >= 5) orderEvent('combo', combo);
   if (m.type === 'push' && m.chain.length >= 2) {
     const n = m.chain.length;
     st.maxChain = Math.max(st.maxChain, n);
     if (n >= 3) {
-      st.mega++; gain += 20; coins += n * 3; pts += n * 30;
+      st.mega++; gain += 20; coins += n * 3; pts += n * 30; orderEvent('mega');
       board.bigBurst(a); Audio.play('mega', n);
       board.floatText(n >= 5 ? `AVALANCHE! ×${n}` : `MEGA SLIDE ×${n}`, c.x, c.y - board.ch * 0.8, '#ffd23a');
     } else board.floatText('Chain slide!', c.x, c.y - board.ch * 0.8, '#bff5d8');
   }
   if (a.gold || b.gold) {
-    st.gold++; gain += 15; coins += 20; pts += 150;
+    st.gold++; gain += 15; coins += 20 + P.gold; pts += 150; orderEvent('gold');
     board.bigBurst(a.gold ? a : b, 34); Audio.play('coin'); Audio.play('chime');
     board.floatText(endless ? 'Golden pair! +5s' : 'Golden pair! +20', c.x, c.y + board.ch * 0.6, '#ffe27a');
     if (endless) G.timeLeft += 5;
@@ -215,15 +323,15 @@ function funOnMatch(combo, m, a, b, c) {
   if (rushing) { coins += 2; pts += 10 * combo; }
   if (endless) { G.score += pts; updateEndlessHud(); } else if (coins) { S.coins += coins; refreshWallet(); bump($('#g-coins').parentElement); }
   if (!rushing) {
-    G.rush = Math.min(100, (G.rush || 0) + gain);
+    G.rush = Math.min(100, (G.rush || 0) + gain * (1 + P.fill / 100));
     if (G.rush >= 100) startRush();
   }
   $('#g-rush').style.width = (rushing ? 100 : G.rush) + '%';
   checkAch();
 }
 function startRush() {
-  G.rushT = RUSH_SECS; G.rush = 100;
-  S.stats.rush++;
+  G.rushDur = RUSH_SECS + perks().rushT; G.rushT = G.rushDur; G.rush = 100;
+  S.stats.rush++; orderEvent('rush');
   board.rush = true; document.body.classList.add('rush');
   const el = document.createElement('div'); el.className = 'rush-banner'; el.textContent = 'TEA RUSH!';
   document.body.appendChild(el); setTimeout(() => el.remove(), 1500);
@@ -266,7 +374,9 @@ function showAch() {
   if (achShowing || !achQueue.length) return;
   const a = achQueue.shift(); achShowing = true;
   const el = $('#ach-pop');
-  el.innerHTML = `<div class="ai">${icon('trophy')}</div><div><small>Achievement</small><b>${a.name}</b> · +${a.rw} coins</div>`;
+  el.innerHTML = a.order
+    ? `<div class="ai">${icon('house')}</div><div><small>Guest order</small><b>${a.name}</b> · serve it from Orders</div>`
+    : `<div class="ai">${icon('trophy')}</div><div><small>Achievement</small><b>${a.name}</b> · +${a.rw} coins</div>`;
   el.classList.add('show'); Audio.play('star', 2);
   setTimeout(() => { el.classList.remove('show'); setTimeout(() => { achShowing = false; showAch(); }, 500); }, 2600);
 }
@@ -327,8 +437,9 @@ function onWin() {
   const gained = Math.max(0, stars - prev);
   S.stars[n] = Math.max(prev, stars);
   S.bank += gained;
-  const coins = 10 + stars * 5 + (first ? 10 : 0);
+  const coins = Math.round((10 + stars * 5 + (first ? 10 : 0)) * (1 + perks().coins / 100));
   S.coins += coins; S.played++;
+  orderEvent('levels'); if (stars === 3) orderEvent('three');
   save(); refreshWallet(); checkAch();
   if (stars === 3) CG.happytime();
   hideTutorial();
@@ -439,7 +550,7 @@ function booster(kind) {
     if (G.mode === 'endless') { toast('Undo is off in Endless — keep moving!'); return; }
     return useUndo(false);
   }
-  if (S.boosters[kind] <= 0) return buyBooster(kind);
+  if (S.boosters[kind] <= 0 && !(G.free && G.free[kind] > 0)) return buyBooster(kind);
   if (kind === 'hint') {
     const m = board.findHint();
     if (!m) { toast('No moves left — try Shuffle'); return; }
@@ -449,10 +560,12 @@ function booster(kind) {
       Audio.play('deny');
       return;
     }
-    S.boosters.hint--; G.used++;
+    if (G.free && G.free.hint > 0) G.free.hint--; else S.boosters.hint--;
+    G.used++;
     board.showHint(m);
   } else if (kind === 'shuffle') {
-    S.boosters.shuffle--; G.used++;
+    if (G.free && G.free.shuffle > 0) G.free.shuffle--; else S.boosters.shuffle--;
+    G.used++;
     board.shuffle(Math.random);
   }
   save(); refreshWallet();
@@ -460,8 +573,8 @@ function booster(kind) {
 function useUndo(free) {
   if (!board.canUndo()) { toast('Nothing to undo'); return; }
   if (!free) {
-    if (S.boosters.undo <= 0) return buyBooster('undo');
-    S.boosters.undo--;
+    if (G.free && G.free.undo > 0) G.free.undo--;
+    else { if (S.boosters.undo <= 0) return buyBooster('undo'); S.boosters.undo--; }
   }
   board.undo(); save(); refreshWallet();
 }
@@ -706,7 +819,7 @@ function openDaily() {
 function startDaily() {
   const day = todayStr();
   const b = genBoard({ w: 8, h: 7, pairs: 18, types: 10, stones: 3, tied: 2 }, L.hashString('daily:' + day));
-  b.gold = pickGold(b.cells, L.hashString('gold:' + day));
+  b.gold = pickGold(b.cells, L.hashString('gold:' + day), 1 + perks().gpair);
   G = { mode: 'daily', t: 0, used: 0, paused: false, par: parFor(18, 0.5), pairs: 18, done: false, day };
   $('#g-label').textContent = 'Daily';
   $('#g-target').textContent = day;
@@ -720,7 +833,7 @@ function dailyWin() {
     const y = new Date(); y.setDate(y.getDate() - 1);
     S.daily.streak = S.daily.last === todayStr(y) ? S.daily.streak + 1 : 1;
     S.daily.best = Math.max(S.daily.best, S.daily.streak);
-    S.daily.last = G.day;
+    S.daily.last = G.day; orderEvent('daily');
     S.coins += 50; S.bank += 2;
     msg = `Streak: <b>${S.daily.streak} day${S.daily.streak > 1 ? 's' : ''}</b>`;
     CG.happytime();
@@ -737,7 +850,7 @@ const ENDLESS_SIZES = [[5, 6, 9, 5, 0, 0], [6, 6, 11, 6, 1, 0], [7, 6, 13, 7, 1,
 function endlessBoard() {
   const P = ENDLESS_SIZES[Math.min(G.boards, ENDLESS_SIZES.length - 1)];
   const b = genBoard({ w: P[0], h: P[1], pairs: P[2], types: P[3], stones: P[4], tied: P[5] }, (Math.random() * 1e9) | 0, 30);
-  b.gold = pickGold(b.cells, (Math.random() * 1e9) | 0);
+  b.gold = pickGold(b.cells, (Math.random() * 1e9) | 0, 1 + perks().gpair);
   return b;
 }
 function startEndless() {
@@ -766,7 +879,7 @@ function endlessOver() {
   G.done = true; CG.gameplayStop(); board.over = true;
   Audio.play('lose');
   const best = G.score > S.endlessBest;
-  S.endlessBest = Math.max(S.endlessBest, G.score);
+  S.endlessBest = Math.max(S.endlessBest, G.score); orderEvent('endless', G.score);
   const coins = Math.floor(G.score / 25);
   S.coins += coins; save(); refreshWallet(); checkAch();
   if (G.rushT > 0) endRush();
@@ -784,7 +897,7 @@ function openTitle() {
   show('s-title'); setBg('keyart');
   const n = nextLevel();
   $('#title-lvl').textContent = S.played || cleared(1) ? `· Level ${n}` : '';
-  refreshGift();
+  refreshGift(); refreshOrderDots();
   $('#title-streak').textContent = S.daily.streak && S.daily.last >= todayStr(new Date(Date.now() - 864e5)) ? `· ${S.daily.streak} day${S.daily.streak > 1 ? 's' : ''}` : '';
 }
 
@@ -793,7 +906,7 @@ let mapCh = 0;
 function openMap(c = chapterOf(nextLevel())) {
   G = null; board.stop(); hideTutorial(); CG.gameplayStop();
   mapCh = Math.max(0, Math.min(CHAPTERS - 1, c));
-  show('s-map'); setBg('mapbg'); refreshWallet();
+  show('s-map'); setBg('mapbg'); refreshWallet(); refreshOrderDots();
   renderMap();
 }
 function nodePos(i) {
@@ -886,12 +999,13 @@ function renderHouse(anim = -1) {
     const d = document.createElement('div');
     const isDone = S.areas[c][k];
     d.className = 'task' + (isDone ? ' done' : '') + (unlocked ? '' : ' locked');
-    d.innerHTML = `<img src="assets/img/items/${t.img}.webp" alt=""><div class="tn">${t.name}<small>${t.desc}</small></div>` +
+    d.innerHTML = `<img src="assets/img/items/${t.img}.webp" alt=""><div class="tn" title="${t.desc}">${t.name}<small class="perk-l">${t.perk ? PERK_TEXT[t.perk[0]](t.perk[1]) : t.desc}</small></div>` +
       (isDone ? `<span class="btn">${icon('check')}</span>` : `<button class="btn ${S.bank >= t.cost && unlocked ? 'primary pulse' : ''}" ${unlocked ? '' : 'disabled'}>${t.cost} ${icon('star')}</button>`);
     const btn = d.querySelector('button');
     if (btn) btn.onclick = () => restoreTask(c, k);
     list.appendChild(d);
   });
+  refreshTips(); refreshOrderDots();
   const affordable = unlocked && A.tasks.some((t, k) => !S.areas[c][k] && S.bank >= t.cost);
   $('#s-house [data-act=play]').classList.toggle('pulse', !affordable && levelUnlocked(nextLevel()));
 }
@@ -902,7 +1016,8 @@ function restoreTask(c, k) {
     toast(`You need ${t.cost - S.bank} more star${t.cost - S.bank > 1 ? 's' : ''} — earn them by clearing levels`);
     return;
   }
-  S.bank -= t.cost; S.areas[c][k] = true; save(); setTimeout(checkAch, 1500);
+  S.bank -= t.cost; S.areas[c][k] = true; if (!S.tipT) S.tipT = Date.now(); save(); setTimeout(checkAch, 1500);
+  if (t.perk) setTimeout(() => toast(`New perk: ${PERK_TEXT[t.perk[0]](t.perk[1])}!`, 2600), 700);
   Audio.play('build'); bump($('#house-stars').parentElement);
   refreshWallet();
   renderHouse(k);
@@ -942,7 +1057,7 @@ function tick(now) {
     const rushing = G.rushT > 0;
     if (rushing) {
       G.rushT -= dt;
-      $('#g-rush').style.width = Math.max(0, G.rushT / RUSH_SECS * 100) + '%';
+      $('#g-rush').style.width = Math.max(0, G.rushT / (G.rushDur || RUSH_SECS) * 100) + '%';
       if (G.rushT <= 0) endRush();
     } else if (G.rush > 0) {
       G.rush = Math.max(0, G.rush - 5 * dt);
@@ -982,12 +1097,16 @@ function bindUi() {
     }
     else if (a === 'settings') openSettings();
     else if (a === 'trophies') openTrophies();
+    else if (a === 'orders') openOrders();
+    else if (a === 'perks') openPerks();
     else if (a === 'gift') openGift();
     else if (a === 'daily') openDaily();
     else if (a === 'endless') startEndless();
     else if (a === 'pause') pauseGame();
     else if (a === 'hint' || a === 'shuffle' || a === 'undo') booster(a);
   });
+  $('#tip-jar').onclick = collectTips;
+  setInterval(() => { if (current === 's-house') refreshTips(); }, 30000);
   $('#ch-prev').onclick = () => { if (mapCh > 0) { mapCh--; renderMap(); Audio.play('click'); } };
   $('#ch-next').onclick = () => { if (mapCh < CHAPTERS - 1) { mapCh++; renderMap(); Audio.play('click'); } };
   $('#area-prev').onclick = () => { if (houseArea > 0) { houseArea--; renderHouse(); Audio.play('click'); } };

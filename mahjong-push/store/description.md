@@ -14,7 +14,7 @@ Match two identical tiles when they share a row or column with nothing between t
 
 Every board is checked by a solver, so each level can always be cleared. The difficulty rises gently over 84 hand-picked levels, from tiny tutorial boards to big 10×8 layouts with mossy stones that never move.
 
-Earn up to three stars per level by playing fast and without boosters, then spend them in the teahouse. Restore seven lovely areas, from the Courtyard Gate and Tea Room to the Koi Pond, Blossom Meadow, Moon Terrace, Tea Terraces and a snowy Winter Courtyard. Watch each one change from neglected to beautiful. Each restored area opens the next chapter. Momo the red panda, the teahouse keeper, cheers you on.
+Earn up to three stars per level by playing fast and without boosters, then spend them in the teahouse. Every piece you restore gives a permanent perk, so you choose how your teahouse helps you play. Restore seven lovely areas, from the Courtyard Gate and Tea Room to the Koi Pond, Blossom Meadow, Moon Terrace, Tea Terraces and a snowy Winter Courtyard. Watch each one change from neglected to beautiful. Each restored area opens the next chapter. Momo the red panda, the teahouse keeper, cheers you on.
 
 - 84 campaign levels in 7 chapters, all guaranteed solvable
 - Interactive tutorial: learn matching, then sliding
@@ -22,6 +22,8 @@ Earn up to three stars per level by playing fast and without boosters, then spen
 - Tea Rush: fill the meter with fast matches to freeze the clock and earn bonus coins
 - Mega Slides, golden pairs and 16 trophies to collect
 - A Lucky Teapot gift every day
+- Every teahouse restoration grants a permanent perk (more coins, longer Tea Rush, free undos, extra golden pairs...)
+- Daily guest orders that pay stars and coins, and guests who leave tips
 - Teahouse renovation meta: 35 restorations across 7 areas, with before/after transformations
 - Unlockable tile-back skins
 - Daily Puzzle with a streak counter

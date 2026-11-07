@@ -153,3 +153,14 @@ Afterwards, whenever a restoration becomes affordable, the result screen shows a
 | **Golden pair** | One pair per level (from level 4, plus Daily and every Endless board) has a shimmering gold rim: +20 coins (Endless: +5 s, +150 points). | Visual only, no effect on solvability. |
 | **Trophies** | 16 achievements (combos, mega slides, golden pairs, rushes, tied tiles, 3-star levels, stars, areas, daily streak, endless score, all levels), each with a coin reward, a pop-up, and a Trophies screen with progress bars. | Tracked in `S.stats` / `S.ach` (Data Module save). |
 | **Lucky Teapot** | A free daily gift on the title screen (coins, hints, shuffles or 2 stars). | Retention hook; no ads required. |
+
+
+## Meaningful stars: perks, guest orders and tips
+
+Players said stars "only buy fixed decorations". Now every star purchase changes how you play:
+
+| System | How it works |
+|---|---|
+| **Perks** | Each of the 35 restorations grants a permanent, stacking bonus (shown on its card; a "Perks" screen shows the totals). Types: +% level coins, Tea Rush fills faster, Tea Rush lasts longer, +% par time (easier 3 stars), free Undo / Hint / Shuffle every level (HUD badge shows FREE), golden pairs pay more, extra golden pair per level, Tea Rush meter starts partly full, guest tips per hour. Within an area you choose which perk to buy first. Totals when complete: +70% coins, +40% par, Tea Rush +4 s / fills +50% / starts 75%, 3 free undos, 2 free hints, 1 free shuffle, +2 golden pairs, +50 coins per golden pair. Defined in `js/meta.js` (`perk`, `PERK_TEXT`). |
+| **Guest orders** | 3 daily requests from named guests, seeded by date (clear N levels, 3-star N levels, N Mega Slides, N golden pairs, N Tea Rushes, a ×N combo, untie N red cords, the Daily Puzzle, an Endless score). Serving an order pays 1–2 stars + 40–80 coins; serving all three pays a daily bonus of +2 stars and +100 coins. Progress pops up in-game; red dots on Title/Map/Teahouse show orders ready to serve. |
+| **Guest tips** | Restored pieces attract guests: 3 coins/hour per restored piece plus tip perks (up to about 280/h when complete), stored for up to 12 h. Collect them from the tip jar in the teahouse. |

@@ -63,6 +63,9 @@
         <button class="btn" data-act="settings"><svg class="i"><use href="#i-gear"/></svg> Settings</button>
       </div>
       <div class="row">
+        <button class="btn" data-act="orders">Guest orders <span class="dot hidden" id="title-ord-dot"></span></button>
+      </div>
+      <div class="row">
         <button class="btn" data-act="trophies"><svg class="i"><use href="#i-trophy"/></svg> Trophies <small id="title-trophies"></small></button>
         <button class="btn gold" data-act="gift" id="gift-btn"><svg class="i"><use href="#i-gift"/></svg> <span id="gift-lbl">Daily gift</span></button>
       </div>
@@ -77,6 +80,7 @@
     <div class="pill star" title="Stars to spend in the teahouse"><b id="map-stars">0</b></div>
     <div class="pill coin" title="Coins"><b id="map-coins">0</b></div>
     <div class="spacer"></div>
+    <button class="btn" data-act="orders">Orders <span class="dot hidden" id="map-ord-dot"></span></button>
     <button class="btn" data-act="teahouse"><svg class="i"><use href="#i-house"/></svg> Teahouse</button>
   </div>
   <div class="map-head">
@@ -99,6 +103,9 @@
     <div class="area-title"><div id="area-name"></div><div class="prog"><div id="area-prog"></div></div></div>
     <button class="btn icon" id="area-next" title="Next area"><svg class="i"><use href="#i-right"/></svg></button>
     <div class="spacer"></div>
+    <button class="btn" data-act="perks" title="Your teahouse perks"><svg class="i"><use href="#i-star"/></svg> Perks</button>
+    <button class="btn gold hidden" id="tip-jar" title="Collect guest tips"><svg class="i"><use href="#i-gift"/></svg> Tips <b id="tip-amt">0</b></button>
+    <button class="btn" data-act="orders"><svg class="i"><use href="#i-house"/></svg> Orders <span class="dot hidden" id="house-ord-dot"></span></button>
     <button class="btn primary" data-act="play">Play</button>
   </div>
   <div class="house-body">

@@ -269,3 +269,32 @@ body.rush .timer { box-shadow: 0 0 0 3px #ffd23a, 0 0 22px rgba(255, 200, 60, .9
 .gift-pot.shake svg { animation: potShake .5s ease-in-out 2; }
 @keyframes potShake { 25% { transform: rotate(-10deg); } 75% { transform: rotate(10deg); } }
 .gift-prize { font-family: var(--display); font-weight: 900; font-size: 1.8em; color: #7a2e12; animation: pop .45s cubic-bezier(.2, 1.6, .4, 1); }
+
+/* perks, tips, guest orders */
+.badge.free { background: var(--jade); font-size: .62em; padding: 0 .4em; }
+.task .tn small.perk-l { color: #1d7d58; font-weight: 700; opacity: 1; }
+.task.done .tn small.perk-l { color: #1d7d58; }
+.perks { display: grid; gap: .45em; margin: .6em 0; text-align: left; }
+.perk { padding: .5em .8em; border-radius: .7em; background: rgba(31, 138, 99, .12); font-weight: 700; color: #165c41; }
+.perk svg { color: var(--jade); }
+.orders { display: grid; gap: .6em; margin: .6em 0; text-align: left; }
+.order { padding: .6em .8em; border-radius: .9em; background: rgba(120, 80, 30, .08); }
+.order.ready { background: rgba(255, 210, 90, .25); box-shadow: inset 0 0 0 2px #f0a91c; }
+.order.claimed { opacity: .6; }
+.order .og { font-family: var(--display); font-weight: 900; color: #7a2e12; }
+.order .ot { font-weight: 700; margin: .1em 0 .35em; }
+.order .pb { height: 7px; background: rgba(0,0,0,.12); border-radius: 5px; overflow: hidden; }
+.order .pb i { display: block; height: 100%; background: linear-gradient(90deg, #3fc08e, #f2b632); }
+.order .or { display: flex; align-items: center; gap: .6em; margin-top: .35em; font-size: .85em; }
+.order .rw { margin-left: auto; font-weight: 800; color: #a86d00; }
+.order .rw svg { color: #f0a91c; width: 1em; height: 1em; }
+.order .srv { color: var(--jade); font-weight: 800; }
+.order .btn { padding: .35em .9em; }
+.bonus { font-size: .9em; font-weight: 700; color: #7a2e12; padding: .3em; }
+#tip-jar b { background: rgba(0,0,0,.15); border-radius: .6em; padding: 0 .4em; }
+.btn .dot.hidden { display: none; }
+@media (max-aspect-ratio: 4/3) { #s-house .topbar { flex-wrap: wrap; } #s-house [data-act=perks] { display: none; } }
+
+#s-house .area-title { flex: none; min-width: 14em; }
+#s-house .topbar { gap: .45em; }
+#s-house .topbar .btn { padding: .5em .8em; }
