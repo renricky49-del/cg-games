@@ -2,7 +2,7 @@
 import {
   RUSH_TIME, GRACE_TIME, PACE, AI_COUNT, AID_FRAC, AID_FRAC_REPAIR, AID_CD, TEAM_BOUNTY_S, MAX_BED, MAX_DOOR, bedIncome, bedCost, bedDoorReq,
   doorMaxHp, doorCost, repairCost, REPAIR_FRAC, REPAIR_CD,
-  BUILDINGS, HEROES, upgradeCost, totalSpent, turretStats, BOSSES, bossBase, bossKinds, nightKinds, GROUP_HP, GROUP_DMG, HUNT_CHANCE, ABILITIES, CRATE_EVERY, CRATE_LIFE, BOSS_LVL_HP, BOSS_LVL_DMG, bossXpNeed,
+  BUILDINGS, HEROES, upgradeCost, totalSpent, turretStats, BOSSES, bossBase, bossKinds, nightKinds, GROUP_HP, GROUP_DMG, HUNT_CHANCE, ABILITIES, CRATE_EVERY, CRATE_LIFE, MINION_WAVE, minionWaveSize, BOSS_LVL_HP, BOSS_LVL_DMG, bossXpNeed,
   PERSONALITIES, AI_NAMES,
 } from './data.js';
 import { buildMap } from './map.js';
@@ -94,6 +94,7 @@ export class Game {
     const group = kinds.map((k, i) => {
       const b = this._makeBoss(k, diff, GROUP_HP[n] || 0.3, GROUP_DMG[n] || 0.38, lvl);
       b.y += OFF[i % OFF.length]; b.wakeDelay = i * 3; // they file out of the stairwell one after another
+      b.homeX = b.x; b.homeY = b.y;
       return b;
     });
     group[0].hunter = true; // the main boss hunts the player's room; the others go for the weakest doors
@@ -361,6 +362,21 @@ export class Game {
       }
     }
     for (const cr of this.crates) { cr.t -= dt; if (cr.drop > 0) cr.drop = Math.max(0, cr.drop - dt); }
+    // minion waves from the stairwell
+    if (this.phase === 'night') {
+      if (this.minionT == null) this.minionT = MINION_WAVE.first;
+      this.minionT -= dt;
+      const ref = this.bossesAlive()[0];
+      if (this.minionT <= 0 && ref) {
+        this.minionT = MINION_WAVE.every;
+        const n = this.endless ? Math.min(8, 2 + this.bossWaves) : minionWaveSize(this.night.n);
+        for (let i = 0; i < n; i++) {
+          const m = this._makeMinion(1.6 + this.rng() * 2.6, 7.8 + this.rng() * 1.4, ref, MINION_WAVE.hpF, MINION_WAVE.dmgF, 'minion' + Math.floor(this.rng() * 4));
+          m.rise = 0.4 + i * 0.35;
+        }
+        this.emit('minionWave', { n, x: 3, y: 8.5 });
+      }
+    }
     this.crates = this.crates.filter((cr) => cr.t > 0);
   }
   crateAt(x, y) { return this.crates.find((c) => c.drop <= 0 && Math.hypot(c.x - x, c.y - y) < 0.75); }
@@ -641,6 +657,15 @@ export class Game {
     this.enemies = alive;
   }
 
+  // Like _walkTo, but never cuts through walls between the stairwell and the apartments:
+  // inside the stairwell first line up with the hallway, and enter the stairwell from the hallway's mouth.
+  _move(e, x, y, spd, dt) {
+    const L = 5, inBand = (v) => v >= 7.5 && v <= 9.5, band = (v) => Math.max(7.7, Math.min(9.3, v));
+    if (e.x < L && x >= L && !inBand(e.y)) { this._walkTo(e, Math.min(e.x, 4.2), band(e.y), spd, dt); return false; }
+    if (e.x >= L - 0.6 && x < L && !inBand(y) && e.x > 4.3) { this._walkTo(e, 4.2, band(e.y), spd, dt); return false; }
+    return this._walkTo(e, x, y, spd, dt);
+  }
+
   _walkTo(e, x, y, spd, dt) {
     const dx = x - e.x, dy = y - e.y, d = Math.hypot(dx, dy);
     if (d < 0.05) return true;
@@ -660,7 +685,7 @@ export class Game {
     e.xp += dt * 0.08;
     this._checkLevel(e);
     if (e.state === 'retreat') {
-      if (this._walkTo(e, this.map.lair.sx, this.map.lair.sy, spd * 1.15, dt)) { e.state = 'heal'; this.emit('bossHeal', { e }); }
+      if (this._move(e, e.homeX || this.map.lair.sx, e.homeY || this.map.lair.sy, spd * 1.15, dt)) { e.state = 'heal'; this.emit('bossHeal', { e }); }
       return;
     }
     if (e.state === 'heal') {
@@ -689,13 +714,13 @@ export class Game {
     if (e.state === 'seek' || !e.target || !e.target.room.alive || !e.target.room.owner || e.target.room.owner.state === 'dead') {
       if (!e.target || !e.target.room.alive || e.state !== 'walk') {
         e.target = this._pickBossTarget(e);
-        if (!e.target) { e.state = 'idle'; this._walkTo(e, this.map.W / 2, 8.5, spd, dt); return; }
+        if (!e.target) { e.state = 'idle'; this._move(e, this.map.W / 2, 8.5, spd, dt); return; }
         e.state = 'walk';
       }
     }
     const t = e.target, ap = this._attackPos(e, t);
     if (e.state === 'walk') {
-      if (this._walkTo(e, ap.x, ap.y, spd, dt)) { e.state = 'attack'; e.atkCd = e.charging ? 0.1 : 0.6; e.switchT = 5; }
+      if (this._move(e, ap.x, ap.y, spd, dt)) { e.state = 'attack'; e.atkCd = e.charging ? 0.1 : 0.6; e.switchT = 5; }
       return;
     }
     if (e.state === 'attack') {
@@ -753,7 +778,7 @@ export class Game {
     }
     const t = e.target, ap = this._attackPos(e, t);
     if (e.state === 'walk') {
-      if (this._walkTo(e, ap.x, ap.y, spd, dt)) { e.state = 'attack'; e.atkCd = 0.8; }
+      if (this._move(e, ap.x, ap.y, spd, dt)) { e.state = 'attack'; e.atkCd = 0.8; }
       return;
     }
     e.dir = t.room.top ? -Math.PI / 2 : Math.PI / 2;
@@ -1006,11 +1031,12 @@ export class Game {
     let stars = 0;
     if (won) {
       stars = 1;
-      if (alive >= this.survivors.length || this.stats.bossKilled) stars = 2; // ★★ = nobody left behind
-      if (this.stats.bossKilled) stars = 3;
+      const allies = this.survivors.filter((q) => !q.isPlayer && q.state !== 'dead').length;
+      if (alive >= this.survivors.length || this.stats.bossKilled) stars = 2; // ★★ = nobody left behind, or every boss dead
+      if (this.stats.bossKilled && allies >= 1) stars = 3;                      // ★★★ = every boss dead AND a neighbour survived
     }
     return {
-      won, stars, alive, killed: this.stats.bossKilled, earned: Math.floor(this.stats.earned),
+      won, stars, alive, alliesAlive: this.survivors.filter((q) => !q.isPlayer && q.state !== 'dead').length, killed: this.stats.bossKilled, earned: Math.floor(this.stats.earned),
       time: this.stats.timeSurvived, bossLvl: Math.max(...this.bosses.map((b) => b.lvl)), bossesKilled: this.stats.bossesKilled || 0, built: this.stats.built,
       wave: this.stats.wave, realTime: this.stats.realTime, minions: this.stats.minionsKilled, reason: this.lostReason,
       aid: this.stats.aid || 0, aidReceived: this.stats.aidReceived || 0, crates: this.stats.crates || 0, abilities: this.stats.abilities || 0,

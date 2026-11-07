@@ -337,6 +337,7 @@ export class Renderer {
     ctx.translate(-c.x, -c.y);
     this.drawLabels(ctx);
     this.drawFloaters(ctx);
+    this.drawDoorBars(ctx); // last, so zombies, boss bars and numbers never cover them
     ctx.restore();
   }
 
@@ -550,7 +551,7 @@ export class Renderer {
       const walking = e.state === 'walk' || e.state === 'retreat' || e.state === 'idle';
       let fname = e.sprite;
       if (e.kind === 'boss') {
-        const f = e.lunge > 0 ? 2 : walking ? Math.floor(e.walkT * 1.6) % 2 : (e.state === 'attack' ? 0 : Math.floor(t * 1.2 + e.id) % 2);
+        const f = e.state === 'sleep' || e.stunT > 0 ? 0 : e.lunge > 0 ? 2 : walking ? Math.floor(e.walkT * 1.6) % 2 : (e.state === 'attack' ? 0 : Math.floor(t * 1.2 + e.id) % 2);
         if (IMG[e.sprite + '_' + f]) fname = e.sprite + '_' + f;
       } else {
         const f = walking ? Math.floor(e.walkT * 2.2) % 2 : (e.lunge > 0 ? 1 : 0);
@@ -567,7 +568,7 @@ export class Renderer {
       ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(cx, cy + size * 0.25, size * 0.36, size * 0.18, 0, 0, TAU); ctx.fill();
       const rot = e.dir - Math.PI / 2 + wob;
       if (e.kind === 'boss' && e.state === 'sleep') {
-        drawSprite(ctx, im, cx, cy, size * (1 + Math.sin(t * 1.5) * 0.02), Math.PI / 2);
+        drawSprite(ctx, im, cx, cy, size, Math.PI / 2); // asleep: lies still
         ctx.fillStyle = '#fff'; ctx.font = `bold ${TS * 0.4}px "Lilita One", Impact, sans-serif`; ctx.textAlign = 'center';
         ctx.globalAlpha = 0.5 + 0.5 * Math.sin(t * 2);
         ctx.fillText('z', cx + TS * 0.7, cy - TS * 0.9 - (t * 10 % 10)); ctx.globalAlpha = 1;
@@ -743,22 +744,6 @@ export class Renderer {
           ctx.fillStyle = '#fff'; ctx.fillText('HELP!', lx, hy + 1);
           ctx.font = `bold ${lf}px "Lilita One", Impact, sans-serif`;
         }
-        const m = g.doorMax(r);
-        for (const d of r.doors) {
-          const f = Math.max(0, d.hp / m);
-          const bw = TS * 1.1, bx = (d.tx + 0.5) * TS - bw / 2, by = (r.top ? d.ty + 1.12 : d.ty - 0.27) * TS;
-          if (f > 0.999 && r.hitT > 3 && !r.owner.isPlayer) continue;
-          ctx.fillStyle = 'rgba(0,0,0,0.7)'; roundRect(ctx, bx - 2, by - 2, bw + 4, TS * 0.16 + 4, 4); ctx.fill();
-          ctx.fillStyle = f > 0.6 ? '#62d26f' : f > 0.3 ? '#f2c23a' : '#ff4b3a';
-          ctx.fillRect(bx, by, bw * f, TS * 0.16);
-          if (r.owner.isPlayer) {
-            ctx.font = `bold ${this.fpx(TS * 0.22, 12)}px "Lilita One", Impact, sans-serif`;
-            ctx.fillStyle = '#fff'; ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.lineWidth = 3;
-            const txt = fmt(d.hp) + '/' + fmt(m);
-            const ty = by + (r.top ? TS * 0.36 : -TS * 0.22);
-            ctx.strokeText(txt, (d.tx + 0.5) * TS, ty); ctx.fillText(txt, (d.tx + 0.5) * TS, ty);
-          }
-        }
       }
     }
     // survivor names during rush
@@ -787,6 +772,33 @@ export class Renderer {
         ctx.strokeStyle = '#2a1a00'; ctx.lineWidth = 3; ctx.stroke();
         ctx.fillStyle = '#2a1a00'; ctx.font = `bold ${this.fpx(15, 13)}px "Lilita One", Impact, sans-serif`;
         ctx.fillText(e.lvl, bx - br * 0.7, by + 6);
+      }
+    }
+  }
+
+  // door HP bars: drawn on top of everything in the world
+  drawDoorBars(ctx) {
+    const g = this.g;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (const r of g.map.rooms) {
+      if (!r.owner || !r.alive || r.owner.state === 'dead') continue;
+      const m = g.doorMax(r);
+      for (const d of r.doors) {
+        const f = Math.max(0, d.hp / m);
+        if (f > 0.999 && r.hitT > 3 && !r.owner.isPlayer) continue;
+        const bh = Math.max(TS * 0.18, 7 / this.cam.z), bw = TS * 1.15;
+        const bx = (d.tx + 0.5) * TS - bw / 2, by = (r.top ? d.ty + 1.1 : d.ty - 0.1) * TS - (r.top ? 0 : bh);
+        ctx.fillStyle = 'rgba(0,0,0,0.8)'; roundRect(ctx, bx - 2, by - 2, bw + 4, bh + 4, 4); ctx.fill();
+        ctx.fillStyle = f > 0.6 ? '#62d26f' : f > 0.3 ? '#f2c23a' : '#ff4b3a';
+        ctx.fillRect(bx, by, bw * f, bh);
+        if (r.owner.isPlayer) { ctx.strokeStyle = '#ffd84a'; ctx.lineWidth = 2; roundRect(ctx, bx - 2, by - 2, bw + 4, bh + 4, 4); ctx.stroke(); }
+        if (r.owner.isPlayer) {
+          ctx.font = `bold ${this.fpx(TS * 0.22, 12)}px "Lilita One", Impact, sans-serif`;
+          ctx.fillStyle = '#fff'; ctx.strokeStyle = 'rgba(0,0,0,0.85)'; ctx.lineWidth = 3;
+          const txt = fmt(d.hp) + '/' + fmt(m);
+          const ty = r.top ? by + bh + this.fpx(TS * 0.22, 12) * 0.8 : by - this.fpx(TS * 0.22, 12) * 0.8;
+          ctx.strokeText(txt, (d.tx + 0.5) * TS, ty); ctx.fillText(txt, (d.tx + 0.5) * TS, ty);
+        }
       }
     }
   }

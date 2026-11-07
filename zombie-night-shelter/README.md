@@ -104,7 +104,7 @@ walk down the chain of earlier variants. Each boss gets `GROUP_HP` / `GROUP_DMG`
 4: 38/46 %, 5: 32/40 %); per-night `diff` was auto-tuned with `node tools/tune.mjs` to keep the same difficulty curve.
 Boss 1 is a **hunter**: whenever it picks a target it goes for the player's door 60 % of the time (`HUNT_CHANCE`) and
 rarely backs off; the others go for the weakest doors and avoid doors another boss is already on. A boss is on the
-player's door 23–58 % of the night (was 0–3 % with one boss). Win = dawn or all bosses dead; ★★★ = all dead.
+player's door 23–58 % of the night (was 0–3 % with one boss). Win = dawn or all bosses dead; ★★★ = all dead **and at least one AI neighbour alive**.
 Endless: waves start with 2 bosses and add one every second wave (max 5).
 
 **Each boss:** gains XP from door hits, broken doors, destroyed buildings and slowly over time; each level is ×1.38 HP,
@@ -118,7 +118,7 @@ Eliminated survivors (door broken or caught in the hallway) rise as minions.
 They pick rooms by size, neighbour support and distance, repair under fire, and save towards a weighted goal. Rookies
 sometimes freeze in the hallway on later nights, creating early minions.
 
-**Stars / meta:** ★ survive, ★★ survive with 4+ survivors alive, ★★★ kill the boss. Medals: 2 + 2/star (+4 first clear),
+**Stars / meta:** ★ survive, ★★ survive with 4+ survivors alive, ★★★ kill every boss with at least one neighbour alive. Medals: 2 + 2/star (+4 first clear),
 spent on 5 permanent perks. 6 survivor skins unlock by total stars. Endless mode unlocks after Night 6
 (bosses keep coming, each ×1.55 stronger).
 

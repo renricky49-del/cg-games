@@ -344,7 +344,7 @@ export class HUD {
   menuOpen() { return !this.bm.classList.contains('hidden') || !this.info.classList.contains('hidden'); }
   closeMenus() {
     this.bm.classList.add('hidden'); this.info.classList.add('hidden');
-    this.bmTile = null; this.infoObj = null; this.bmHover = null;
+    this.bmTile = null; this.infoObj = null; this.bmHover = null; this.infoSkey = null;
     if (this.R) { this.R.selTile = null; this.R.preview = null; }
   }
 
@@ -465,6 +465,23 @@ export class HUD {
       html += `<div class="btns">${btn('repair', `Repair · ${fmt(cr.cost || 0)}`, cr.ok)}${btn('door', c.max ? 'MAX' : `Upgrade · ${fmt(c.cost)}`, c.ok)}</div>`;
     }
     this.infoKey = key;
+    // Same panel already open (same kind/object/level): update texts and button states in place instead of
+    // rebuilding the DOM, so a button is never swapped out between mouse-down and mouse-up (lost clicks).
+    const skey = o.kind + ':' + (o.b ? o.b.id + ':' + o.b.lvl : o.room ? o.room.id : '');
+    if (this.infoSkey === skey && this.info.firstChild) {
+      const tmp = document.createElement('div'); tmp.innerHTML = html;
+      const sel = 'h3, .desc, .stat, [data-a]';
+      const now = this.info.querySelectorAll(sel), nu = tmp.querySelectorAll(sel);
+      if (now.length === nu.length) {
+        nu.forEach((n, i) => {
+          const c = now[i];
+          if (c.className !== n.className) c.className = n.className;
+          if (c.innerHTML !== n.innerHTML) c.innerHTML = n.innerHTML;
+        });
+        return;
+      }
+    }
+    this.infoSkey = skey;
     this.info.innerHTML = html;
     for (const el of this.info.querySelectorAll('[data-a]')) {
       el.addEventListener('click', (e) => {
@@ -504,7 +521,7 @@ export class HUD {
       case 'bossWake': this.banner(`${g.bosses.length} BOSSES ARE AWAKE!`, g.endless ? `Wave ${g.stats.wave}` : `${g.bosses[0].name} is hunting you — survive until dawn`, 2.6); break;
       case 'bossLevel': { const b = $('boss-box' + Math.max(0, g.bosses.indexOf(ev.e))); b.classList.remove('levelup'); void b.offsetWidth; b.classList.add('levelup'); const now = performance.now(); if (now - (this.lvlToastT || 0) > 4000) { this.lvlToastT = now; this.toast(g.bosses.length > 2 ? `The bosses are levelling up! (Lv${ev.lvl})` : `${ev.e.name} reached level ${ev.lvl}!`, 'bad'); } break; }
       case 'bossRetreat': this.toast(`${ev.e.name} is fleeing to heal — finish it!`, 'good'); break;
-      case 'bossDown': this.banner('BOSS DOWN!', `${ev.left} left — kill them all for ★★★`, 2.2); break;
+      case 'bossDown': this.banner('BOSS DOWN!', `${ev.left} left — kill them all (keep a neighbour alive) for ★★★`, 2.2); break;
       case 'doorBreak': if (!ev.player && ev.room.owner) this.toast(`${ev.room.owner.name}'s door was smashed!`, 'bad'); break;
       case 'death': if (!ev.s.isPlayer && ev.why === 'corridor') this.toast(`${ev.s.name} was caught in the hallway!`, 'bad'); break;
       case 'minionSpawn': break;

@@ -337,7 +337,7 @@ const App = {
     this.lastMedals = medals; this.doubled = false;
     $('res-title').textContent = g.endless ? 'The horde got you!' : r.won ? (r.killed ? 'BOSSES DOWN!' : 'You saw the dawn!') : 'Overrun!';
     $('res-title').className = r.won || g.endless ? '' : 'red';
-    $('res-sub').textContent = g.endless ? `Waves survived: ${r.wave - 1}  ·  Best: ${this.save.bestEndless}` : r.won ? (r.stars < 3 ? (r.stars < 2 ? 'Tip: keep every ally alive for ★★ (click their room to help), kill all bosses for ★★★' : 'Kill all bosses for ★★★') : 'Perfect night!') : (r.reason || 'Your door was broken.');
+    $('res-sub').textContent = g.endless ? `Waves survived: ${r.wave - 1}  ·  Best: ${this.save.bestEndless}` : r.won ? (r.stars < 3 ? (r.stars < 2 ? 'Tip: keep every ally alive for ★★ (click their room to help), kill all bosses with a neighbour still alive for ★★★' : (r.killed && !r.alliesAlive ? 'All neighbours fell — keep at least one alive for ★★★' : 'Kill all bosses (with a neighbour alive) for ★★★')) : 'Perfect night!') : (r.reason || 'Your door was broken.');
     const stars = $('res-stars').children;
     for (let i = 0; i < 3; i++) {
       stars[i].classList.remove('on');

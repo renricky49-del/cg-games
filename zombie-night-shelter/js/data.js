@@ -128,29 +128,29 @@ export const BOSSES = {
 // ---- Nights ------------------------------------------------------------------
 // diff: multiplier on boss stats. len: seconds from boss release to dawn.
 export const NIGHTS = [
-  { n: 1,  boss: 'brute',   count: 2, lvl: 1, diff: 0.64, len: 170, map: 0, unlockText: 'Nail Gun turret' },
-  { n: 2,  boss: 'brute',   count: 2, lvl: 2, diff: 0.65, len: 190, map: 1, unlockText: 'Crossbow turret' },
-  { n: 3,  boss: 'spitter', count: 3, lvl: 1, diff: 0.92, len: 200, map: 2, unlockText: 'Generator & Chill Trap' },
-  { n: 4,  boss: 'spitter', count: 3, lvl: 2, diff: 0.79, len: 210, map: 0, unlockText: 'Vending Machine' },
-  { n: 5,  boss: 'charger', count: 3, lvl: 3, diff: 0.75, len: 220, map: 1, unlockText: 'Tesla Coil' },
-  { n: 6,  boss: 'charger', count: 4, lvl: 1, diff: 1.03, len: 230, map: 2, unlockText: 'Repair Bench' },
-  { n: 7,  boss: 'howler',  count: 4, lvl: 2, diff: 1.05, len: 240, map: 0, unlockText: 'Spike Trap' },
-  { n: 8,  boss: 'howler',  count: 4, lvl: 3, diff: 0.99, len: 250, map: 1, unlockText: 'Signal Tower' },
-  { n: 9,  boss: 'tank',    count: 4, lvl: 4, diff: 1.01, len: 260, map: 2, unlockText: 'The Riot Tank' },
-  { n: 10, boss: 'tank',    count: 5, lvl: 1, diff: 1.63, len: 270, map: 0, unlockText: 'Harder nights' },
-  { n: 11, boss: 'abom',    count: 5, lvl: 2, diff: 1.41, len: 280, map: 1, unlockText: 'The Abomination' },
-  { n: 12, boss: 'abom',    count: 5, lvl: 3, diff: 1.3, len: 300, map: 2, unlockText: 'Endless mode' },
+  { n: 1,  boss: 'brute',   count: 2, lvl: 1, diff: 0.6, len: 170, map: 0, unlockText: 'Nail Gun turret' },
+  { n: 2,  boss: 'brute',   count: 2, lvl: 2, diff: 0.71, len: 190, map: 1, unlockText: 'Crossbow turret' },
+  { n: 3,  boss: 'spitter', count: 3, lvl: 1, diff: 0.98, len: 200, map: 2, unlockText: 'Generator & Chill Trap' },
+  { n: 4,  boss: 'spitter', count: 3, lvl: 2, diff: 0.88, len: 210, map: 0, unlockText: 'Vending Machine' },
+  { n: 5,  boss: 'charger', count: 3, lvl: 3, diff: 0.76, len: 220, map: 1, unlockText: 'Tesla Coil' },
+  { n: 6,  boss: 'charger', count: 4, lvl: 1, diff: 1.18, len: 230, map: 2, unlockText: 'Repair Bench' },
+  { n: 7,  boss: 'howler',  count: 4, lvl: 2, diff: 0.92, len: 240, map: 0, unlockText: 'Spike Trap' },
+  { n: 8,  boss: 'howler',  count: 4, lvl: 3, diff: 0.84, len: 250, map: 1, unlockText: 'Signal Tower' },
+  { n: 9,  boss: 'tank',    count: 4, lvl: 4, diff: 0.94, len: 260, map: 2, unlockText: 'The Riot Tank' },
+  { n: 10, boss: 'tank',    count: 5, lvl: 1, diff: 1.67, len: 270, map: 0, unlockText: 'Harder nights' },
+  { n: 11, boss: 'abom',    count: 5, lvl: 2, diff: 1.34, len: 280, map: 1, unlockText: 'The Abomination' },
+  { n: 12, boss: 'abom',    count: 5, lvl: 3, diff: 1.35, len: 300, map: 2, unlockText: 'Endless mode' },
   // Nights 13-22: mixed packs, 5-6 bosses, start levels 4-8. Balanced around upgraded perks (tools/tune.mjs).
-  { n: 13, title: 'Mixed Company', boss: 'abom', kinds: ['abom', 'tank', 'howler', 'charger', 'spitter'], count: 5, lvl: 4, diff: 1.37, len: 300, map: 0 },
-  { n: 14, title: 'Iron Rain', boss: 'tank', kinds: ['tank', 'tank', 'howler', 'howler', 'abom'], count: 5, lvl: 4, diff: 1.57, len: 305, map: 1 },
-  { n: 15, title: 'Stampede', boss: 'charger', kinds: ['charger', 'charger', 'charger', 'abom', 'tank'], count: 5, lvl: 5, diff: 1.16, len: 310, map: 2 },
-  { n: 16, title: 'Choir of the Dead', boss: 'howler', kinds: ['howler', 'howler', 'spitter', 'spitter', 'abom'], count: 5, lvl: 5, diff: 1.38, len: 315, map: 0 },
-  { n: 17, title: 'Heavy Metal', boss: 'abom', kinds: ['abom', 'abom', 'tank', 'tank', 'charger'], count: 5, lvl: 6, diff: 1.13, len: 320, map: 1 },
-  { n: 18, title: 'Lockdown', boss: 'tank', kinds: ['tank', 'tank', 'tank', 'abom', 'abom'], count: 5, lvl: 6, diff: 1.31, len: 325, map: 2 },
-  { n: 19, title: 'Six Feet Closer', boss: 'abom', kinds: ['abom', 'howler', 'charger', 'spitter', 'tank', 'brute'], count: 6, lvl: 6, diff: 1.42, len: 330, map: 0 },
-  { n: 20, title: 'Riot Season', boss: 'abom', kinds: ['abom', 'abom', 'tank', 'tank', 'howler', 'howler'], count: 6, lvl: 7, diff: 1.12, len: 340, map: 1 },
-  { n: 21, title: 'Red Moon', boss: 'abom', kinds: ['abom', 'abom', 'abom', 'tank', 'charger', 'spitter'], count: 6, lvl: 7, diff: 1.08, len: 350, map: 2 },
-  { n: 22, title: 'The Last Door', boss: 'abom', kinds: ['abom', 'abom', 'abom', 'abom', 'abom', 'abom'], count: 6, lvl: 8, diff: 0.82, len: 360, map: 0 },
+  { n: 13, title: 'Mixed Company', boss: 'abom', kinds: ['abom', 'tank', 'howler', 'charger', 'spitter'], count: 5, lvl: 4, diff: 1.39, len: 300, map: 0 },
+  { n: 14, title: 'Iron Rain', boss: 'tank', kinds: ['tank', 'tank', 'howler', 'howler', 'abom'], count: 5, lvl: 4, diff: 1.61, len: 305, map: 1 },
+  { n: 15, title: 'Stampede', boss: 'charger', kinds: ['charger', 'charger', 'charger', 'abom', 'tank'], count: 5, lvl: 5, diff: 1.13, len: 310, map: 2 },
+  { n: 16, title: 'Choir of the Dead', boss: 'howler', kinds: ['howler', 'howler', 'spitter', 'spitter', 'abom'], count: 5, lvl: 5, diff: 1.27, len: 315, map: 0 },
+  { n: 17, title: 'Heavy Metal', boss: 'abom', kinds: ['abom', 'abom', 'tank', 'tank', 'charger'], count: 5, lvl: 6, diff: 0.92, len: 320, map: 1 },
+  { n: 18, title: 'Lockdown', boss: 'tank', kinds: ['tank', 'tank', 'tank', 'abom', 'abom'], count: 5, lvl: 6, diff: 1.11, len: 325, map: 2 },
+  { n: 19, title: 'Six Feet Closer', boss: 'abom', kinds: ['abom', 'howler', 'charger', 'spitter', 'tank', 'brute'], count: 6, lvl: 6, diff: 1.43, len: 330, map: 0 },
+  { n: 20, title: 'Riot Season', boss: 'abom', kinds: ['abom', 'abom', 'tank', 'tank', 'howler', 'howler'], count: 6, lvl: 7, diff: 0.97, len: 340, map: 1 },
+  { n: 21, title: 'Red Moon', boss: 'abom', kinds: ['abom', 'abom', 'abom', 'tank', 'charger', 'spitter'], count: 6, lvl: 7, diff: 0.92, len: 350, map: 2 },
+  { n: 22, title: 'The Last Door', boss: 'abom', kinds: ['abom', 'abom', 'abom', 'abom', 'abom', 'abom'], count: 6, lvl: 8, diff: 0.79, len: 360, map: 0 },
 ];
 // Several bosses every night: count = how many, lvl = the level they all start at.
 // Boss 1 is the night's boss (and the hunter); the others walk down the chain of earlier variants.
@@ -180,6 +180,9 @@ export const ABILITIES = {
 // ---- Supply drops: a crate falls into the hallway every so often during the night; click it to grab it
 export const CRATE_EVERY = [44, 64];  // game-seconds between drops (random in range)
 export const CRATE_LIFE = 18;         // game-seconds before it is gone
+// Minion waves: zombies shuffle out of the stairwell during the night (more on later nights)
+export const MINION_WAVE = { every: 26, first: 14, hpF: 0.25, dmgF: 0.3 };
+export const minionWaveSize = (n) => Math.min(8, 2 + Math.floor(n / 3));
 export const HUNT_CHANCE = 0.6; // chance the main boss picks the player's door whenever it chooses a target
 export const ENDLESS = { n: 0, endless: true, boss: 'brute', count: 2, lvl: 1, diff: 1.6, len: 99999, map: 1 };
 
