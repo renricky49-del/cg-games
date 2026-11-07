@@ -10,7 +10,7 @@ async function until(p, fn, ms = 90000) { const t = Date.now(); while (Date.now(
   const p = await b.newPage({ viewport: { width: 1280, height: 720 } });
   p.on('pageerror', (e) => console.log('pageerror', e.message));
   await p.goto('http://localhost:8123/index.html'); await p.waitForSelector('#title.show');
-  await p.evaluate(() => { const A = window.__app; A.save.tutDone = true; A.save.stars = { 1: 3, 2: 3, 3: 2, 4: 2, 5: 1, 6: 1, 7: 1, 8: 1 }; A.save.medals = 40; A.persist(); });
+  await p.evaluate(() => { const A = window.__app; A.save.tutDone = true; A.save.stars = { 1: 3, 2: 3, 3: 2, 4: 2, 5: 1, 6: 1, 7: 1, 8: 1 }; A.save.medals = 40; A.save.lastDaily = new Date().toISOString().slice(0, 10); A.persist(); A.showTitle(); });
   await sleep(800);
   await p.screenshot({ path: OUT + '/01_title.png' });
   // rush on night 3

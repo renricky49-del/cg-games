@@ -2,7 +2,7 @@
 import {
   RUSH_TIME, GRACE_TIME, PACE, AI_COUNT, AID_FRAC, AID_FRAC_REPAIR, AID_CD, TEAM_BOUNTY_S, MAX_BED, MAX_DOOR, bedIncome, bedCost, bedDoorReq,
   doorMaxHp, doorCost, repairCost, REPAIR_FRAC, REPAIR_CD,
-  BUILDINGS, upgradeCost, totalSpent, turretStats, BOSSES, bossBase, bossKinds, GROUP_HP, GROUP_DMG, HUNT_CHANCE, BOSS_LVL_HP, BOSS_LVL_DMG, bossXpNeed,
+  BUILDINGS, upgradeCost, totalSpent, turretStats, BOSSES, bossBase, bossKinds, GROUP_HP, GROUP_DMG, HUNT_CHANCE, ABILITIES, CRATE_EVERY, CRATE_LIFE, BOSS_LVL_HP, BOSS_LVL_DMG, bossXpNeed,
   PERSONALITIES, AI_NAMES,
 } from './data.js';
 import { buildMap } from './map.js';
@@ -44,6 +44,10 @@ export class Game {
     this.continueUsed = false;
     this.adRepairUsed = false;
     this.adScrapUses = 0;
+    this.abilCd = { flash: 0, molotov: 0 };
+    this.fires = [];          // molotov fire zones
+    this.crates = [];         // supply drops
+    this.crateT = CRATE_EVERY[0] * 0.6;
     this.lostReason = '';
     this.bossWaves = 0;
 
@@ -295,6 +299,78 @@ export class Game {
     }
   }
   adScrapAmount() { return Math.max(150, Math.round(this.income(this.player) * 40)); }
+  // ---------------------------------------------------------- player abilities
+  abilityUnlocked(k) { return this.endless || ABILITIES[k].unlock <= this.night.n; }
+  canAbility(k) {
+    const A = ABILITIES[k];
+    if (!this.abilityUnlocked(k)) return { ok: false, reason: `Unlocks on Night ${A.unlock}`, locked: true };
+    if (this.phase !== 'night' && this.phase !== 'grace') return { ok: false, reason: 'No zombies yet' };
+    if (this.abilCd[k] > 0) return { ok: false, reason: 'Recharging', cd: this.abilCd[k] };
+    return { ok: true };
+  }
+  useAbility(k, x, y) {
+    const c = this.canAbility(k); if (!c.ok) return c;
+    const A = ABILITIES[k];
+    this.abilCd[k] = A.cd;
+    const from = this.player.room ? { x: this.player.room.bed.x, y: this.player.room.bed.y } : { x: this.player.x, y: this.player.y };
+    if (k === 'flash') {
+      for (const e of this.enemies) {
+        if (!e.alive || e.rise > 0 || dist(e.x, e.y, x, y) > A.radius + e.r * 0.5) continue;
+        e.stunT = Math.max(e.stunT || 0, e.kind === 'boss' ? A.stunBoss : A.stunMinion);
+        e.atkCd = Math.max(e.atkCd, 0.6); e.charging = false;
+      }
+    } else if (k === 'molotov') {
+      this.fires.push({ x, y, r: A.radius, t: A.dur, max: A.dur });
+    }
+    this.stats.abilities = (this.stats.abilities || 0) + 1;
+    this.emit('ability', { k, x, y, fx: from.x, fy: from.y, r: A.radius });
+    return c;
+  }
+  _updAbilities(dt) {
+    for (const k in this.abilCd) if (this.abilCd[k] > 0) this.abilCd[k] = Math.max(0, this.abilCd[k] - dt);
+    for (const f of this.fires) {
+      f.t -= dt;
+      for (const e of this.enemies) {
+        if (!e.alive || e.rise > 0 || dist(e.x, e.y, f.x, f.y) > f.r + e.r * 0.4) continue;
+        const pct = e.kind === 'boss' ? ABILITIES.molotov.bossPct : ABILITIES.molotov.minionPct;
+        this._damage(e, e.maxHp * pct * dt, this.player.room, 'fire', true, true);
+      }
+    }
+    this.fires = this.fires.filter((f) => f.t > 0);
+    // supply drops
+    if (this.phase === 'night') {
+      this.crateT -= dt;
+      if (this.crateT <= 0) {
+        this.crateT = CRATE_EVERY[0] + this.rng() * (CRATE_EVERY[1] - CRATE_EVERY[0]);
+        const c = this.map.corridor;
+        const kinds = ['scrap', 'scrap', 'recharge', 'repair'];
+        const crate = { id: NEXT_ID++, x: 6.5 + this.rng() * (c.x1 - 8), y: c.y0 + 0.7 + this.rng() * 1.6, t: CRATE_LIFE, drop: 1.2, kind: kinds[Math.floor(this.rng() * kinds.length)] };
+        this.crates.push(crate);
+        this.emit('crateDrop', { crate, x: crate.x, y: crate.y });
+      }
+    }
+    for (const cr of this.crates) { cr.t -= dt; if (cr.drop > 0) cr.drop = Math.max(0, cr.drop - dt); }
+    this.crates = this.crates.filter((cr) => cr.t > 0);
+  }
+  crateAt(x, y) { return this.crates.find((c) => c.drop <= 0 && Math.hypot(c.x - x, c.y - y) < 0.75); }
+  openCrate(cr) {
+    const s = this.player;
+    if (!this.crates.includes(cr) || cr.drop > 0) return null;
+    this.crates = this.crates.filter((c) => c !== cr);
+    let text = '';
+    if (cr.kind === 'scrap') {
+      const n = Math.max(60, Math.round(this.income(s) * 25));
+      s.scrap += n; s.earned += n; this.stats.earned += n; text = `+${fmt(n)} scrap`;
+    } else if (cr.kind === 'recharge') {
+      for (const k in this.abilCd) this.abilCd[k] = 0; text = 'Abilities recharged!';
+    } else if (s.room && s.room.alive) {
+      const m = this.doorMax(s.room); for (const d of s.room.doors) d.hp = Math.min(m, d.hp + m * 0.5); text = 'Door +50%';
+    }
+    this.stats.crates = (this.stats.crates || 0) + 1;
+    this.emit('crateOpen', { crate: cr, kind: cr.kind, text, x: cr.x, y: cr.y });
+    return text;
+  }
+
   grantScrap(s, n) { s.scrap += n; s.earned += n; if (s.isPlayer) this.stats.earned += n; this.emit('float', { x: s.x, y: s.y - 0.6, text: '+' + fmt(n), color: '#ffd84a', big: true }); }
 
   // movement during rush
@@ -347,6 +423,7 @@ export class Game {
       }
     }
     this._updBuildings(dt);
+    this._updAbilities(dt);
     this._updEnemies(dt);
     this._updProjectiles(dt);
   }
@@ -537,6 +614,7 @@ export class Game {
       if (e.rise > 0) { e.rise -= dt; continue; }
       if (e.state === 'sleep') continue;
       if (e.pause > 0) { e.pause -= dt; continue; }
+      if (e.stunT > 0) { e.stunT -= dt; continue; } // flashbanged: does nothing
       // slow from chill traps
       let slow = 0;
       for (const b of this.buildings) {
@@ -843,7 +921,10 @@ export class Game {
     if (e.armor && !pierce && src !== 'spike') dmg *= 0.5;
     e.hp -= dmg; if (!quiet || e.hitFlash <= 0) e.hitFlash = 0.08;
     if (e.kind === 'boss') e.recentDmg += dmg;
-    this.emit('hit', { e, dmg, x: e.x, y: e.y, src, player: room && room.owner && room.owner.isPlayer });
+    if (src === 'fire') { // burning ticks every frame: report it as one number every 0.3 s
+      e.fireAcc = (e.fireAcc || 0) + dmg;
+      if ((e.fireT = (e.fireT || 0) - 1) <= 0) { e.fireT = 18; this.emit('hit', { e, dmg: e.fireAcc, x: e.x, y: e.y, src: 'flame', player: true }); e.fireAcc = 0; }
+    } else this.emit('hit', { e, dmg, x: e.x, y: e.y, src, player: room && room.owner && room.owner.isPlayer });
     if (e.hp <= 0) {
       e.alive = false; e.hp = 0;
       this.emit('kill', { e, x: e.x, y: e.y });
@@ -921,7 +1002,7 @@ export class Game {
       won, stars, alive, killed: this.stats.bossKilled, earned: Math.floor(this.stats.earned),
       time: this.stats.timeSurvived, bossLvl: Math.max(...this.bosses.map((b) => b.lvl)), bossesKilled: this.stats.bossesKilled || 0, built: this.stats.built,
       wave: this.stats.wave, realTime: this.stats.realTime, minions: this.stats.minionsKilled, reason: this.lostReason,
-      aid: this.stats.aid || 0, aidReceived: this.stats.aidReceived || 0,
+      aid: this.stats.aid || 0, aidReceived: this.stats.aidReceived || 0, crates: this.stats.crates || 0, abilities: this.stats.abilities || 0,
     };
   }
 }

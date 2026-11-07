@@ -41,5 +41,14 @@ Style anchor = job `05a68226` (survivors sheet), passed as `image_references` to
 | 33–44 | 12 SFX | nail gun, crossbow, tesla zap, flamethrower, mortar launch, explosion, door thud, hammer repair, build clunk, upgrade chime, coins, zombie splat | mirelo_text_to_audio 1–1.5 s | 12 × 0.50 | assets/audio/s_*.mp3 | 34.38 |
 | 45–47 | SFX redo | flamethrower, crossbow, coins (first takes were near-silent) | mirelo_text_to_audio 2 s | 3 × 0.50 | s_flame, s_bolt, s_coin | 35.88 |
 
-**Total spent: 35.88 credits** (cap 95; parent asked ≤ ~45). Covers are composited locally by `tools/covers.py` (key art + logo + soft shadow).
+### Abilities / supply drops / themed upgrade sounds
+| # | Asset | Prompt summary | Settings | Cost | Output | Running total |
+|---|---|---|---|---|---|---|
+| 48 | ability + crate sprites | flashbang icon, molotov icon, top-down supply crate, crate with parachute, ref #1 | medium 1k, transparent | 0.50 | a_flash, a_molotov, crate, crate_chute | 36.38 |
+| 49–55 | 7 SFX | door upgrade (steel plate + drill), turret upgrade (ratchet + reload), bed upgrade (springs + cha-ching), flashbang, molotov, crate drop, crate open | mirelo_text_to_audio 2 s | 7 × 0.50 | u_door, u_turret, u_bed, s_flashbang, s_molotov, s_cratedrop, s_crateopen | 39.88 |
+| 56 | molotov SFX redo | first take near-silent | mirelo_text_to_audio 2 s | 0.50 | s_molotov | 40.38 |
+
+The old generic "power-up chime" (s_upgrade) was removed.
+
+**Total spent: 40.38 credits** (cap 95; parent asked ≤ ~45). Covers are composited locally by `tools/covers.py` (key art + logo + soft shadow).
 Post-processing: all PNG sprites quantized to 256 colours (PIL FASTOCTREE, no dither) — 2.0 MB → 0.45 MB with no visible loss.

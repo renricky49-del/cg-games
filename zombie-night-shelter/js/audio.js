@@ -4,7 +4,10 @@ const SAMPLE_SFX = {
   nail: ['s_nail', 0.45, 0.07, 0.25], bolt: ['s_bolt', 0.7, 0.09, 0.15], zap: ['s_zap', 0.6, 0.1, 0.2],
   flame: ['s_flame', 0.45, 0.35, 0.15], mortar: ['s_mortar', 0.7, 0.1, 0.15], boom: ['s_boom', 0.75, 0.08, 0.2],
   doorHit: ['s_doorhit', 1.0, 0.07, 0.12], doorHitFar: ['s_doorhit', 0.3, 0.15, 0.2],
-  repair: ['s_repair', 0.8, 0.2, 0.05], build: ['s_build', 0.8, 0.1, 0.1], upgrade: ['s_upgrade', 0.7, 0.1, 0.05],
+  repair: ['s_repair', 0.8, 0.2, 0.05], build: ['s_build', 0.8, 0.1, 0.1], upgrade: ['s_crateopen', 0.7, 0.1, 0.05],
+  upgradeBed: ['u_bed', 0.8, 0.15, 0.06], upgradeDoor: ['u_door', 0.85, 0.15, 0.06], upgradeTurret: ['u_turret', 0.85, 0.12, 0.08],
+  flashbang: ['s_flashbang', 0.9, 0.1, 0.05], molotov: ['s_molotov', 0.9, 0.1, 0.08],
+  crateDrop: ['s_cratedrop', 0.7, 0.2, 0.05], crateOpen: ['s_crateopen', 0.9, 0.1, 0.05],
   coin: ['s_coin', 0.35, 0.18, 0.2], kill: ['s_splat', 0.6, 0.06, 0.25], chargeHit: ['s_doorhit', 1.2, 0.1, 0.05],
 };
 export const Audio = {

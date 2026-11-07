@@ -155,6 +155,17 @@ export const AID_FRAC = 0.35;        // "Send scrap" gives this share of your sc
 export const AID_FRAC_REPAIR = 0.5; // a repair you pay for on an ally's door restores this much (more than your own 35%)
 export const AID_CD = 6;             // cooldown (game-s) between repairs you pay for on the same ally door
 export const TEAM_BOUNTY_S = 20;     // boss kill: every living survivor gets this many seconds of bed income
+// ---- Player abilities (click a button, then click the map) ----------------------
+// cd in game-seconds (shown halved in real time at PACE 2)
+export const ABILITIES = {
+  flash: { name: 'Flashbang', key: 'Q', unlock: 1, cd: 36, radius: 2.6, stunBoss: 3, stunMinion: 5, icon: 'a_flash',
+    desc: 'Stuns every zombie in the blast. Stunned bosses stop smashing doors.' },
+  molotov: { name: 'Molotov', key: 'E', unlock: 2, cd: 48, radius: 2.0, dur: 7, bossPct: 0.016, minionPct: 0.14, icon: 'a_molotov',
+    desc: 'Leaves a pool of fire that burns zombies standing in it.' },
+};
+// ---- Supply drops: a crate falls into the hallway every so often during the night; click it to grab it
+export const CRATE_EVERY = [44, 64];  // game-seconds between drops (random in range)
+export const CRATE_LIFE = 18;         // game-seconds before it is gone
 export const HUNT_CHANCE = 0.6; // chance the main boss picks the player's door whenever it chooses a target
 export const ENDLESS = { n: 0, endless: true, boss: 'brute', count: 2, lvl: 1, diff: 1.6, len: 99999, map: 1 };
 

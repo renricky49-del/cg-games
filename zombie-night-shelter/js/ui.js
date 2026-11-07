@@ -3,7 +3,7 @@ import { Audio } from './audio.js';
 import { fmt } from './sim.js';
 import {
   BUILDINGS, BUILD_ORDER, bedIncome, bedCost, bedDoorReq, doorMaxHp, upgradeCost, turretStats, spriteFor,
-  REPAIR_FRAC, MAX_BED, GRACE_TIME, PACE,
+  REPAIR_FRAC, MAX_BED, GRACE_TIME, PACE, ABILITIES,
 } from './data.js';
 import { roomAt } from './map.js';
 
@@ -24,6 +24,7 @@ export class HUD {
   reset(g, tutorial) {
     this.closeMenus();
     this.tut = tutorial ? { step: 0, t: 0 } : null;
+    this.aiming = null; $('game').classList.remove('aim');
     this.helpHinted = false; // nudge once per night
     $('tutorial').classList.add('hidden'); $('tut-arrow').classList.add('hidden');
     this.cache = {};
@@ -69,7 +70,9 @@ export class HUD {
       this.app.save.tutDone = true; this.app.persist();
       if (this.g) { this.g.tutorial = false; this.g.lieDown(this.g.player); }
     });
-    for (const id of ['act-bed', 'act-repair', 'act-door', 'act-adscrap', 'act-adrepair']) {
+    act('act-flash', () => this.armAbility('flash'));
+    act('act-molotov', () => this.armAbility('molotov'));
+    for (const id of ['act-bed', 'act-repair', 'act-door', 'act-adscrap', 'act-adrepair', 'act-flash', 'act-molotov']) {
       $(id).addEventListener('mouseenter', () => { this.hoverBtn = id; Audio.play('hover'); });
       $(id).addEventListener('mouseleave', () => { if (this.hoverBtn === id) this.hoverBtn = null; this.hideTip(); });
     }
@@ -89,8 +92,34 @@ export class HUD {
     }
   }
 
+  // ---------------------------------------------------------------- abilities
+  // click the button (or press Q/E) to aim, then click the map. Q/E with the mouse over the map throws right away.
+  armAbility(k) {
+    const g = this.g; if (!g) return;
+    const c = g.canAbility(k);
+    if (!c.ok) { Audio.play('error'); this.toast(c.reason + (c.cd ? ` (${Math.ceil(c.cd / PACE)}s)` : ''), 'bad'); return; }
+    this.closeMenus();
+    this.aiming = this.aiming === k ? null : k;
+    $('game').classList.toggle('aim', !!this.aiming);
+    if (this.aiming) this.toast(`Click where to throw the ${ABILITIES[k].name}`, 'good');
+  }
+  throwAt(w) {
+    const k = this.aiming; if (!k) return false;
+    this.aiming = null; $('game').classList.remove('aim'); this.R.aim = null;
+    const r = this.g.useAbility(k, w.x, w.y);
+    if (!r.ok) { Audio.play('error'); this.toast(r.reason, 'bad'); }
+    return true;
+  }
+
   hotkey(k) {
     const g = this.g; if (!g) return;
+    if (k === 'q' || k === 'e') {
+      const ab = k === 'q' ? 'flash' : 'molotov';
+      const m = this.app.mouse;
+      if (m && g.canAbility(ab).ok) { this.aiming = ab; this.throwAt(this.R.screenToWorld(m.x, m.y)); }
+      else this.armAbility(ab);
+      return;
+    }
     if (k === 'b') this.doAction('bed');
     else if (k === 'r') this.doAction('repair');
     else if (k === 'u') this.doAction('door');
@@ -158,6 +187,7 @@ export class HUD {
     const inRoom = s.state === 'inroom' && room && room.alive;
     const bottom = $('hud-bottom');
     if (inRoom === bottom.classList.contains('hidden')) { bottom.classList.toggle('hidden', !inRoom); this.layout(); }
+    if (inRoom) { const bh = bottom.offsetHeight; if (bh !== this.lastBarH) { this.lastBarH = bh; this.layout(); } } // bar can wrap to two rows on phones
     if (inRoom) this.updateActions(g, s, room);
     // panels follow their anchor
     if (!this.info.classList.contains('hidden') && this.infoObj) this.renderInfo();
@@ -202,6 +232,14 @@ export class HUD {
     // ads
     const sc = $('act-adscrap');
     sc.classList.toggle('hidden', g.adScrapUses >= 2 || g.phase === 'rush');
+    for (const k of ['flash', 'molotov']) {
+      const el = $(k === 'flash' ? 'act-flash' : 'act-molotov'), c = g.canAbility(k), A = ABILITIES[k];
+      const st = 'act abil ' + (c.ok ? 'afford' : c.locked ? 'locked disabled' : 'poor') + (this.aiming === k ? ' armed' : '') + (g.phase === 'rush' ? ' hidden' : '');
+      if (el.className !== st) el.className = st;
+      const t = c.locked ? `Night ${A.unlock}` : c.cd ? `${Math.ceil(c.cd / PACE)}s` : this.aiming === k ? 'Aim!' : 'Ready';
+      const cs = el.querySelector('.cost span'); if (cs.textContent !== t) cs.textContent = t;
+      el.querySelector('.cd').style.height = c.cd ? (100 * c.cd / A.cd).toFixed(0) + '%' : '0';
+    }
     sc.querySelector('.sub').textContent = '+' + fmt(g.adScrapAmount());
     $('act-adrepair').classList.toggle('hidden', g.adRepairUsed || g.phase !== 'night' || frac > 0.5);
   }
@@ -222,6 +260,10 @@ export class HUD {
       html = `<b>Door Lv${room.doorLvl} (U)</b><br>Upgrade: max HP ${fmt(g.doorMax(room))} → <span class="good">${fmt(Math.round(g.doorMax(room) * doorMaxHp(room.doorLvl + 1) / doorMaxHp(room.doorLvl)))}</span> and fully repairs.`;
     } else if (id === 'act-adscrap') html = `<b>Watch an ad</b><br>Get ${fmt(g.adScrapAmount())} scrap instantly. (${2 - g.adScrapUses} left tonight)`;
     else if (id === 'act-adrepair') html = '<b>Watch an ad</b><br>Fully repair your door. Once per night.';
+    else if (id === 'act-flash' || id === 'act-molotov') {
+      const A = ABILITIES[id === 'act-flash' ? 'flash' : 'molotov'];
+      html = `<b>${A.name} (${A.key})</b><br>${A.desc}<br>Recharge ${Math.round(A.cd / PACE)}s. Click the button, then click the map (or press ${A.key} with the mouse over the spot).`;
+    }
     const r = $(id).getBoundingClientRect();
     this.showTip(html, r.left + r.width / 2, r.top - 8, true);
   }
@@ -242,6 +284,7 @@ export class HUD {
   hoverWorld(w, sx, sy) {
     const g = this.g, s = g.player;
     if (this.bmHover) return;
+    if (this.aiming) { this.hideTip(); return; }
     const tx = Math.floor(w.x), ty = Math.floor(w.y);
     const room = s.room;
     if (this.info.classList.contains('hidden')) this.R.preview = null;
@@ -528,7 +571,7 @@ export class HUD {
     if (T.step === 3 && room && room.buildings.length) { T.step = 4; T.t = 0; }
     if (T.step === 4 && T.t > 7) T.step = 4.5;
     if (T.step === 5 && T.t > 15) { T.step = 6; T.t = 0; }
-    if (T.step === 6 && T.t > 7) { T.step = 7; }
+    if (T.step === 6 && T.t > 11) { T.step = 7; }
     switch (T.step) {
       case 0: {
         text = 'Zombies are coming! <b>Click a free room</b> (green) to run inside before the timer runs out.';
@@ -551,7 +594,7 @@ export class HUD {
       case 4: text = 'Nice! Your turrets also shoot bosses attacking your <b>allies</b>. Click an ally\'s room to <b>send scrap or repair their door</b>.'; break;
       case 4.5: text = 'Keep upgrading your bed, turrets and door. <b>The boss wakes up soon!</b>'; break;
       case 5: text = `The bosses are attacking doors! When yours gets hurt, <b>Repair (R)</b> or <b>Upgrade the door (U)</b>.`; el = $('act-repair'); break;
-      case 6: text = 'Survive until <b>dawn</b> — or help shoot the boss down for 3 stars!'; break;
+      case 6: text = 'Bosses smashing a door? Throw a <b>Flashbang (Q)</b> to stun them. Grab <b>supply crates</b> in the hallway too!'; el = $('act-flash'); break;
       default: box.classList.add('hidden'); arrow.classList.add('hidden'); this.tut = null; return;
     }
     box.classList.remove('hidden');

@@ -80,6 +80,19 @@ red HELP! bubble. Every boss kill pays a team bounty (20 s of bed income to ever
 by 25 %. ★★ = everyone survives. `node tools/agency.mjs` compares a player who helps vs never helps: on Night 9 allies lost
 1.1 → 0.25, win 25 % → 60 %, ★★ 20 % → 60 %.
 
+**Player abilities:** Flashbang (Q, Night 1+): stuns every zombie in a 2.6-tile blast (bosses 3 game-s, minions 5 s),
+36 game-s recharge. Molotov (E, Night 2+): a 2-tile fire pool for 7 s that burns bosses for 1.6 % max HP/s and minions for
+14 %/s, 48 game-s recharge. Click the button then the map, or press Q/E with the mouse over the spot; Esc/right-click
+cancels. Damage is percent-based so it stays useful on every night.
+
+**Supply drops:** every 44–64 game-s during the night a crate parachutes into the hallway and stays for 18 game-s.
+Click it for scrap (25 s of income), an instant ability recharge, or +50 % door HP.
+
+**Daily supplies:** a 7-day login streak (3, 4, 5, 6, 8, 10, 15 medals; claim double with a rewarded ad). Missing a day
+resets the streak. Shown on the title screen once per day after the first night has been played.
+
+**Upgrade sounds:** bed (springs + cash register), door (steel plate + drill), turrets/gadgets (ratchet + reload).
+
 **Bosses per night (count / start level):** N1 2/Lv1, N2 2/Lv2, N3 3/Lv1, N4 3/Lv2, N5 3/Lv3, N6 4/Lv1, N7 4/Lv2,
 N8 4/Lv3, N9 4/Lv4, N10 5/Lv1, N11 5/Lv2, N12 5/Lv3 (`count`, `lvl` in `NIGHTS`). Boss 1 is the night's boss, the others
 walk down the chain of earlier variants. Each boss gets `GROUP_HP` / `GROUP_DMG` of a solo boss (2: 62/70 %, 3: 47/55 %,

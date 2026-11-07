@@ -33,6 +33,7 @@ export class Renderer {
     this.time = 0;
     this.insets = { top: 64, bottom: 96 };
     this.darkness = 0.5;
+    this.throws = []; this.flashT = 0; this.aim = null;
   }
 
   setGame(g) {
@@ -238,6 +239,12 @@ export class Renderer {
         break;
       }
       case 'teamBounty': if (ev.s.isPlayer) { this.floatText(ev.x, ev.y, `TEAM +${fmt(ev.n)}`, '#ffd84a', 1.4, true); this.burst(ev.x, ev.y, 16, '#ffd84a', 3.5, 0.8, 'star'); } break;
+      case 'ability':
+        if (ev.k === 'flash') { this.flashT = 0.32; this.ring(ev.x, ev.y, '#ffffff', ev.r); this.ring(ev.x, ev.y, '#fff6b0', ev.r * 0.6); this.burst(ev.x, ev.y, 24, '#fffbe0', 5, 0.6, 'star'); this.shake(6); }
+        else { this.throws.push({ fx: ev.fx, fy: ev.fy, x: ev.x, y: ev.y, t: 0, dur: 0.35 }); this.burst(ev.x, ev.y, 18, '#ff8a2a', 4, 0.7, 'fire'); this.shake(3); }
+        break;
+      case 'crateDrop': this.ring(ev.x, ev.y, '#ffd84a', 1.2); break;
+      case 'crateOpen': this.burst(ev.x, ev.y, 22, '#ffd84a', 4, 0.8, 'star'); this.ring(ev.x, ev.y, '#ffd84a', 1.6); this.floatText(ev.x, ev.y - 0.5, ev.text, '#ffd84a', 1.4, true); break;
       case 'continue': this.ring(g.player.x, g.player.y, '#7dff8a', 4); break;
     }
   }
@@ -273,6 +280,14 @@ export class Renderer {
       if (Math.abs(c.tz - c.z) < 0.002 && (c.tx == null || still || Math.hypot(c.tx - c.x, c.ty - c.y) < 1.5)) { c.tz = null; c.tx = null; }
     }
     c.shake = Math.max(0, c.shake - dt * 40);
+    if (this.flashT > 0) this.flashT -= dt;
+    for (const t of this.throws) t.t += dt;
+    this.throws = this.throws.filter((t) => t.t < t.dur);
+    // fire zones keep spitting flames
+    if (this.g) for (const f of this.g.fires) if (this.particles.length < 500) for (let i = 0; i < 3; i++) {
+      const a = Math.random() * TAU, rr = Math.sqrt(Math.random()) * f.r;
+      this.particles.push({ x: f.x + Math.cos(a) * rr, y: f.y + Math.sin(a) * rr, vx: (Math.random() - 0.5) * 0.4, vy: -0.8 - Math.random(), life: 0.5, max: 0.5, color: Math.random() < 0.5 ? '#ff7a1a' : '#ffd24a', kind: 'fire', size: 0.1 + Math.random() * 0.1, rot: 0 });
+    }
     for (const p of this.particles) {
       p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt;
       const drag = p.kind === 'smoke' ? 0.9 : 0.94;
@@ -307,12 +322,14 @@ export class Renderer {
     this.drawBuildings(ctx);
     this.drawSurvivors(ctx);
     this.drawDoors(ctx);
+    this.drawFloorFx(ctx);
     this.drawEnemies(ctx);
     this.drawProjectiles(ctx);
     this.drawFx(ctx);
     this.drawPreview(ctx);
     ctx.restore();
     this.drawLighting(ctx);
+    if (this.flashT > 0) { ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0); ctx.fillStyle = `rgba(255,255,240,${Math.min(0.7, this.flashT * 2.2)})`; ctx.fillRect(0, 0, this.vw, this.vh); }
     // world-space overlays drawn above lighting (labels, bars, floaters)
     ctx.save();
     ctx.translate(this.vw / 2 + sx, this.centerY() + sy);
@@ -494,6 +511,37 @@ export class Renderer {
     }
   }
 
+  // molotov fire pools and supply crates (on the floor, under the zombies)
+  drawFloorFx(ctx) {
+    const g = this.g, t = this.time;
+    for (const f of g.fires) {
+      const a = Math.min(1, f.t / 1.2) * Math.min(1, (f.max - f.t) / 0.2 + 0.3);
+      const gr = ctx.createRadialGradient(f.x * TS, f.y * TS, 0, f.x * TS, f.y * TS, f.r * TS);
+      gr.addColorStop(0, `rgba(255,170,40,${0.55 * a})`); gr.addColorStop(0.7, `rgba(255,80,20,${0.35 * a})`); gr.addColorStop(1, 'rgba(255,60,0,0)');
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(f.x * TS, f.y * TS, f.r * TS, 0, TAU); ctx.fill();
+    }
+    for (const c of g.crates) {
+      const blink = c.t < 4 ? (Math.sin(t * 16) > 0 ? 1 : 0.35) : 1;
+      ctx.globalAlpha = blink;
+      if (c.drop > 0) {
+        const h = c.drop * TS * 2.2;
+        ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(c.x * TS, c.y * TS + 6, TS * 0.35 * (1.3 - c.drop * 0.4), TS * 0.15, 0, 0, TAU); ctx.fill();
+        drawSprite(ctx, IMG.crate_chute, c.x * TS + Math.sin(t * 3) * 4, c.y * TS - h, TS * 1.5, Math.sin(t * 2) * 0.1);
+      } else {
+        const pulse = 1 + Math.sin(t * 5) * 0.05;
+        ctx.strokeStyle = `rgba(255,216,74,${0.5 + 0.3 * Math.sin(t * 5)})`; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(c.x * TS, c.y * TS, TS * 0.62 * pulse, 0, TAU); ctx.stroke();
+        drawSprite(ctx, IMG.crate, c.x * TS, c.y * TS, TS * 0.95 * pulse, 0);
+      }
+      ctx.globalAlpha = 1;
+    }
+    // molotov bottle in flight
+    for (const th of this.throws) {
+      const k = th.t / th.dur, x = th.fx + (th.x - th.fx) * k, y = th.fy + (th.y - th.fy) * k - Math.sin(k * Math.PI) * 2.5;
+      drawSprite(ctx, IMG.a_molotov, x * TS, y * TS, TS * 0.6, k * 12);
+    }
+  }
+
   drawEnemies(ctx) {
     const g = this.g, t = this.time;
     const list = g.enemies.slice().sort((a, b) => a.y - b.y);
@@ -529,6 +577,10 @@ export class Renderer {
       if (e.hitFlash > 0) { ctx.globalAlpha = 0.6; drawSprite(ctx, white(fname), cx, cy, size, rot); ctx.globalAlpha = 1; }
       if (e.slow > 0) { ctx.globalAlpha = 0.35; ctx.fillStyle = '#9fe2ff'; ctx.beginPath(); ctx.arc(cx, cy, size * 0.42, 0, TAU); ctx.fill(); }
       if (e.charging) { ctx.globalAlpha = 0.5; ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; for (let i = 1; i < 4; i++) { ctx.beginPath(); ctx.moveTo(cx - Math.cos(e.dir) * TS * i * 0.5 - 10, cy - Math.sin(e.dir) * TS * i * 0.5); ctx.lineTo(cx - Math.cos(e.dir) * TS * i * 0.5 + 10, cy - Math.sin(e.dir) * TS * i * 0.5); ctx.stroke(); } }
+      if (e.stunT > 0) {
+        ctx.fillStyle = '#fff36b';
+        for (let i = 0; i < 3; i++) { const a = t * 6 + i * TAU / 3; star(ctx, cx + Math.cos(a) * size * 0.35, cy - size * 0.5 + Math.sin(a) * size * 0.12, 6, a); }
+      }
       if (e.state === 'heal') { ctx.globalAlpha = 0.5 + 0.3 * Math.sin(t * 6); ctx.fillStyle = '#7dff8a'; ctx.font = `bold ${TS * 0.5}px sans-serif`; ctx.textAlign = 'center'; ctx.fillText('+', cx + Math.sin(t * 3) * TS * 0.5, cy - size * 0.5 - (t * 20 % 20)); }
       ctx.globalAlpha = 1;
     }
@@ -596,6 +648,14 @@ export class Renderer {
   }
 
   drawPreview(ctx) {
+    const a = this.aim;
+    if (a) {
+      ctx.fillStyle = a.k === 'flash' ? 'rgba(255,255,220,0.16)' : 'rgba(255,120,40,0.18)';
+      ctx.strokeStyle = a.k === 'flash' ? 'rgba(255,255,230,0.95)' : 'rgba(255,150,60,0.95)';
+      ctx.lineWidth = 3; ctx.setLineDash([12, 8]); ctx.lineDashOffset = -this.time * 40;
+      ctx.beginPath(); ctx.arc(a.x * TS, a.y * TS, a.r * TS, 0, TAU); ctx.fill(); ctx.stroke(); ctx.setLineDash([]);
+      drawSprite(ctx, IMG[a.k === 'flash' ? 'a_flash' : 'a_molotov'], a.x * TS, a.y * TS, TS * 0.7, 0);
+    }
     const p = this.preview; if (!p) return;
     ctx.fillStyle = p.fill || 'rgba(125,255,138,0.10)'; ctx.strokeStyle = p.color || 'rgba(125,255,138,0.85)';
     ctx.lineWidth = 2.5; ctx.setLineDash([10, 8]); ctx.lineDashOffset = -this.time * 30;

@@ -4,7 +4,7 @@ import { Audio } from './audio.js';
 import { loadImages, IMG } from './assets.js';
 import { Renderer, TS } from './render.js';
 import { Game, fmt } from './sim.js';
-import { NIGHTS, ENDLESS, BOSSES, bossKinds, PERKS, SKINS, BUILD_ORDER, BUILDINGS } from './data.js';
+import { NIGHTS, ENDLESS, BOSSES, bossKinds, ABILITIES, PERKS, SKINS, BUILD_ORDER, BUILDINGS } from './data.js';
 import { roomAt } from './map.js';
 import { HUD } from './ui.js';
 
@@ -53,7 +53,8 @@ const App = {
 
   // ---------------------------------------------------------------- screens
   show(id) {
-    document.querySelectorAll('.screen').forEach((s) => s.classList.toggle('show', s.id === id));
+    // the daily-supplies popup sits on top of the title screen
+    document.querySelectorAll('.screen').forEach((s) => s.classList.toggle('show', s.id === id || (id === 'daily' && s.id === 'title')));
     this.screen = id || 'game';
   },
   showTitle() {
@@ -62,8 +63,32 @@ const App = {
     this.game = null; this.renderer.g = null;
     Audio.startMusic('menu');
     this.updateBadges();
+    this.checkDaily();
     CG.gameplayStop();
   },
+  // daily login supplies: 7-day streak of medal rewards
+  checkDaily() {
+    const day = (d) => d.toISOString().slice(0, 10);
+    const today = day(new Date()), yest = day(new Date(Date.now() - 864e5));
+    if (this.save.lastDaily === today || !this.save.nightsPlayed) return;
+    const streak = this.save.lastDaily === yest ? Math.min(7, (this.save.dailyStreak || 0) + 1) : 1;
+    const REW = [3, 4, 5, 6, 8, 10, 15];
+    this.dailyPending = { streak, n: REW[streak - 1], today };
+    $('daily-days').innerHTML = REW.map((n, i) => `<div class="day ${i + 1 < streak ? 'done' : i + 1 === streak ? 'today' : ''}"><span>Day ${i + 1}</span><img src="assets/img/i_medal.png" alt=""><b>${n}</b></div>`).join('');
+    $('btn-daily').textContent = `Claim ${REW[streak - 1]} medals`;
+    $('btn-daily-ad').classList.remove('off');
+    this.show('daily');
+  },
+  async claimDaily(double) {
+    const d = this.dailyPending; if (!d) return;
+    if (double) { const ok = await CG.requestAd('rewarded'); if (!ok) { this.toast('Ad not available right now', 'bad'); return; } }
+    this.dailyPending = null;
+    const n = d.n * (double ? 2 : 1);
+    this.save.medals += n; this.save.lastDaily = d.today; this.save.dailyStreak = d.streak; this.persist();
+    Audio.play('crateOpen'); this.toast(`+${n} medals!`, 'good');
+    this.show('title'); this.updateBadges();
+  },
+
   updateBadges() {
     const affordable = PERKS.some((p) => (this.save.perks[p.id] || 0) < p.max && this.save.medals >= p.cost(this.save.perks[p.id] || 0));
     const b = $('medal-badge'); b.textContent = this.save.medals; b.classList.toggle('zero', !affordable);
@@ -151,7 +176,8 @@ const App = {
     const names = [...new Set(kinds.slice(1))].map((k) => BOSSES[k].name.replace(/^The /, ''));
     $('intro-name').textContent = idx < 0 ? 'The Endless Horde' : `${B.name} leads the pack`;
     $('intro-desc').textContent = idx < 0 ? 'Bosses keep coming, more of them every other wave. How many waves can you hold?' : `${B.desc} With it: ${names.join(', ')}. ${B.name} hunts YOUR door.`;
-    const newB = idx < 0 ? null : BUILD_ORDER.filter((t) => BUILDINGS[t].unlock === night.n).map((t) => BUILDINGS[t].name);
+    const newB = idx < 0 ? null : BUILD_ORDER.filter((t) => BUILDINGS[t].unlock === night.n).map((t) => BUILDINGS[t].name)
+      .concat(Object.values(ABILITIES).filter((a) => a.unlock === night.n).map((a) => `${a.name} (${a.key})`));
     $('intro-unlock').textContent = newB && newB.length ? 'New: ' + newB.join(', ') + '!' : '';
     this.prepareGame(night);
     this.show('intro');
@@ -233,7 +259,10 @@ const App = {
         case 'doorHit': Audio.play(ev.player ? 'doorHit' : 'doorHitFar', near(ev.x, ev.y) ? 1 : 0.5); break;
         case 'doorBreak': Audio.play('doorBreak', ev.player ? 1 : 0.6); break;
         case 'repair': if (ev.s && ev.s.isPlayer) Audio.play('repair'); break;
-        case 'upgrade': if (ev.s && ev.s.isPlayer) Audio.play('upgrade'); break;
+        case 'upgrade': if (ev.s && ev.s.isPlayer) Audio.play(ev.what === 'bed' ? 'upgradeBed' : ev.what === 'door' ? 'upgradeDoor' : 'upgradeTurret'); break;
+        case 'ability': Audio.play(ev.k === 'flash' ? 'flashbang' : 'molotov'); break;
+        case 'crateDrop': Audio.play('crateDrop', 0.8); break;
+        case 'crateOpen': Audio.play('crateOpen'); break;
         case 'build': if (ev.s && ev.s.isPlayer) Audio.play('build'); break;
         case 'sell': if (ev.s.isPlayer) Audio.play('sell'); break;
         case 'coins': if (ev.s.isPlayer) Audio.play('coin'); break;
@@ -246,7 +275,7 @@ const App = {
         case 'claim': Audio.play('door_close', ev.s.isPlayer ? 1 : 0.3); break;
         case 'continue': Audio.startMusic('night'); break;
         case 'aid': if (ev.s.isPlayer || ev.o.isPlayer) Audio.play(ev.kind === 'gift' ? 'coin' : 'repair'); break;
-        case 'teamBounty': if (ev.s.isPlayer) Audio.play('upgrade'); break;
+        case 'teamBounty': if (ev.s.isPlayer) Audio.play('coin', 1.4); break;
         case 'lie': if (ev.s.isPlayer) Audio.play('lie'); break;
         case 'win': Audio.stopMusic(true); Audio.play('win'); CG.happytime(); break;
         case 'lose': Audio.stopMusic(true); Audio.play('lose'); break;
@@ -371,6 +400,8 @@ const App = {
       this.persist(); this.toast('Progress reset'); this.showTitle();
     });
     click('btn-start', () => this.beginPlay());
+    click('btn-daily', () => this.claimDaily(false));
+    click('btn-daily-ad', () => this.claimDaily(true));
     click('btn-pause', () => this.pause());
     click('btn-resume', () => this.resume());
     click('btn-restart', () => { this.startNight(this.nightIdx, true); });
@@ -444,7 +475,7 @@ const App = {
     cv.addEventListener('pointerup', up);
     cv.addEventListener('pointercancel', (e) => { this.pointers.delete(e.pointerId); this.pinch = null; });
     cv.addEventListener('wheel', (e) => { e.preventDefault(); if (this.game) this.renderer.zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.12 : 1 / 1.12); }, { passive: false });
-    cv.addEventListener('contextmenu', (e) => e.preventDefault());
+    cv.addEventListener('contextmenu', (e) => { e.preventDefault(); if (this.hud.aiming) { this.hud.aiming = null; this.renderer.aim = null; cv.classList.remove('aim'); } });
     cv.addEventListener('pointerleave', () => { this.mouse = null; this.renderer.hover = null; this.hud.hideTip(); });
     const keys = new Set();
     const moveKeys = { w: [0, -1], arrowup: [0, -1], s: [0, 1], arrowdown: [0, 1], a: [-1, 0], arrowleft: [-1, 0], d: [1, 0], arrowright: [1, 0] };
@@ -463,7 +494,7 @@ const App = {
         return;
       }
       if (moveKeys[k]) { keys.add(k); applyMove(); e.preventDefault(); return; }
-      if (k === 'escape') { if (this.hud.menuOpen()) this.hud.closeMenus(); else this.pause(); return; }
+      if (k === 'escape') { if (this.hud.aiming) { this.hud.aiming = null; this.renderer.aim = null; $('game').classList.remove('aim'); return; } if (this.hud.menuOpen()) this.hud.closeMenus(); else this.pause(); return; }
       if (k === 'p') { this.pause(); return; }
       if (e.repeat) return;
       this.hud.hotkey(k);
@@ -488,7 +519,9 @@ const App = {
       const r = roomAt(g.map, w.x, w.y);
       if (r === p.room) pointer = true;
     }
+    if (g.crateAt(w.x, w.y)) pointer = true;
     $('game').classList.toggle('pointer', pointer);
+    this.renderer.aim = this.hud.aiming ? { x: w.x, y: w.y, r: ABILITIES[this.hud.aiming].radius, k: this.hud.aiming } : null;
     this.hud.hoverWorld(w, sx, sy);
   },
 
@@ -496,6 +529,9 @@ const App = {
     const g = this.game; if (!g || this.screen !== 'game' || this.isOver()) return;
     const w = this.renderer.screenToWorld(sx, sy);
     const p = g.player;
+    if (this.hud.aiming) { this.hud.throwAt(w); return; }
+    const cr = g.crateAt(w.x, w.y);
+    if (cr) { g.openCrate(cr); return; }
     if (p.state === 'corridor') {
       const r = roomAt(g.map, w.x, w.y);
       if (r && !r.owner) { if (g.goToRoom(p, r)) Audio.play('click'); }

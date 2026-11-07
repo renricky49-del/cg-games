@@ -25,6 +25,7 @@ Survive until dawn for a star, keep every ally alive for two, and destroy every 
 ### Features
 - 12 nights + Endless mode, 2 to 5 bosses every night, 6 boss types with unique abilities
 - 11 buildings (5 weapon types), all upgradeable, plus bed and door upgrades
+- Throw Flashbangs and Molotovs, grab parachuted supply crates, collect daily supplies
 - Co-op with AI allies: send scrap, repair or reinforce their doors, and they help you back; team bounty for every boss kill
 - Boss levels up as it smashes doors — escalating tension every night
 - Interactive tutorial on Night 1
@@ -33,7 +34,7 @@ Survive until dawn for a star, keep every ally alive for two, and destroy every 
 
 ## Controls
 - **Mouse:** click a room to claim it, click empty floor to build, click buildings to upgrade/sell, click your bed/door for options
-- **Hotkeys:** B upgrade bed · R repair door · U upgrade door · 0–9 build on the hovered tile · Z zoom · P / Esc pause
+- **Hotkeys:** Q Flashbang · E Molotov · B upgrade bed · R repair door · U upgrade door · 0–9 build on the hovered tile · Z zoom · P / Esc pause
 - **WASD / arrow keys:** run through the hallway during the room rush
 - **Mouse wheel / pinch:** zoom · **drag:** pan the camera
 - **Touch:** tap to select, drag to pan, pinch to zoom

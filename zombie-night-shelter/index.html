@@ -37,6 +37,8 @@
     <button class="act" id="act-repair"><span class="key">R</span><img src="assets/img/i_repair.png" alt=""><span class="lbl">Repair</span><span class="sub">+35% door</span><span class="cost"><img src="assets/img/i_scrap.png" alt=""><span>6</span></span><div class="cd"></div></button>
     <button class="act" id="act-door"><span class="key">U</span><img src="assets/img/i_door.png" alt=""><span class="lbl">Door <b class="lv">Lv1</b></span><span class="sub">Upgrade</span><span class="cost"><img src="assets/img/i_scrap.png" alt=""><span>40</span></span></button>
     <button class="act ad" id="act-adscrap"><img src="assets/img/i_ad.png" alt=""><span class="lbl">Free scrap</span><span class="sub">+150</span><span class="cost adtag">AD</span></button>
+    <button class="act abil" id="act-flash"><span class="key">Q</span><img src="assets/img/a_flash.png" alt=""><span class="lbl">Flashbang</span><span class="sub">stun</span><span class="cost"><span>Ready</span></span><div class="cd"></div></button>
+    <button class="act abil" id="act-molotov"><span class="key">E</span><img src="assets/img/a_molotov.png" alt=""><span class="lbl">Molotov</span><span class="sub">burn</span><span class="cost"><span>Ready</span></span><div class="cd"></div></button>
     <button class="act ad hidden" id="act-adrepair"><img src="assets/img/i_ad.png" alt=""><span class="lbl">Full repair</span><span class="sub">once/night</span><span class="cost adtag">AD</span></button>
   </div>
 
@@ -116,9 +118,20 @@
       <li><b>Click empty floor</b> in your room to build turrets and gadgets. Turret range grows with level, so turrets near the door can also protect your neighbours.</li>
       <li>The boss zombie attacks doors. <b>Repair (R)</b> for a quick patch or <b>Upgrade the door (U)</b> to refill it and raise its max HP.</li>
       <li>Every night a <b>pack of bosses</b> (2 at first, up to 5) hunts the floor, and the leader goes for <b>your</b> door. They level up when they smash doors, and fallen survivors rise as zombies! <b>Survive until dawn</b> or <b>kill every boss</b> to win.</li>
+      <li><b>Get your hands dirty:</b> throw a <b>Flashbang (Q)</b> to stun bosses mid-swing and a <b>Molotov (E)</b> to burn them. Click <b>supply crates</b> that parachute into the hallway for scrap, a recharge or door repairs.</li>
       <li><b>Work together:</b> click an ally's room to send scrap, pay to repair their door or reinforce it. Allies you help return the favour, and every boss kill pays the whole team. Keep everyone alive for ★★.</li>
     </ol>
-    <p class="note">Hotkeys: B bed · R repair · U door · 1-9 build · P pause · Z zoom · Mouse wheel / pinch to zoom · drag to pan.</p>
+    <p class="note">Hotkeys: Q Flashbang · E Molotov · B bed · R repair · U door · 0-9 build · P pause · Z zoom · Mouse wheel / pinch to zoom · drag to pan.</p>
+  </div>
+</div>
+
+<div id="daily" class="screen dim">
+  <div class="panel narrow center">
+    <h2>Daily Supplies</h2>
+    <p class="note">Come back every day for bigger rewards. Miss a day and the streak restarts.</p>
+    <div id="daily-days"></div>
+    <button class="btn big" id="btn-daily">Claim</button>
+    <button class="btn ad" id="btn-daily-ad"><img src="assets/img/i_ad.png" alt=""> Claim double</button>
   </div>
 </div>
 

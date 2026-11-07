@@ -78,6 +78,10 @@ img { -webkit-user-drag: none; }
 .act.ready { animation: glow 1s infinite alternate; }
 @keyframes glow { to { box-shadow: 0 4px 0 #17122b, 0 0 16px 3px rgba(98,210,111,0.7); } }
 .act .cd { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); height: 0; pointer-events: none; }
+.act.abil { background: linear-gradient(#5a3a2a, #3a2418); border-color: #c2763a; }
+.act.abil.afford { border-color: #ffb347; }
+.act.abil.armed { border-color: #fff; box-shadow: 0 4px 0 #17122b, 0 0 14px 3px rgba(255,200,120,0.9); }
+canvas#game.aim { cursor: crosshair; }
 .act.ad { background: linear-gradient(#2f6a8f, #1f4a68); border-color: #4fa5d6; }
 .adtag { color: #bfe8ff !important; font-size: 12px !important; letter-spacing: 1px; }
 .act.flash { animation: flashred 0.4s; }
@@ -225,6 +229,11 @@ img { -webkit-user-drag: none; }
 .intro-name { font-size: 36px; color: var(--red); text-shadow: 0 3px 0 #000; }
 .intro-desc { font-family: system-ui, sans-serif; color: var(--muted); font-size: 15px; }
 .intro-unlock { font-size: 17px; color: var(--green); }
+#daily-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; width: 100%; }
+.day { background: var(--panel); border: 2px solid var(--line); border-radius: 10px; padding: 4px 2px; display: flex; flex-direction: column; align-items: center; font-size: 12px; gap: 2px; }
+.day img { width: 26px; }
+.day.done { filter: grayscale(0.8) brightness(0.7); }
+.day.today { border-color: var(--gold); box-shadow: 0 0 12px rgba(255,216,74,0.6); transform: scale(1.08); }
 #res-stars { display: flex; gap: 6px; justify-content: center; }
 #res-stars img { width: 64px; height: 64px; filter: grayscale(1) brightness(0.35); transform: scale(0.8); transition: all 0.3s cubic-bezier(.2,1.8,.4,1); }
 #res-stars img.on { filter: none; transform: scale(1.05); }
@@ -266,7 +275,7 @@ img { -webkit-user-drag: none; }
   .pill small { display: none; }
   .boss-portrait { width: 40px; height: 40px; }
   .boss-portrait img { width: 36px; height: 36px; }
-  #hud-bottom { gap: 4px; padding: 4px; max-width: 98vw; }
+  #hud-bottom { gap: 4px; padding: 4px; max-width: 98vw; flex-wrap: wrap; justify-content: center; width: max-content; }
   .act { width: 64px; height: 66px; }
   .act .key { display: none; }
   .act > img { height: 22px; }

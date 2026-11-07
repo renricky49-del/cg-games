@@ -92,6 +92,7 @@ async function waitFor(page, fn, ms = 60000) {
   console.log('LOSS', JSON.stringify(await page.evaluate(() => window.__app.game.results())));
   // menus
   await page.click('#btn-res-menu');
+  if (await page.$('#daily.show')) { await page.click('#btn-daily'); console.log('DAILY claimed', await page.evaluate(() => window.__app.save.medals)); }
   await page.click('#btn-nights'); await sleep(300); await page.screenshot({ path: OUT + '/17_nights.png' });
   await page.click('#nights .close'); await page.click('#btn-perks'); await sleep(300); await page.screenshot({ path: OUT + '/18_perks.png' });
   await page.click('#perks .close'); await page.click('#btn-skins'); await sleep(300); await page.screenshot({ path: OUT + '/19_skins.png' });
