@@ -7,7 +7,8 @@ import {
 import { RNG } from './rng.js';
 
 export const TRAY_SIZE = 3;
-export let BOON_HP = +(globalThis.process?.env?.BOON_HP ?? 0.12);
+export let BOON_HP = +(globalThis.process?.env?.BOON_HP ?? 0.2);
+export let OT_HP = +(globalThis.process?.env?.OT_HP ?? 2.0); // overtime wave HP growth
 const COMBO_WINDOW = 3.5; // seconds between merges to keep a combo going
 const WAVE_DUR = 21, BOSS_WAVE_DUR = 28, FIRST_WAVE_DELAY = 2.5;
 // opening waves are short so the action starts fast: 12s, 14s, 16s, 18s, then 21s
@@ -65,7 +66,7 @@ export function posAt(map, d) {
 // ---------- wave generation (shared by both sides) ----------
 export function makeWave(w, rng, mapDef, overtime = 0) {
   const isBoss = w % BOSS_EVERY === 0;
-  const hp = waveHp(w) * mapDef.hpMult * (overtime ? Math.pow(1.45, overtime) : 1);
+  const hp = waveHp(w) * mapDef.hpMult * (overtime ? Math.pow(OT_HP, overtime) : 1);
   const pool = WAVE_POOLS.find(p => w <= p.upTo).pool;
   const list = [];
   const count = isBoss ? 4 + Math.floor(w / 3) : 7 + Math.floor(w * 1.1) + (w <= 4 ? 2 : 0);
@@ -148,6 +149,8 @@ export class Side {
     this.hex = 0; this.hexSent = 0;
     this.combo = 0; this.lastMergeT = -99;
     this.wildLeft = 0;
+    this.letterQueue = []; // letters promised by letter blessings
+    this.freeLeft = 0;     // free summons left
     this.dmgKey = 'other';
     this.script = cfg.script ? cfg.script.slice() : null;
     this.cloverLeft = 0;
@@ -216,13 +219,16 @@ export class Side {
   makeBasic(letter, level = 1) { return { uid: UID++, kind: 'basic', letter, level, cd: this.rng.range(0, 0.6), atkT: 0, frozen: 0, born: this.match.time }; }
   makeGold(letter) { return { uid: UID++, kind: 'gold', letter, level: 1, cd: this.rng.range(0, 0.6), atkT: 0, frozen: 0, born: this.match.time }; }
 
-  canSummon() { return !this.busy() && this.ink >= this.summonCost() && this.freeTraySlot() >= 0; }
+  canSummon() { return !this.busy() && (this.ink >= this.summonCost() || this.freeLeft > 0) && this.freeTraySlot() >= 0; }
   summon(free = false) {
     if (this.busy()) return null;
     const slot = this.freeTraySlot();
     if (slot < 0) return null;
     const cost = this.summonCost();
-    if (!free) { if (this.ink < cost) return null; this.ink -= cost; this.summons++; }
+    if (!free) {
+      if (this.freeLeft > 0) this.freeLeft--; // free summons (Gilded Quill) don't raise the price either
+      else { if (this.ink < cost) return null; this.ink -= cost; this.summons++; }
+    }
     this.stats.summons++;
     let item;
     const sc = this.script && this.script.length ? this.script.shift() : null;
@@ -241,7 +247,7 @@ export class Side {
       else if (r < shovelChance) item = { kind: 'shovel' };
       else if (canGold && r < shovelChance + this.mods.gold) item = this.goldItem();
       else {
-        item = this.makeBasic(BASIC_LETTERS[this.rng.int(4)]);
+        item = this.makeBasic(this.letterQueue.length ? this.letterQueue.shift() : BASIC_LETTERS[this.rng.int(4)]);
         if (this.rng.next() < this.mods.lucky) { item.level = 2; item.lucky = true; this.stats.lucky++; this.stats.maxLevel = Math.max(this.stats.maxLevel, 2); }
       }
     }
@@ -354,8 +360,8 @@ export class Side {
 
   // ---------- blessings ----------
   boonOk(b) {
-    if (b.id === 'wild' && !this.goldUseful()) return false;
-    if (b.id === 'dig' && !this.lockedCells().length) return false;
+    if ((b.id === 'wild' || b.id === 'gilded') && !this.goldUseful()) return false;
+    if (b.id === 'dig' && !this.lockedCells().length) return false; // shovels would be useless
     if (b.id === 'tempo' && !this.unlockedHeroes().length) return false;
     return true;
   }
@@ -377,20 +383,20 @@ export class Side {
       case 'cheap': return w < 12 ? 0.95 : 0.7;
       case 'gilded': return this.goldUseful() ? 0.75 : 0;
       case 'lucky': return 0.8;
-      case 'blade': return 0.3 + 2.2 * share('S');
-      case 'lance': return 0.3 + 2.0 * share('L');
-      case 'eagle': return 0.3 + 2.0 * share('B');
-      case 'charge': return 0.3 + 2.0 * share('K');
+      case 'blade': return 0.5 + 1.8 * share('S');
+      case 'lance': return 0.5 + 1.6 * share('L');
+      case 'eagle': return 0.5 + 1.6 * share('B');
+      case 'charge': return 0.5 + 1.6 * share('K');
       case 'rebate': return 0.65;
       case 'tempo': return this.heroesOnBoard().length ? 0.9 : 0.45;
-      case 'guard': return this.lives <= this.maxLives / 2 ? 1.4 : 0.55;
+      case 'guard': return this.lives <= this.maxLives / 2 ? 1.1 : 0.65;
       case 'chill': return 0.8;
       case 'bounty': return w < 10 ? 0.95 : 0.6;
       case 'crit': return 0.85;
       case 'slayer': return 0.7;
       case 'wild': return this.goldUseful() ? 0.8 : 0;
       case 'hexer': return 0.6;
-      case 'dig': return this.lockedCells().length ? 0.7 : 0;
+      case 'dig': return 0.75;
     }
     return 0.5;
   }
@@ -405,23 +411,24 @@ export class Side {
     const m = this.mods;
     switch (id) {
       case 'serif': m.dmg *= 1.2; break;
-      case 'cheap': m.summonCost *= 0.8; break;
-      case 'gilded': m.gold += 0.08; break;
-      case 'lucky': m.lucky += 0.2; break;
-      case 'blade': m.letterDmg.S += 0.4; m.splash *= 1.3; break;
-      case 'lance': m.letterDmg.L += 0.25; m.letterRange.L += 0.8; break;
-      case 'eagle': m.letterDmg.B += 0.3; m.letterRange.B += 1; break;
-      case 'charge': m.letterRate.K += 0.4; break;
-      case 'rebate': m.mergeInk += 8; break;
-      case 'tempo': m.heroCd *= 0.7; break;
-      case 'guard': this.maxLives += 2; this.lives += 2; break;
-      case 'chill': m.enemySpeed *= 0.88; break;
+      case 'cheap': m.summonCost = Math.max(0.5, m.summonCost * 0.85); break;
+      case 'gilded': this.cloverLeft += 3; this.freeLeft += 3; m.gold += 0.04; break;
+      case 'lucky': m.lucky += 0.4; break;
+      // letter blessings: a strong buff plus your next 3 summons of that letter, so you can build around it
+      case 'blade': m.letterDmg.S += 0.5; m.splash *= 1.3; this.letterQueue.push('S', 'S', 'S'); break;
+      case 'lance': m.letterDmg.L += 0.4; m.letterRange.L += 0.8; this.letterQueue.push('L', 'L', 'L'); break;
+      case 'eagle': m.letterDmg.B += 0.4; m.letterRange.B += 0.8; this.letterQueue.push('B', 'B', 'B'); break;
+      case 'charge': m.letterRate.K += 0.7; this.letterQueue.push('K', 'K', 'K'); break;
+      case 'rebate': m.mergeInk += 12; break;
+      case 'tempo': m.heroCd = Math.max(0.35, m.heroCd * 0.75); break;
+      case 'guard': this.shield += 2; break; // blocks leaks, but doesn't count as lives at the final tally
+      case 'chill': m.enemySpeed = Math.max(0.6, m.enemySpeed * 0.9); break;
       case 'bounty': m.ink += 0.4; break;
       case 'crit': m.crit = Math.min(0.6, m.crit + 0.15); break;
-      case 'slayer': m.bossDmg += 0.75; break;
+      case 'slayer': m.bossDmg += 1.0; break;
       case 'wild': this.wildLeft += 2; break;
-      case 'hexer': m.hexRate *= 1.5; m.hexHp *= 1.3; break;
-      case 'dig': this.shovels += 2; m.shovel += 0.05; break;
+      case 'hexer': m.hexRate *= 2; m.hexHp *= 1.8; break;
+      case 'dig': this.shovels += 2; this.ink += 100; m.shovel += 0.05; break;
       default: return false;
     }
     this.boons.push(id); this.stats.boons++; this.dirty = true;
@@ -438,7 +445,7 @@ export class Side {
     if (!this.canHex()) return false;
     const foe = this.match.sides[1 - this.idx]; const m = this.match;
     this.hex = 0; this.hexSent++; this.stats.hexes++;
-    const hp = waveHp(Math.max(1, m.wave)) * m.mapDef.hpMult * ENEMIES.brute.hp * this.mods.hexHp * (m.overtime ? Math.pow(1.45, m.overtime) : 1);
+    const hp = waveHp(Math.max(1, m.wave)) * m.mapDef.hpMult * ENEMIES.brute.hp * this.mods.hexHp * (m.overtime ? Math.pow(OT_HP, m.overtime) : 1);
     foe.pendingSpawns.push({ type: 'brute', hp, dist: 0 });
     this.emit({ t: 'hexSent' }); foe.emit({ t: 'hexed' });
     return true;
@@ -710,10 +717,11 @@ export class Side {
       if (e.dist >= this.map.len) {
         e.hp = 0; e.leaked = true;
         const cost = e.type === 'boss' ? 2 : 1;
-        if (this.shield > 0) { this.shield--; }
+        const blocked = this.shield > 0;
+        if (blocked) { this.shield--; }
         else { this.lives -= cost; this.stats.leaks += cost; }
-        this.emit({ t: 'leak', boss: e.type === 'boss', cost, elite: e.elite });
-        this.match.onLeak(this);
+        this.emit({ t: 'leak', boss: e.type === 'boss', cost, elite: e.elite, blocked });
+        if (!blocked) this.match.onLeak(this); // a shield also saves you in sudden death
       }
     }
     if (this.pendingSpawns.length) { for (const s of this.pendingSpawns) this.spawn(s); this.pendingSpawns.length = 0; }

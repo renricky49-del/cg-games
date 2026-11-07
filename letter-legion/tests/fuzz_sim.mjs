@@ -16,6 +16,11 @@ function check(m, tag) {
     if (!Number.isFinite(s.hex) || s.hex < 0 || s.hex > s.hexNeed() + 1e-6) fail('bad hex', `${tag} hex=${s.hex}/${s.hexNeed()}`);
     if (s.offers && !m.draft) fail('offers without a draft', tag);
     if (s.boons.length !== s.stats.boons) fail('boon count mismatch', tag);
+    if (!(s.shield >= 0) || !(s.freeLeft >= 0) || !(s.wildLeft >= 0) || !(s.cloverLeft >= 0)) fail('negative counter', `${tag} shield=${s.shield} free=${s.freeLeft} wild=${s.wildLeft}`);
+    if (s.letterQueue.some(L => !'SLBK'.includes(L))) fail('bad letter queue', tag);
+    if (!(s.mods.summonCost >= 0.5) || !(s.mods.enemySpeed >= 0.6) || !(s.mods.heroCd > 0) || !(s.mods.crit <= 0.6)) fail('mod out of range', tag);
+    if (!Number.isFinite(s.summonCost()) || s.summonCost() < 1) fail('bad summon cost', `${tag} ${s.summonCost()}`);
+    for (const c of s.cells) if (c.unit && c.unit.kind === 'gold' && !/^[A-Z*]$/.test(c.unit.letter)) fail('bad gold letter', `${tag} ${c.unit.letter}`);
     if (!Number.isInteger(s.lives) || s.lives < 0 || s.lives > s.maxLives) fail('bad lives', `${tag} lives=${s.lives}/${s.maxLives}`);
     if (s.shovels < 0) fail('negative shovels', tag);
     const seen = new Set();
@@ -62,7 +67,8 @@ for (let i = 0; i < N; i++) {
   // mix: side 0 random monkey (sometimes with a brain), side 1 brain or monkey
   const brainA = i % 3 === 0 ? new CpuBrain(m.sides[0], RIVALS[8]) : null;
   const brainB = i % 2 === 0 ? new CpuBrain(m.sides[1], RIVALS[i % RIVALS.length]) : null;
-  if (i % 4 === 1) m.sides[0].autoPick = true; // otherwise the monkey must pick its blessings itself
+  if (i % 4 === 1) m.sides[0].autoPick = true;
+  if (i % 7 === 3) for (const id of ['cheap', 'cheap', 'cheap', 'cheap', 'cheap', 'chill', 'chill', 'chill', 'chill', 'chill', 'tempo', 'tempo', 'tempo', 'tempo', 'tempo', 'crit', 'crit', 'crit', 'crit', 'crit', 'guard', 'gilded', 'wild', 'dig', 'blade', 'hexer']) m.sides[i % 2].applyBoon(id); // otherwise the monkey must pick its blessings itself
   if (i % 5 === 2) m.sides[1].autoPick = false;
   let steps = 0;
   try {

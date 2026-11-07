@@ -133,7 +133,7 @@ export class MatchController {
   doSummon(free = false) {
     const me = this.me;
     if (me.freeTraySlot() < 0) { this.toast('Recruit tray is full — deploy or sell first'); Audio.play('error'); return; }
-    if (!free && me.ink < me.summonCost()) { this.toast('Not enough ink'); Audio.play('error'); return; }
+    if (!free && me.ink < me.summonCost() && !me.freeLeft) { this.toast('Not enough ink'); Audio.play('error'); return; }
     me.summon(free);
   }
   button(id) {

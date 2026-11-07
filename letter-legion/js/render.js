@@ -224,8 +224,9 @@ export class MatchView {
         } break;
         case 'dodge': if (me) { const [x, y] = this.toScreen(0, e.x, e.y); this.text(x, y - 18, 'miss', '#fff', 13); } break;
         case 'leak': {
-          this.wardSad[sideIdx] = 2.5;
           const w = this.match.sides[sideIdx].map.ward; const [x, y] = this.toScreen(sideIdx, w.x, w.y);
+          if (e.blocked) { this.text(x, y - g.ts * 0.8, 'Blocked!', '#9fd0ff', g.ts * 0.4); this.fx.push({ k: 'ring', x, y, t: 0, dur: 0.5, r: g.ts * 1.1, col: '#9fd0ff', w: 5 }); if (me) A.play('transmute'); break; }
+          this.wardSad[sideIdx] = 2.5;
           this.text(x, y - g.ts * 0.8, '-' + e.cost + ' ♥', me ? '#ff4d5e' : '#ffb3bb', g.ts * 0.45);
           this.burst(x, y, 14, '#ff6b7a', g.ts * 0.08);
           if (me) { this.shake = Math.max(this.shake, 14); this.flash = 0.35; A.play('leak'); } else A.play('rivalLeak');
@@ -434,7 +435,7 @@ export class MatchView {
       const mir = geo.mirror; const h = ts * (mir ? 1.4 : 1.75); const bob = sad ? Math.sin(this.time * 30) * 2 : 0;
       const baseY = mir ? y - ts * 0.7 + h : y + ts * 0.45; // rival castle hangs from the top edge of its board
       if (!drawStrip(g, 'wards', idx, x + bob, baseY, h, { anchor: 'bottom' })) { g.fillStyle = '#aaa'; g.fillRect(x - ts / 2, y - ts / 2, ts, ts); }
-      this.drawHearts(x, mir ? baseY + ts * 0.05 : y - h + ts * 0.35, side.lives, side.maxLives, Math.max(9, ts * 0.2), true);
+      this.drawHearts(x, mir ? baseY + ts * 0.05 : y - h + ts * 0.35, side.lives, side.maxLives, Math.max(9, ts * 0.2), true, side.shield);
     }
     // units
     for (const c of side.cells) if (c.unit && !(dragSrc && dragSrc.cell === c.id)) this.drawUnit(si, c, c.unit);
@@ -480,13 +481,19 @@ export class MatchView {
     g.beginPath(); g.arc(x, y - s * 0.35, s * 0.55, Math.PI, 0); g.stroke();
     rr(g, x - s * 0.8, y - s * 0.35, s * 1.6, s * 1.2, s * 0.25); g.fill();
   }
-  drawHearts(x, y, n, max, s, center) {
+  drawHearts(x, y, n, max, s, center, shield = 0) {
     const g = this.g;
     g.font = `${s * 1.4}px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
     const txt = `♥ ${n}`;
     const w = g.measureText(txt).width + s * 1.2;
     rr(g, x - w / 2, y - s, w, s * 2, s); g.fillStyle = 'rgba(30,10,20,0.7)'; g.fill();
     g.fillStyle = n <= 1 ? '#ff4d5e' : '#ff7b8b'; g.fillText(txt, x, y + 1);
+    if (shield > 0) { // Royal Guard shield charges: a little blue badge on the right
+      const bx = x + w / 2 + s * 0.9, r = s * 0.95;
+      g.fillStyle = '#2a6fd6'; g.strokeStyle = '#cfe6ff'; g.lineWidth = 2;
+      g.beginPath(); g.moveTo(bx, y - r); g.lineTo(bx + r * 0.85, y - r * 0.55); g.lineTo(bx + r * 0.7, y + r * 0.45); g.lineTo(bx, y + r); g.lineTo(bx - r * 0.7, y + r * 0.45); g.lineTo(bx - r * 0.85, y - r * 0.55); g.closePath(); g.fill(); g.stroke();
+      g.fillStyle = '#fff'; g.font = `${s * 1.1}px ${FONT}`; g.fillText(String(shield), bx, y + 1);
+    }
   }
   unitColor(u) { return u.kind === 'basic' ? UNITS[u.letter].color : u.kind === 'gold' ? '#ffd24a' : HERO_BY_ID[u.heroId].color; }
 
@@ -899,7 +906,7 @@ export class MatchView {
     // summon
     const sb = B('summon'); const can = me.canSummon(); const cost = me.summonCost();
     const full = me.freeTraySlot() < 0;
-    this.btn(sb, { col: '#d6402f', enabled: can, glow: can && !!ctl.tutorialWants?.('summon'), label: 'SUMMON', sub: full ? 'recruit tray full' : `${fmt(cost)} ink`, icon: (gg, b) => { if (b.w > 150) { gg.save(); gg.translate(b.h * 0.42, b.h * 0.5); gg.rotate(-0.15 + Math.sin(this.time * 3) * 0.05); const s = b.h * 0.5; rr(gg, -s / 2, -s / 2, s, s, 7); gg.fillStyle = '#7a3c12'; gg.fill(); gg.strokeStyle = '#ffd24a'; gg.lineWidth = 2.5; gg.stroke(); gg.fillStyle = '#ffd24a'; gg.font = `${s * 0.6}px ${FONT}`; gg.textAlign = 'center'; gg.textBaseline = 'middle'; gg.fillText('?', 0, 2); gg.restore(); } } });
+    this.btn(sb, { col: '#d6402f', enabled: can, glow: can && !!ctl.tutorialWants?.('summon'), label: 'SUMMON', sub: full ? 'recruit tray full' : me.freeLeft > 0 ? `FREE ×${me.freeLeft}` : `${fmt(cost)} ink`, icon: (gg, b) => { if (b.w > 150) { gg.save(); gg.translate(b.h * 0.42, b.h * 0.5); gg.rotate(-0.15 + Math.sin(this.time * 3) * 0.05); const s = b.h * 0.5; rr(gg, -s / 2, -s / 2, s, s, 7); gg.fillStyle = '#7a3c12'; gg.fill(); gg.strokeStyle = '#ffd24a'; gg.lineWidth = 2.5; gg.stroke(); gg.fillStyle = '#ffd24a'; gg.font = `${s * 0.6}px ${FONT}`; gg.textAlign = 'center'; gg.textBaseline = 'middle'; gg.fillText('?', 0, 2); gg.restore(); } } });
     if (ctl.cloverLeft || me.cloverLeft) { g.fillStyle = '#7fe08a'; g.font = `bold 12px ${FONT2}`; g.textAlign = 'center'; g.fillText(`🍀 next ${me.cloverLeft} gold`, sb.x + sb.w / 2, sb.y - 6); }
     g.restore();
   }
