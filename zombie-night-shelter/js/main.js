@@ -4,7 +4,7 @@ import { Audio } from './audio.js';
 import { loadImages, IMG } from './assets.js';
 import { Renderer, TS } from './render.js';
 import { Game, fmt } from './sim.js';
-import { NIGHTS, ENDLESS, BOSSES, bossKinds, nightKinds, ABILITIES, PERKS, SKINS, BUILD_ORDER, BUILDINGS } from './data.js';
+import { NIGHTS, ENDLESS, BOSSES, bossKinds, nightKinds, ABILITIES, PERKS, SKINS, OLD_SKIN_STARS, BUILD_ORDER, BUILDINGS } from './data.js';
 import { roomAt } from './map.js';
 import { HUD } from './ui.js';
 
@@ -28,6 +28,11 @@ const App = {
     try { await document.fonts.load('20px "Lilita One"'); } catch (e) { /* noop */ }
     const saved = await CG.load();
     this.save = Object.assign({}, DEFAULT_SAVE, saved || {});
+    // skins, once unlocked, stay unlocked; old saves keep what the old thresholds had given them
+    if (!Array.isArray(this.save.skinsOwned)) {
+      const st = this.totalStars();
+      this.save.skinsOwned = SKINS.filter((S) => st >= (saved ? OLD_SKIN_STARS[S.id] : S.stars)).map((S) => S.id);
+    }
     if (CG.sdkMuted) Audio.sdkMuted = true;
     CG.onMuteChange = (m) => { Audio.sdkMuted = m; Audio.applyMute(); };
     CG.onAdStart = () => { this.adPause = true; Audio.adMuted = true; Audio.applyMute(); CG.gameplayStop(); };
@@ -141,11 +146,18 @@ const App = {
     this.show('perks');
   },
 
+  skinOwned(S, stars = this.totalStars()) { return stars >= S.stars || (this.save.skinsOwned || []).includes(S.id); },
+  // after stars change: record newly reached skins and announce them
+  grantSkins() {
+    const st = this.totalStars(), owned = this.save.skinsOwned || (this.save.skinsOwned = []);
+    for (const S of SKINS) if (st >= S.stars && !owned.includes(S.id)) { owned.push(S.id); setTimeout(() => this.toast(`New survivor unlocked: ${S.name}!`, 'good'), 1600); }
+  },
+
   showSkins() {
     const grid = $('skin-grid'); grid.innerHTML = '';
     const stars = this.totalStars();
     for (const S of SKINS) {
-      const un = stars >= S.stars;
+      const un = this.skinOwned(S, stars);
       const el = document.createElement('button');
       el.className = 'skin' + (this.save.skin === S.id ? ' sel' : '') + (un ? '' : ' locked');
       el.innerHTML = `<img class="p" src="assets/img/${S.id}.png" alt=""><div>${S.name}</div>${un ? (this.save.skin === S.id ? '<div class="req">Selected</div>' : '<div class="req">Tap to pick</div>') : `<div class="req"><img src="assets/img/i_star.png" alt="">${S.stars}</div>`}`;
@@ -319,6 +331,7 @@ const App = {
     }
     this.save.medals += medals;
     this.persist();
+    this.grantSkins(); this.persist();
     this.lastMedals = medals; this.doubled = false;
     $('res-title').textContent = g.endless ? 'The horde got you!' : r.won ? (r.killed ? 'BOSSES DOWN!' : 'You saw the dawn!') : 'Overrun!';
     $('res-title').className = r.won || g.endless ? '' : 'red';

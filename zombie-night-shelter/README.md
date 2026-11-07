@@ -152,4 +152,6 @@ earnings) Nights 7–12 become 75–100 % survivable. The game expects players t
   auto-rest on arrival to reduce friction.
 - Speed toggle (x1/x2) added for idle-style players.
 - The camera follows the player during the rush until they pan manually; drag/pinch/wheel to look around.
-- 12 survivor skins (6 extra generated in the polish pass), unlocked by total stars (max 36).
+- 12 survivor skins (6 extra generated in the polish pass), unlocked by total stars: 0, 3, 7, 12, 17, 23, 29, 34, 40, 47, 55, 63
+  (max 66; the last three need stars from Nights 13–22). Unlocked skins are kept in `save.skinsOwned`, and saves from before
+  the 22-night update keep whatever the old thresholds had unlocked.
