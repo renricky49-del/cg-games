@@ -87,7 +87,7 @@ const App = {
     // the daily-supplies popup sits on top of the title screen
     document.querySelectorAll('.screen').forEach((s) => s.classList.toggle('show', s.id === id || (id === 'daily' && s.id === 'title')));
     this.screen = id || 'game';
-    if (id) $('toasts').style.top = '14px';
+    if (id) { $('toasts').style.top = 'auto'; $('toasts').style.bottom = '14px'; } // menus: toasts at the bottom edge, clear of titles
     this.fitPanels();
   },
   showTitle() {
@@ -177,8 +177,9 @@ const App = {
   skinOwned(S, stars = this.totalStars()) { return stars >= S.stars || (this.save.skinsOwned || []).includes(S.id); },
   // after stars change: record newly reached skins and announce them
   grantSkins() {
-    const st = this.totalStars(), owned = this.save.skinsOwned || (this.save.skinsOwned = []);
-    for (const S of SKINS) if (st >= S.stars && !owned.includes(S.id)) { owned.push(S.id); setTimeout(() => this.toast(`New survivor unlocked: ${S.name}!`, 'good'), 1600); }
+    const st = this.totalStars(), owned = this.save.skinsOwned || (this.save.skinsOwned = []), fresh = [];
+    for (const S of SKINS) if (st >= S.stars && !owned.includes(S.id)) { owned.push(S.id); fresh.push(S.name); }
+    return fresh;
   },
 
   showSkins() {
@@ -365,7 +366,8 @@ const App = {
     }
     this.save.medals += medals;
     this.persist();
-    this.grantSkins(); this.persist();
+    const unlocked = this.grantSkins(); this.persist();
+    $('res-unlock').textContent = unlocked.length ? `New survivor${unlocked.length > 1 ? 's' : ''} unlocked: ${unlocked.join(', ')}!` : '';
     this.lastMedals = medals; this.doubled = false;
     $('res-title').textContent = g.endless ? 'The horde got you!' : r.won ? (r.killed ? 'BOSSES DOWN!' : 'You saw the dawn!') : 'Overrun!';
     $('res-title').className = r.won || g.endless ? '' : 'red';

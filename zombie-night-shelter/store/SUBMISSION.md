@@ -6,11 +6,33 @@
 
 ---
 
+## ★ 重新提交（被以“质量不达标”拒绝后）
+
+上次被拒的主要原因，我用 CrazyGames 的标准 iframe 尺寸（devicePixelRatio 1）复现了：
+- 800×450、907×510、1077×606 下，开局卡片的 **Start 按钮在屏幕外**，游戏根本开始不了；
+- 907×510 下，右上角的 **暂停 / 缩放按钮被挤出屏幕**；
+- 横屏手机上，**结算页按钮在屏幕外**；
+- 教程框、横幅、提示、悬停说明 **互相叠在一起**。
+
+这些现在都已修好。新加的 `tools/layoutfit.cjs` 会在 8 种尺寸下检查每个界面的每个按钮都在屏幕内、HUD 各部分不重叠：旧版本 6 项失败，新版本 127 项全部通过。
+
+提交表单如果有“给审核的备注 / Notes for QA”，可以直接粘贴这段：
+
+```
+Thanks for the feedback. This update is a full quality pass:
+- Layout: the whole UI now scales to the iframe. Every screen and button fits at 800x450, 907x510, 1077x606, 1216x684, 1366x768, 1920x1080 and on phones (portrait and landscape). Previously the Start and results buttons could be off-screen on small iframes.
+- Readability: one message lane (no more overlapping tutorial / banners / toasts / tooltips), shorter texts, combined damage numbers.
+- First minute: PLAY starts the tutorial night immediately (1 click), the tutorial is shorter and skippable, and there is no waiting once every survivor has found a room.
+- Visuals: new rooftop backdrop and building shadow, redrawn stairwell, softer wall shadows, cleaner door and boss bars.
+- Ads: rewarded ads only outside active gameplay; all ad buttons hide when ads are unavailable (Basic Launch / adblock).
+- Performance: steady 60 FPS, ~10 MB JS heap.
+```
+
 ## 0. 要上传的文件（全部已备好）
 
 | 用途 | 文件 | 规格（官方要求） | 状态 |
 |---|---|---|---|
-| 游戏包 | `dist/last-door-standing.zip`（运行 `tools/package.sh` 生成） | HTML5；`index.html` 在 zip 根目录；总大小 ≤ 250 MB，文件数 ≤ 1500，首次下载 ≤ 50 MB（手机首页推荐要求 ≤ 20 MB） | ✅ 3.0 MB，180 个文件，只用相对路径 |
+| 游戏包 | `dist/last-door-standing.zip`（运行 `tools/package.sh` 生成） | HTML5；`index.html` 在 zip 根目录；总大小 ≤ 250 MB，文件数 ≤ 1500，首次下载 ≤ 50 MB（手机首页推荐要求 ≤ 20 MB） | ✅ 约 3 MB，180 个文件，只用相对路径（**请上传这次新生成的 zip**） |
 | 横版封面 | `store/cover_1920x1080.jpg` | 16:9，1920×1080 | ✅ |
 | 竖版封面 | `store/cover_800x1200.jpg` | 2:3，800×1200 | ✅ |
 | 方形封面 | `store/cover_800x800.jpg` | 1:1，800×800 | ✅ |
@@ -135,7 +157,7 @@ Touch: tap to select, drag to pan, pinch to zoom
 
 ## 10. 以后升级到 Full Launch 时要补的
 
-- 官方要求 Full Launch 时，新玩家最多点 **1 次** 就进入游戏。现在是“PLAY → I'm ready!”两次点击，到时候可以让第一次玩的玩家点 PLAY 后直接进第 1 晚的教程。
+- 新玩家“点 1 次就进入游戏”的要求已经做到：第一次点 PLAY 直接进入第 1 晚教程。
 - Full Launch 才会开广告收益，现有的广告接入已经满足上面的规则。
 
 ---

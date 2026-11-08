@@ -224,7 +224,7 @@ export class HUD {
       else { tb.style.top = 'auto'; tb.style.bottom = (R.insets.bottom + (this.tutEl ? 34 : 8)) + 'px'; }
       if (this.tutUp && !mute) laneTop = tb.getBoundingClientRect().bottom + 6;
     }
-    $('toasts').style.top = laneTop + 'px';
+    $('toasts').style.top = laneTop + 'px'; $('toasts').style.bottom = 'auto';
     const playH = H - R.insets.top - R.insets.bottom;
     $('banner').style.top = Math.max(laneTop + 4, R.insets.top + playH * 0.24) + 'px';
   }

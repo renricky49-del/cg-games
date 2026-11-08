@@ -262,6 +262,8 @@ canvas#game.aim { cursor: crosshair; }
 #res-stats { display: grid; grid-template-columns: 1fr auto; gap: 2px 22px; font-size: 17px; text-align: left; min-width: 250px; }
 .res-reward { display: flex; align-items: center; gap: 14px; }
 #res-sub { max-width: 360px; font-size: 14px; }
+#res-unlock { color: var(--green); font-size: 17px; }
+#res-unlock:empty { display: none; }
 #res-stats span:nth-child(even) { color: var(--gold); text-align: right; }
 #res-medals { display: flex; align-items: center; gap: 6px; font-size: 30px; color: var(--gold); }
 #res-medals img { width: 40px; }

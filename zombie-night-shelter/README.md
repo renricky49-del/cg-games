@@ -22,6 +22,9 @@ localStorage saves). To upload: zip the **contents** of this folder (index.html 
 | `node tools/balance.mjs 20 balanced` | Headless fast-forward sim of all 22 nights (player slot driven by the survivor AI). Prints win %, boss-kill %, stars, AI deaths, boss level. Optional 3rd arg: perks JSON, e.g. `'{"start":2,"door":2,"dmg":2,"bed":2,"fix":2}'`. Personalities: `balanced greedy turtle gunner rookie`. |
 | `node tools/endless_test.mjs` | Headless endless-mode runs (waves survived / duration). |
 | `node tools/playtest.cjs <outdir>` | Browser test (server on :8123): Night 1 via real clicks/hotkeys (claim room, click bed, B, build menu, info panel) then AI fast-forward to the results screen; a loss with the rewarded Continue flow; menus; frame-time check; iPhone portrait + landscape. Fails on any console error. |
+| `node tools/layoutfit.cjs` | Layout check (server on :8123) at CrazyGames iframe sizes 800x450, 907x510, 1077x606, 1216x684, 1366x768, 1920x1080 and phones 390x844 / 844x390: every button of every screen (title, menus, daily, intro, HUD, pause, continue, results) fully on screen, no overlap between HUD parts. |
+| `node tools/trailer.cjs landscape\|portrait <dir>` + `tools/trailer.sh <dir>` | Record the CrazyGames preview videos frame by frame and stitch them (cover first frame, cross-fades, no audio). |
+| `tools/package.sh` | Build `dist/last-door-standing.zip` for upload. |
 | `node tools/perf.cjs <outdir>` | Late-night (Night 11, maxed perks) frame time + heap measurement. |
 | `node tools/screens.cjs` | Regenerates `store/screenshots/`. |
 | `python3 -I tools/slice.py <raw> assets/img` | Slices Higgsfield sprite sheets (trim, haze removal, resize). |
@@ -163,3 +166,11 @@ earnings) Nights 7–12 become 75–100 % survivable. The game expects players t
 - 12 survivor skins (6 extra generated in the polish pass), unlocked by total stars: 0, 3, 7, 12, 17, 23, 29, 34, 40, 47, 55, 63
   (max 66; the last three need stars from Nights 13–22). Unlocked skins are kept in `save.skinsOwned`, and saves from before
   the 22-night update keep whatever the old thresholds had unlocked.
+
+## Responsive UI (CrazyGames iframes)
+The HUD is laid out for ~1100x620 and scaled by one CSS variable `--k` computed from the viewport (`App.fitUI`);
+portrait phones get `body.portrait`. Every modal card is scaled to fit (`App.fitPanels`), list screens scroll inside.
+The top bar compacts its boss cards when it would overflow. Messages share one lane (`HUD.placeMessages`): tutorial
+coach card above the action bar (or under the HUD when its target is down there), toasts under the HUD, banner in
+the upper play area. `tools/layoutfit.cjs` guards all of this.
+

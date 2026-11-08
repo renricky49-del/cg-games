@@ -19,7 +19,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     return { avg: +(fr.reduce((a, b) => a + b, 0) / fr.length).toFixed(2), p95: +fr[570].toFixed(2), max: +fr[599].toFixed(1), heapMB: Math.round(performance.memory.usedJSHeapSize / 1e6), ent: A.game.enemies.length, bld: A.game.buildings.length, proj: A.game.projectiles.length, parts: A.renderer.particles.length, phase: A.game.phase };
   });
   console.log('m1', JSON.stringify(await measure()));
-  await p.screenshot({ path: process.argv[2] + '/21_perf.png' });
+  await p.screenshot({ path: (process.argv[2] || require('os').tmpdir()) + '/21_perf.png' });
   console.log('m2', JSON.stringify(await measure()));
   console.log('m3', JSON.stringify(await measure()));
   console.log(errs.length ? errs.join('\n') : 'no errors');
