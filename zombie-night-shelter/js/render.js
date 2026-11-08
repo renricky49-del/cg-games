@@ -34,6 +34,8 @@ export class Renderer {
     this.insets = { top: 64, bottom: 96 };
     this.darkness = 0.5;
     this.throws = []; this.flashT = 0; this.aim = null;
+    this.dmgAcc = new Map(); // per-enemy damage summed into one number every ~0.3 s (less clutter)
+    this.backdrop = makeBackdrop();
   }
 
   setGame(g) {
@@ -142,31 +144,62 @@ export class Renderer {
     // corridor runner carpet
     x.fillStyle = '#7b3b3b'; x.fillRect(6 * TS, 8.25 * TS, (m.W - 7) * TS, TS * 0.5);
     x.fillStyle = '#9b4c4a'; x.fillRect(6 * TS, 8.3 * TS, (m.W - 7) * TS, TS * 0.06); x.fillRect(6 * TS, 8.64 * TS, (m.W - 7) * TS, TS * 0.06);
-    // lair: dark concrete + stairs
+    // stairwell (the bosses' lair): concrete landing framed by hazard stripes, lit stairs with handrails up and down
     x.fillStyle = pat('t_concrete', 3) || '#3a3d3a'; x.fillRect(1 * TS, 1 * TS, 4 * TS, 15 * TS);
-    for (let i = 0; i < 40; i++) {
-      x.fillStyle = `rgba(${rnd() < 0.5 ? '20,40,20' : '60,20,20'},${0.15 + rnd() * 0.2})`;
-      x.beginPath(); x.ellipse((1 + rnd() * 4) * TS, (1 + rnd() * 15) * TS, 6 + rnd() * 16, 4 + rnd() * 10, rnd() * 3, 0, TAU); x.fill();
+    x.fillStyle = 'rgba(30,34,46,0.35)'; x.fillRect(1 * TS, 1 * TS, 4 * TS, 15 * TS);
+    for (let i = 0; i < 14; i++) { // a few old stains
+      x.fillStyle = `rgba(10,12,16,${0.12 + rnd() * 0.12})`;
+      x.beginPath(); x.ellipse((1.4 + rnd() * 3.2) * TS, (5.4 + rnd() * 6.2) * TS, 8 + rnd() * 14, 5 + rnd() * 9, rnd() * 3, 0, TAU); x.fill();
     }
-    for (let s = 0; s < 6; s++) { // stairs going up/down
-      x.fillStyle = s % 2 ? '#4a4d4a' : '#555855';
-      x.fillRect(1.2 * TS, (1.3 + s * 0.5) * TS, 3.6 * TS, 0.5 * TS);
-      x.fillRect(1.2 * TS, (12.6 + s * 0.5) * TS, 3.6 * TS, 0.5 * TS);
-    }
-    x.fillStyle = 'rgba(0,0,0,0.25)'; x.fillRect(1 * TS, 1 * TS, 4 * TS, 15 * TS);
+    const stairs = (y0, dir) => { // 7 steps, lighter towards the top of each flight
+      const n = 7, h = 3.4 / n;
+      for (let i = 0; i < n; i++) {
+        const y = (y0 + i * h) * TS, t = dir > 0 ? i / n : 1 - i / n;
+        x.fillStyle = `rgb(${88 - t * 34},${92 - t * 34},${104 - t * 34})`; x.fillRect(1.35 * TS, y, 3.3 * TS, h * TS);
+        x.fillStyle = 'rgba(255,255,255,0.16)'; x.fillRect(1.35 * TS, y + (dir > 0 ? h * TS - 3 : 0), 3.3 * TS, 3); // nosing
+        x.fillStyle = 'rgba(0,0,0,0.28)'; x.fillRect(1.35 * TS, y + (dir > 0 ? 0 : h * TS - 4), 3.3 * TS, 4);
+      }
+      for (const rx of [1.22, 4.78]) { // handrails
+        x.fillStyle = '#20232e'; x.fillRect(rx * TS - 3, y0 * TS, 6, 3.4 * TS);
+        x.fillStyle = '#7d8398'; x.fillRect(rx * TS - 1, y0 * TS, 2, 3.4 * TS);
+      }
+    };
+    stairs(1.1, -1); stairs(12.5, 1);
+    const hazard = (y) => { // yellow/black warning band across the landing
+      x.save(); x.beginPath(); x.rect(1.1 * TS, y * TS, 3.8 * TS, 0.28 * TS); x.clip();
+      x.fillStyle = '#e8b21f'; x.fillRect(1.1 * TS, y * TS, 3.8 * TS, 0.28 * TS);
+      x.fillStyle = '#1c1c22';
+      for (let k = -1; k < 14; k++) { x.beginPath(); x.moveTo((1.1 + k * 0.32) * TS, (y + 0.28) * TS); x.lineTo((1.1 + k * 0.32 + 0.16) * TS, (y + 0.28) * TS); x.lineTo((1.1 + k * 0.32 + 0.44) * TS, y * TS); x.lineTo((1.1 + k * 0.32 + 0.28) * TS, y * TS); x.fill(); }
+      x.restore();
+    };
+    hazard(4.7); hazard(12.15);
+    const exitSign = (y) => { // glowing EXIT sign above each flight
+      const cx = 3 * TS, cy = y * TS;
+      const gl = x.createRadialGradient(cx, cy, 2, cx, cy, TS * 1.3); gl.addColorStop(0, 'rgba(90,255,140,0.35)'); gl.addColorStop(1, 'rgba(90,255,140,0)');
+      x.fillStyle = gl; x.fillRect(cx - TS * 1.4, cy - TS * 1.4, TS * 2.8, TS * 2.8);
+      x.fillStyle = '#0e3a1c'; roundRect(x, cx - TS * 0.55, cy - TS * 0.2, TS * 1.1, TS * 0.4, 5); x.fill();
+      x.fillStyle = '#5dff8f'; x.font = `bold ${TS * 0.28}px "Lilita One", Impact, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
+      x.fillText('EXIT', cx, cy + 1);
+    };
+    exitSign(1.45); exitSign(15.55);
     // walls
     for (let ty = 0; ty < m.H; ty++) for (let tx = 0; tx < m.W; tx++) {
       const k = tileKind(m, tx, ty);
       if (k === 'wall' || k === 'door') drawWall(x, tx, ty, m, this.brick || (this.brick = pat('t_brick', 1.5)));
     }
-    // inner shadows along walls
-    x.fillStyle = 'rgba(0,0,0,0.18)';
-    for (const r of m.rooms) { x.fillRect(r.x * TS, r.y * TS, r.w * TS, 8); x.fillRect(r.x * TS, r.y * TS, 6, r.h * TS); }
-    x.fillRect(1 * TS, 7 * TS, (m.W - 2) * TS, 8);
-    // painted lair sign
-    x.save(); x.translate(3 * TS, 8.5 * TS); x.rotate(-Math.PI / 2);
-    x.font = `bold ${TS * 0.42}px "Lilita One", Impact, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
-    x.fillStyle = 'rgba(160,30,30,0.55)'; x.fillText('STAIRWELL', 0, 0); x.restore();
+    // soft shadows where floors meet walls (reads as recessed rooms instead of flat fills)
+    const ao = (x0, y0, w, h, dir, a) => { // dir: 'down' | 'up' | 'right' | 'left' = direction the shadow fades towards
+      const gr = dir === 'down' ? x.createLinearGradient(0, y0, 0, y0 + h) : dir === 'up' ? x.createLinearGradient(0, y0 + h, 0, y0)
+        : dir === 'right' ? x.createLinearGradient(x0, 0, x0 + w, 0) : x.createLinearGradient(x0 + w, 0, x0, 0);
+      gr.addColorStop(0, `rgba(0,0,0,${a})`); gr.addColorStop(1, 'rgba(0,0,0,0)');
+      x.fillStyle = gr; x.fillRect(x0, y0, w, h);
+    };
+    for (const r of m.rooms) {
+      const X = r.x * TS, Y = r.y * TS, W2 = r.w * TS, H2 = r.h * TS;
+      ao(X, Y, W2, TS * 0.55, 'down', 0.38); ao(X, Y + H2 - TS * 0.3, W2, TS * 0.3, 'up', 0.2);
+      ao(X, Y, TS * 0.4, H2, 'right', 0.26); ao(X + W2 - TS * 0.4, Y, TS * 0.4, H2, 'left', 0.26);
+    }
+    ao(5 * TS, 7 * TS, (m.W - 6) * TS, TS * 0.5, 'down', 0.34); ao(5 * TS, 9.7 * TS, (m.W - 6) * TS, TS * 0.3, 'up', 0.18);
     // room numbers painted on floor
     x.font = `bold ${TS * 0.35}px "Lilita One", Impact, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
     for (const r of m.rooms) {
@@ -174,6 +207,21 @@ export class Renderer {
       x.fillText(r.label, (r.x + r.w / 2) * TS, (r.top ? r.y + 4.5 : r.y + 0.5) * TS);
     }
     this.staticLayer = c;
+    // night rooftop around the building + its soft drop shadow, baked once at half resolution;
+    // beyond this margin the canvas clear colour matches the rooftop's base tone
+    const SM = this.shadowMargin = 8 * TS, sc = 0.5, sh = document.createElement('canvas');
+    sh.width = Math.ceil((m.W * TS + SM * 2) * sc); sh.height = Math.ceil((m.H * TS + SM * 2) * sc);
+    const sx = sh.getContext('2d');
+    sx.fillStyle = this.backdrop; sx.fillRect(0, 0, sh.width, sh.height);
+    const edge = (x0, y0, x1, y1) => { const gr = sx.createLinearGradient(x0, y0, x1, y1); gr.addColorStop(0, '#15161f'); gr.addColorStop(1, 'rgba(21,22,31,0)'); return gr; };
+    const E = SM * sc * 0.6;
+    sx.fillStyle = edge(0, 0, E, 0); sx.fillRect(0, 0, E, sh.height);
+    sx.fillStyle = edge(sh.width, 0, sh.width - E, 0); sx.fillRect(sh.width - E, 0, E, sh.height);
+    sx.fillStyle = edge(0, 0, 0, E); sx.fillRect(0, 0, sh.width, E);
+    sx.fillStyle = edge(0, sh.height, 0, sh.height - E); sx.fillRect(0, sh.height - E, sh.width, E);
+    sx.shadowColor = 'rgba(0,0,0,0.85)'; sx.shadowBlur = 22; sx.shadowOffsetY = 6; sx.fillStyle = '#000';
+    sx.fillRect(SM * sc, SM * sc, m.W * TS * sc, m.H * TS * sc);
+    this.shadowLayer = sh;
   }
 
   // ------------------------------------------------------------------ events -> fx
@@ -182,12 +230,19 @@ export class Renderer {
     switch (ev.type) {
       case 'hit': {
         if (ev.src === 'nail' || ev.src === 'bolt') this.burst(ev.x, ev.y, ev.src === 'bolt' ? 5 : 2, '#ffd27a', 2.5, 0.25);
-        if (ev.player && (ev.src !== 'flame' || Math.random() < 0.25)) this.floatText(ev.x + (Math.random() - 0.5) * 0.6, ev.y - 0.4, fmt(ev.dmg), ev.src === 'zap' ? '#8ee7ff' : ev.src === 'flame' ? '#ffb347' : ev.src === 'shell' ? '#ffd84a' : '#fff', ev.src === 'shell' ? 0.95 : 0.7);
+        if (ev.player) {
+          const key = ev.e ? ev.e.id : 0, a = this.dmgAcc.get(key) || { n: 0, t: 0.3 };
+          a.n += ev.dmg; a.x = ev.x; a.y = ev.y; a.src = ev.src; this.dmgAcc.set(key, a);
+        }
         break;
       }
       case 'doorHit': {
         this.burst(ev.x, ev.y, 6, '#a8743f', 3, 0.5, 'chip');
-        if (ev.player) { this.shake(7); this.floatText(ev.x, ev.y - 0.3, '-' + fmt(ev.dmg), '#ff5a4a', 0.9); }
+        if (ev.player) {
+          this.shake(7);
+          const key = 'door' + Math.round(ev.x * 10), a = this.dmgAcc.get(key) || { n: 0, t: 0.4, door: true };
+          a.n += ev.dmg; a.x = ev.x; a.y = ev.y; this.dmgAcc.set(key, a);
+        }
         else this.shake(1.2);
         break;
       }
@@ -269,6 +324,12 @@ export class Renderer {
 
   update(dt) {
     this.time += dt;
+    for (const [key, a] of this.dmgAcc) {
+      a.t -= dt; if (a.t > 0) continue;
+      this.dmgAcc.delete(key);
+      if (a.door) { this.floatText(a.x, a.y - 0.3, '-' + fmt(a.n), '#ff5a4a', 0.95); continue; }
+      if (a.n >= 1) this.floatText(a.x + (Math.random() - 0.5) * 0.5, a.y - 0.5, fmt(a.n), a.src === 'zap' ? '#8ee7ff' : a.src === 'flame' ? '#ffb347' : a.src === 'shell' ? '#ffd84a' : '#fff', 0.8);
+    }
     const c = this.cam;
     if (c.tz != null) {
       const k = Math.min(1, dt * 4), px = c.x, py = c.y;
@@ -308,7 +369,7 @@ export class Renderer {
   draw() {
     const g = this.g, ctx = this.ctx, c = this.cam;
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    ctx.fillStyle = '#12131b'; ctx.fillRect(0, 0, this.vw, this.vh);
+    ctx.fillStyle = '#15161f'; ctx.fillRect(0, 0, this.vw, this.vh);
     if (!g) return;
     const sx = (Math.random() - 0.5) * c.shake, sy = (Math.random() - 0.5) * c.shake;
     ctx.save();
@@ -316,7 +377,10 @@ export class Renderer {
     ctx.scale(c.z, c.z);
     ctx.translate(-c.x, -c.y);
     ctx.imageSmoothingEnabled = true;
-    ctx.drawImage(this.staticLayer, 0, 0, g.map.W * TS, g.map.H * TS);
+    // night rooftop around the building (instead of flat dark bands), then the building with a soft drop shadow
+    const MW = g.map.W * TS, MH = g.map.H * TS, SM = this.shadowMargin;
+    ctx.drawImage(this.shadowLayer, -SM, -SM, MW + SM * 2, MH + SM * 2); // baked rooftop + building shadow
+    ctx.drawImage(this.staticLayer, 0, 0, MW, MH);
     this.drawRooms(ctx);
     this.drawHover(ctx);
     this.drawBuildings(ctx);
@@ -672,7 +736,7 @@ export class Renderer {
     let dark = 0.42;
     let tint = '8,12,40';
     if (g.phase === 'rush') dark = 0.25;
-    else if (g.phase === 'grace') dark = 0.25 + 0.2 * (1 - g.phaseT / 30);
+    else if (g.phase === 'grace') dark = 0.25 + 0.2 * Math.max(0, 1 - g.phaseT / 30);
     else if (g.phase === 'night' || g.phase === 'lost') {
       dark = 0.4;
       if (!g.endless && g.nightLeft < 25) { dark = 0.4 * (g.nightLeft / 25); tint = '40,20,10'; }
@@ -711,6 +775,7 @@ export class Renderer {
     for (const b of g.buildings) if (b.flash > 0) light(b.x, b.y, 1.6, 0.8);
     for (const z2 of this.zaps) for (const p of z2.pts) light(p.x, p.y, 1.8, 0.9);
     for (const b of g.bosses) if (b.alive) light(b.x, b.y, 2.2, 0.35);
+    light(3, 1.5, 1.7, 0.55); light(3, 15.5, 1.7, 0.55); // EXIT signs
     L.globalCompositeOperation = 'source-over';
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     ctx.imageSmoothingEnabled = true;
@@ -786,19 +851,12 @@ export class Renderer {
       for (const d of r.doors) {
         const f = Math.max(0, d.hp / m);
         if (f > 0.999 && r.hitT > 3 && !r.owner.isPlayer) continue;
-        const bh = Math.max(TS * 0.18, 7 / this.cam.z), bw = TS * 1.15;
+        const own = r.owner.isPlayer, bh = Math.max(TS * (own ? 0.24 : 0.18), (own ? 9 : 7) / this.cam.z), bw = TS * (own ? 1.35 : 1.15);
         const bx = (d.tx + 0.5) * TS - bw / 2, by = (r.top ? d.ty + 1.1 : d.ty - 0.1) * TS - (r.top ? 0 : bh);
         ctx.fillStyle = 'rgba(0,0,0,0.8)'; roundRect(ctx, bx - 2, by - 2, bw + 4, bh + 4, 4); ctx.fill();
         ctx.fillStyle = f > 0.6 ? '#62d26f' : f > 0.3 ? '#f2c23a' : '#ff4b3a';
         ctx.fillRect(bx, by, bw * f, bh);
         if (r.owner.isPlayer) { ctx.strokeStyle = '#ffd84a'; ctx.lineWidth = 2; roundRect(ctx, bx - 2, by - 2, bw + 4, bh + 4, 4); ctx.stroke(); }
-        if (r.owner.isPlayer) {
-          ctx.font = `bold ${this.fpx(TS * 0.22, 12)}px "Lilita One", Impact, sans-serif`;
-          ctx.fillStyle = '#fff'; ctx.strokeStyle = 'rgba(0,0,0,0.85)'; ctx.lineWidth = 3;
-          const txt = fmt(d.hp) + '/' + fmt(m);
-          const ty = r.top ? by + bh + this.fpx(TS * 0.22, 12) * 0.8 : by - this.fpx(TS * 0.22, 12) * 0.8;
-          ctx.strokeText(txt, (d.tx + 0.5) * TS, ty); ctx.fillText(txt, (d.tx + 0.5) * TS, ty);
-        }
       }
     }
   }
@@ -902,3 +960,23 @@ function drawCracks(ctx, cx, cy, w, h, frac, seed) {
   }
   if (frac < 0.33) { ctx.fillStyle = 'rgba(255,40,20,0.18)'; ctx.fillRect(cx - w / 2, cy - h / 2, w, h); }
 }
+
+// Dark gravel-and-paver rooftop tile used around the building.
+function makeBackdrop() {
+  const N = 192, c = document.createElement('canvas'); c.width = N; c.height = N;
+  const x = c.getContext('2d'), rnd = mul(91);
+  x.fillStyle = '#1a1c2a'; x.fillRect(0, 0, N, N);
+  for (let i = 0; i < 9; i++) { // soft damp patches
+    x.fillStyle = `rgba(${rnd() < 0.5 ? '10,12,24' : '36,38,56'},${0.25 + rnd() * 0.2})`;
+    x.beginPath(); x.ellipse(rnd() * N, rnd() * N, 14 + rnd() * 30, 10 + rnd() * 20, rnd() * 3, 0, TAU); x.fill();
+  }
+  for (let i = 0; i < 900; i++) { // gravel speckles
+    const v = rnd(); x.fillStyle = v < 0.5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.22)';
+    x.fillRect(rnd() * N, rnd() * N, 1 + rnd() * 2, 1 + rnd() * 2);
+  }
+  x.strokeStyle = 'rgba(255,255,255,0.035)'; x.lineWidth = 2; // paver seams
+  for (let i = 0; i <= N; i += 96) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i, N); x.moveTo(0, i); x.lineTo(N, i); x.stroke(); }
+  const p = x.createPattern(c, 'repeat');
+  return p || '#1a1c2a';
+}
+

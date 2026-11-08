@@ -29,9 +29,8 @@ async function waitFor(page, fn, ms = 60000) {
   await page.evaluate(() => localStorage.clear());
   await page.reload();
   await page.waitForSelector('#title.show');
-  await page.click('#btn-play');
-  await page.waitForSelector('#intro.show');
-  await page.click('#btn-start');
+  await page.click('#btn-play'); // first play: straight into the tutorial night
+  await page.waitForFunction(() => window.__app.screen === 'game');
   await sleep(400);
   // pick the room with best neighbour support
   const room = await page.evaluate(() => { const g = window.__app.game, p = g.player; const r = g.map.rooms.filter((r) => !r.owner && !g.survivors.some((o) => o.targetRoom === r)).sort((a, b) => Math.abs(a.doors[0].fx - p.x) - Math.abs(b.doors[0].fx - p.x))[0]; return { x: r.doors[0].ix, y: r.doors[0].iy, id: r.id }; });
@@ -122,8 +121,7 @@ async function waitFor(page, fn, ms = 60000) {
   await mp.waitForSelector('#title.show');
   await mp.screenshot({ path: OUT + '/30_m_title.png' });
   await mp.tap('#btn-play');
-  await mp.waitForSelector('#intro.show');
-  await mp.tap('#btn-start');
+  await mp.waitForFunction(() => window.__app.screen === 'game');
   await sleep(500);
   await mp.screenshot({ path: OUT + '/31_m_rush.png' });
   const r2 = await mp.evaluate(() => { const g = window.__app.game; const r = g.map.rooms.find((r) => !r.owner && !g.survivors.some((o) => o !== g.player && o.targetRoom === r)) || g.map.rooms.find((r) => !r.owner); g.goToRoom(g.player, r); return true; });
@@ -135,7 +133,7 @@ async function waitFor(page, fn, ms = 60000) {
   const ml = await browser.newContext({ ...devices['iPhone 13 landscape'] });
   const lp = await ml.newPage(); watch(lp);
   await lp.goto(URL); await lp.waitForSelector('#title.show');
-  await lp.tap('#btn-play'); await lp.waitForSelector('#intro.show'); await lp.tap('#btn-start');
+  await lp.tap('#btn-play'); await lp.waitForFunction(() => window.__app.screen === 'game');
   await lp.evaluate(() => { const g = window.__app.game; const r = g.map.rooms.find((r) => !r.owner && !g.survivors.some((o) => o !== g.player && o.targetRoom === r)) || g.map.rooms.find((r) => !r.owner); g.goToRoom(g.player, r); });
   await waitFor(lp, () => window.__app.game.player.state === 'inroom'); await sleep(1200);
   await lp.screenshot({ path: OUT + '/33_m_land.png' });

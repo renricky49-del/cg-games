@@ -20,6 +20,7 @@ export class HUD {
 
   get g() { return this.app.game; }
   get R() { return this.app.renderer; }
+  get k() { return this.app.uiK || 1; }
 
   reset(g, tutorial) {
     this.closeMenus();
@@ -44,7 +45,17 @@ export class HUD {
 
   layout() {
     requestAnimationFrame(() => {
-      const top = $('hud-top').getBoundingClientRect();
+      const ht = $('hud-top');
+      // never let the top bar overflow: first compact the boss cards, then drop secondary text
+      const overflow = () => {
+        const W = window.innerWidth, pb = $('phase-box').getBoundingClientRect(), bb = $('boss-boxes').getBoundingClientRect(), tb = $('top-btns').getBoundingClientRect();
+        const left = $('scrap-pill').getBoundingClientRect(), pw = $('power-pill');
+        const lr = pw.classList.contains('hidden') ? left.right : pw.getBoundingClientRect().right;
+        return tb.right > W - 2 || (bb.width && bb.left < pb.right + 4) || lr > pb.left - 4;
+      };
+      ht.classList.remove('tight', 'tighter');
+      if (!document.body.classList.contains('portrait') && overflow()) { ht.classList.add('tight'); if (overflow()) ht.classList.add('tighter'); }
+      const top = ht.getBoundingClientRect();
       const bot = $('hud-bottom');
       const bh = bot.classList.contains('hidden') ? 8 : window.innerHeight - bot.getBoundingClientRect().top + 4;
       const prev = this.R.insets;
@@ -71,8 +82,8 @@ export class HUD {
     act('act-flash', () => this.armAbility('flash'));
     act('act-molotov', () => this.armAbility('molotov'));
     for (const id of ['act-bed', 'act-repair', 'act-door', 'act-flash', 'act-molotov']) {
-      $(id).addEventListener('mouseenter', () => { this.hoverBtn = id; Audio.play('hover'); });
-      $(id).addEventListener('mouseleave', () => { if (this.hoverBtn === id) this.hoverBtn = null; this.hideTip(); });
+      $(id).addEventListener('pointerenter', (e) => { if (e.pointerType !== 'mouse') return; this.hoverBtn = id; this.hoverBtnT = performance.now(); Audio.play('hover'); });
+      $(id).addEventListener('pointerleave', () => { if (this.hoverBtn === id) this.hoverBtn = null; this.hideTip(); });
     }
   }
 
@@ -150,7 +161,8 @@ export class HUD {
     this.lastScrap = scrap;
     this.setText('income', '+' + fmt(g.income(s)) + '/s');
     if (room) { const p = g.power(room); this.setText('power', `${p.cap - p.used}/${p.cap}`); }
-    $('power-pill').classList.toggle('hidden', !room || !g.unlocked('generator'));
+    const pwh = !room || !g.unlocked('generator');
+    if ($('power-pill').classList.contains('hidden') !== pwh) { $('power-pill').classList.toggle('hidden', pwh); this.layout(); }
     // phase
     let title = '', timer = 0, urgent = false, dawn = 0;
     if (g.phase === 'rush') { title = s.state === 'corridor' ? 'Find a room!' : 'Others are still running…'; timer = g.phaseT; urgent = g.phaseT < 8 && s.state === 'corridor'; }
@@ -190,17 +202,31 @@ export class HUD {
     // panels follow their anchor
     if (!this.info.classList.contains('hidden') && this.infoObj) this.renderInfo();
     if (!this.bm.classList.contains('hidden')) this.refreshBuildMenu();
-    if (this.hoverBtn) this.btnTip(this.hoverBtn);
+    if (this.hoverBtn && performance.now() - this.hoverBtnT > 350) this.btnTip(this.hoverBtn);
     // banner
     if (this.bannerT > 0) { this.bannerT -= dt; if (this.bannerT <= 0) $('banner').classList.remove('show'); }
     this.updateTutorial(dt);
     this.helpHint();
-    // tutorial bubble: above the action bar, or under the top HUD when the thing it points at is in the lower half
-    const tb = $('tutorial');
-    if (!tb.classList.contains('hidden')) {
-      if (this.tutUp) { tb.style.top = (this.R.insets.top + 8) + 'px'; tb.style.bottom = 'auto'; }
-      else { tb.style.top = 'auto'; tb.style.bottom = (this.R.insets.bottom + 10) + 'px'; }
+    this.placeMessages();
+  }
+
+  // One message lane: tutorial coach (bottom above the action bar, or top when its target is down there),
+  // toasts under the HUD (or under the coach), banner in the upper third of the play area. Nothing overlaps.
+  placeMessages() {
+    const R = this.R, tb = $('tutorial'), H = window.innerHeight;
+    let laneTop = R.insets.top + 6;
+    const tutOn = !tb.classList.contains('hidden');
+    if (tutOn) {
+      const mute = this.menuOpen() || (this.hoverBtn && !this.tip.classList.contains('hidden'));
+      tb.classList.toggle('muted', !!mute);
+      tb.classList.toggle('top', !!this.tutUp);
+      if (this.tutUp) { tb.style.top = (R.insets.top + 6) + 'px'; tb.style.bottom = 'auto'; }
+      else { tb.style.top = 'auto'; tb.style.bottom = (R.insets.bottom + (this.tutEl ? 34 : 8)) + 'px'; }
+      if (this.tutUp && !mute) laneTop = tb.getBoundingClientRect().bottom + 6;
     }
+    $('toasts').style.top = laneTop + 'px';
+    const playH = H - R.insets.top - R.insets.bottom;
+    $('banner').style.top = Math.max(laneTop + 4, R.insets.top + playH * 0.24) + 'px';
   }
 
   setText(id, v) { if (this.cache[id] !== v) { this.cache[id] = v; $(id).textContent = v; } }
@@ -264,8 +290,8 @@ export class HUD {
     const t = this.tip;
     if (t.innerHTML !== html) t.innerHTML = html;
     t.classList.remove('hidden');
-    const w = t.offsetWidth, h = t.offsetHeight;
-    let left = x - w / 2, top = above ? y - h : y + 18;
+    const w = t.offsetWidth * this.k, h = t.offsetHeight * this.k;
+    let left = x - w / 2, top = above ? y - h : y + 18 * this.k;
     left = Math.max(6, Math.min(window.innerWidth - w - 6, left));
     top = Math.max(6, Math.min(window.innerHeight - h - 6, top));
     t.style.left = left + 'px'; t.style.top = top + 'px';
@@ -276,7 +302,7 @@ export class HUD {
   hoverWorld(w, sx, sy) {
     const g = this.g, s = g.player;
     if (this.bmHover) return;
-    if (this.aiming) { this.hideTip(); return; }
+    if (this.aiming || (this.tut && !$('tutorial').classList.contains('hidden'))) { this.hideTip(); return; }
     const tx = Math.floor(w.x), ty = Math.floor(w.y);
     const room = s.room;
     if (this.info.classList.contains('hidden')) this.R.preview = null;
@@ -290,8 +316,6 @@ export class HUD {
         if (D.range || D.kind === 'turret') this.R.setPreview(b.type, b.lvl, b.tx, b.ty, true);
       } else if (tx === room.bed.tx && (ty === room.bed.ty || ty === room.bed.ty + 1)) {
         html = s.lying ? `<b>Your bed (Lv${room.bedLvl})</b><br>Earning ${fmt(bedIncome(room.bedLvl))}/s` : '<b>Your bed</b><br>Click to lie down and earn scrap';
-      } else if (g.tileFree(room, tx, ty)) {
-        html = '<b>Empty floor</b><br>Click to build';
       }
     } else if (r && r.doors.find((d) => d.tx === tx && d.ty === ty) && r.owner && r === room) {
       html = `<b>Your door Lv${room.doorLvl}</b><br>${fmt(Math.min(...room.doors.map((d) => d.hp)))} / ${fmt(g.doorMax(room))} HP`;
@@ -341,7 +365,7 @@ export class HUD {
 
   place(el, sx, sy) {
     el.classList.remove('hidden');
-    const w = el.offsetWidth, h = el.offsetHeight;
+    const w = el.offsetWidth * this.k, h = el.offsetHeight * this.k;
     let left = sx + 24, top = sy - h / 2;
     if (left + w > window.innerWidth - 8) left = sx - w - 24;
     left = Math.max(8, left);
@@ -505,14 +529,14 @@ export class HUD {
     switch (ev.type) {
       case 'phase':
         if (ev.phase === 'grace') {
-          this.banner('DOORS LOCKED!', `${g.bosses.length} bosses wake in ${Math.round(GRACE_TIME / PACE)}s — get building!`, 2.4);
+          this.banner('DOORS LOCKED!', `Bosses wake in ${Math.round(g.phaseT / PACE)}s. Build defenses!`, 2.4);
           if (g.player.room && this.R.vw < 900) this.R.focusRoom(g.player.room);
         }
         break;
-      case 'bossWake': this.banner(`${g.bosses.length} BOSSES ARE AWAKE!`, g.endless ? `Wave ${g.stats.wave}` : `${g.bosses[0].name} is hunting you — survive until dawn`, 2.6); break;
+      case 'bossWake': this.banner(`${g.bosses.length} BOSSES AWAKE!`, g.endless ? `Wave ${g.stats.wave}` : `${g.bosses[0].name} is hunting YOU`, 2.4); break;
       case 'bossLevel': { const b = $('boss-box' + Math.max(0, g.bosses.indexOf(ev.e))); b.classList.remove('levelup'); void b.offsetWidth; b.classList.add('levelup'); const now = performance.now(); if (now - (this.lvlToastT || 0) > 4000) { this.lvlToastT = now; this.toast(g.bosses.length > 2 ? `The bosses are levelling up! (Lv${ev.lvl})` : `${ev.e.name} reached level ${ev.lvl}!`, 'bad'); } break; }
       case 'bossRetreat': this.toast(`${ev.e.name} is fleeing to heal — finish it!`, 'good'); break;
-      case 'bossDown': this.banner('BOSS DOWN!', `${ev.left} left — kill them all (keep a neighbour alive) for ★★★`, 2.2); break;
+      case 'bossDown': this.banner('BOSS DOWN!', `${ev.left} to go`, 2); break;
       case 'doorBreak': if (!ev.player && ev.room.owner) this.toast(`${ev.room.owner.name}'s door was smashed!`, 'bad'); break;
       case 'death': if (!ev.s.isPlayer && ev.why === 'corridor') this.toast(`${ev.s.name} was caught in the hallway!`, 'bad'); break;
       case 'minionSpawn': break;
@@ -522,7 +546,7 @@ export class HUD {
           if (!this.app.userPanned) this.R.focusRoom(ev.room);
         }
         break;
-      case 'kill': if (ev.e.kind === 'boss') this.banner(g.endless ? 'BOSS DOWN!' : 'BOSS DEFEATED!', g.endless ? 'Another one is coming…' : 'You win the night!', 2.6); break;
+      case 'kill': if (ev.e.kind === 'boss' && (g.endless || !g.bosses.some((b) => b.alive))) this.banner(g.endless ? 'BOSS DOWN!' : 'ALL BOSSES DOWN!', g.endless ? 'Another one is coming…' : 'You win the night!', 2.6); break;
       case 'win': if (!ev.killed) this.banner('DAWN!', 'The zombies retreat from the light', 2.6); break;
       case 'howl': this.toast(`${ev.e.name} called more zombies!`, 'bad'); break;
       case 'acid': if (ev.b.room === g.player.room) this.toast('Acid! A gadget is jammed', 'bad'); break;
@@ -549,7 +573,7 @@ export class HUD {
     if (now - (this.lastToasts[text] || -1e9) < 4000) return;
     this.lastToasts[text] = now;
     const box = $('toasts');
-    if (box.children.length > 3) box.firstChild.remove();
+    while (box.children.length > 1) box.firstChild.remove();
     const t = document.createElement('div'); t.className = 'toast ' + (cls || ''); t.textContent = text;
     box.appendChild(t);
     setTimeout(() => t.remove(), 2500);
@@ -569,7 +593,7 @@ export class HUD {
   helpHint() {
     const g = this.g; if (!g || this.helpHinted || g.phase !== 'night') return;
     const r = g.map.rooms.find((q) => q.owner && !q.owner.isPlayer && q.alive && q.owner.state === 'inroom' && q.hitT < 2.5 && g.minDoorFrac(q) < 0.5);
-    if (r && g.player.state === 'inroom') { this.helpHinted = true; this.banner(`${r.owner.name} NEEDS HELP!`, 'Click their room to repair their door or send scrap', 2.6); }
+    if (r && g.player.state === 'inroom') { this.helpHinted = true; this.banner(`${r.owner.name} NEEDS HELP!`, 'Click their room to help', 2.4); }
   }
 
   updateTutorial(dt) {
@@ -579,6 +603,7 @@ export class HUD {
     T.t += dt;
     const s = g.player, room = s.room;
     let text = '', target = null, el = null;
+    if (T.step >= 5 && !g.bosses.some((b) => b.alive)) T.step = 7;
     if (T.step === 2 && room && room.bedLvl >= 2) T.step = 3;
     if (T.step === 3 && room && room.buildings.length) { T.step = 4; T.t = 0; }
     if (T.step === 4 && T.t > 7) T.step = 4.5;
@@ -586,16 +611,16 @@ export class HUD {
     if (T.step === 6 && T.t > 11) { T.step = 7; }
     switch (T.step) {
       case 0: {
-        text = 'Zombies are coming! <b>Click a free room</b> (green) to run inside before the timer runs out.';
+        text = 'Zombies are coming! <b>Click a green room</b> to hide inside.';
         let best = null, bd = 1e9;
         for (const r of g.map.rooms) if (!r.owner) { const d = Math.hypot(r.doors[0].fx - s.x, r.doors[0].fy - s.y); if (d < bd) { bd = d; best = r; } }
         if (best) target = { x: best.x + best.w / 2, y: best.y + best.h / 2 };
         break;
       }
-      case 1: text = 'Safe! Now <b>click your bed</b> to lie down. Resting earns scrap.'; if (room && s.state === 'inroom') target = { x: room.bed.x, y: room.bed.y - 0.6 }; break;
-      case 2: text = 'Scrap pours in while you rest. <b>Upgrade your bed (B)</b> to double your income!'; el = $('act-bed'); break;
+      case 1: text = 'Safe! <b>Click your bed</b> to rest and earn scrap.'; if (room && s.state === 'inroom') target = { x: room.bed.x, y: room.bed.y - 0.6 }; break;
+      case 2: text = '<b>Upgrade your bed</b> to earn scrap faster.'; el = $('act-bed'); break;
       case 3: {
-        text = '<b>Click an empty floor tile</b> near your door and build a <b>Nail Gun</b>.';
+        text = '<b>Click the floor</b> by your door and build a <b>Nail Gun</b>.';
         if (room) {
           const d = room.doors[0];
           const t = room.tiles.filter((q) => g.tileFree(room, q.tx, q.ty)).sort((a, b) => Math.hypot(a.tx - d.tx, a.ty - d.ty) - Math.hypot(b.tx - d.tx, b.ty - d.ty))[0];
@@ -603,20 +628,22 @@ export class HUD {
         }
         break;
       }
-      case 4: text = 'Nice! Your turrets also shoot bosses attacking your <b>allies</b>. Click an ally\'s room to <b>send scrap or repair their door</b>.'; break;
-      case 4.5: text = 'Keep upgrading your bed, turrets and door. <b>The boss wakes up soon!</b>'; break;
-      case 5: text = `The bosses are attacking doors! When yours gets hurt, <b>Repair (R)</b> or <b>Upgrade the door (U)</b>.`; el = $('act-repair'); break;
-      case 6: text = 'Bosses smashing a door? Throw a <b>Flashbang (Q)</b> to stun them. Grab <b>supply crates</b> in the hallway too!'; el = $('act-flash'); break;
+      case 4: text = 'Turrets also guard your <b>neighbours</b>. Click their room to help them.'; break;
+      case 4.5: text = 'Keep upgrading. <b>The bosses wake up soon!</b>'; break;
+      case 5: text = 'Door getting hit? <b>Repair</b> it or <b>upgrade</b> it.'; el = $('act-repair'); break;
+      case 6: text = 'Throw a <b>Flashbang</b> to stun a boss mid-swing.'; el = $('act-flash'); break;
       default: box.classList.add('hidden'); arrow.classList.add('hidden'); this.tut = null; return;
     }
     box.classList.remove('hidden');
     const tt = box.querySelector('.tut-text');
-    if (tt.innerHTML !== text) { tt.innerHTML = text; box.querySelector('.tut-step').textContent = `Tutorial ${Math.min(6, Math.floor(T.step) + 1)}/7`; }
+    if (tt.innerHTML !== text) { tt.innerHTML = text; box.querySelector('.tut-step').textContent = `${Math.min(7, Math.floor(T.step) + 1)}/7`; }
+    this.tutEl = !!el;
     let ax = null, ay = null;
     if (target) { const p = this.R.worldToScreen(target.x, target.y); ax = p.x; ay = p.y - 10; }
     else if (el && !el.closest('.hidden')) { const r = el.getBoundingClientRect(); ax = r.left + r.width / 2; ay = r.top - 6; }
-    // world targets in the lower half of the screen push the bubble to the top so it never covers them
-    this.tutUp = !!target && ay > this.R.insets.top + (window.innerHeight - this.R.insets.top - this.R.insets.bottom) * 0.5;
+    // a world target that the coach card (above the action bar) would cover pushes the card to the top
+    if (target) { const bandTop = window.innerHeight - this.R.insets.bottom - 8 - box.offsetHeight * this.k - 40; this.tutUp = ay > bandTop; } else this.tutUp = false;
+    if (box.classList.contains('muted')) { arrow.classList.add('hidden'); return; }
     if (ax != null) {
       arrow.classList.remove('hidden');
       arrow.style.left = (ax - 16) + 'px'; arrow.style.top = (ay - 26) + 'px';

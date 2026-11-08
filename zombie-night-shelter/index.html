@@ -9,6 +9,7 @@
 </head>
 <body>
 <canvas id="game"></canvas>
+<div id="vignette"></div>
 
 <!-- ============ HUD ============ -->
 <div id="hud" class="hidden">
@@ -43,7 +44,7 @@
   <div id="build-menu" class="hidden"><div class="bm-title">Build</div><div class="bm-list"></div></div>
   <div id="info-panel" class="hidden"></div>
   <div id="tooltip" class="hidden"></div>
-  <div id="tutorial" class="hidden"><div class="tut-step"></div><div class="tut-text"></div><button class="tut-skip">Skip tutorial</button></div>
+  <div id="tutorial" class="hidden"><div class="tut-step"></div><div class="tut-text"></div><button class="tut-skip">Skip</button></div>
   <div id="tut-arrow" class="hidden"></div>
   <div id="banner"></div>
 </div>
@@ -75,14 +76,14 @@
 </div>
 
 <div id="nights" class="screen">
-  <div class="panel wide">
+  <div class="panel wide scroll">
     <div class="panel-head"><h2>Choose a Night</h2><div class="stars-total"><img src="assets/img/i_star.png" alt=""><span id="stars-total">0</span></div><button class="close" data-back>&times;</button></div>
     <div id="night-grid"></div>
   </div>
 </div>
 
 <div id="perks" class="screen">
-  <div class="panel">
+  <div class="panel scroll">
     <div class="panel-head"><h2>Upgrades</h2><div class="stars-total"><img src="assets/img/i_medal.png" alt=""><span id="medals-total">0</span></div><button class="close" data-back>&times;</button></div>
     <p class="note">Earn medals by surviving nights. Upgrades are permanent.</p>
     <div id="perk-list"></div>
@@ -90,7 +91,7 @@
 </div>
 
 <div id="skins" class="screen">
-  <div class="panel">
+  <div class="panel scroll">
     <div class="panel-head"><h2>Survivors</h2><button class="close" data-back>&times;</button></div>
     <p class="note">Collect stars to unlock new survivors.</p>
     <div id="skin-grid"></div>
@@ -108,16 +109,16 @@
 </div>
 
 <div id="how" class="screen">
-  <div class="panel">
+  <div class="panel scroll">
     <div class="panel-head"><h2>How to Play</h2><button class="close" data-back>&times;</button></div>
     <ol class="how-list">
-      <li><b>Grab a room</b> before the timer runs out. Click a free apartment (or walk with WASD). Rooms with a neighbour's door close by help each other.</li>
-      <li><b>Rest on your bed</b> to earn scrap every second. <b>Upgrade the bed (B)</b> to double your income — but bigger beds need a stronger door.</li>
-      <li><b>Click empty floor</b> in your room to build turrets and gadgets. Turret range grows with level, so turrets near the door can also protect your neighbours.</li>
-      <li>The boss zombie attacks doors. <b>Repair (R)</b> for a quick patch or <b>Upgrade the door (U)</b> to refill it and raise its max HP.</li>
-      <li>Every night a <b>pack of bosses</b> (2 at first, up to 6) hunts the floor, and the leader goes for <b>your</b> door. They level up when they smash doors, and fallen survivors rise as zombies! <b>Survive until dawn</b> or <b>kill every boss</b> to win.</li>
-      <li><b>Get your hands dirty:</b> throw a <b>Flashbang (Q)</b> to stun bosses mid-swing and a <b>Molotov (E)</b> to burn them. Click <b>supply crates</b> that parachute into the hallway for scrap, a recharge or door repairs.</li>
-      <li><b>Work together:</b> click an ally's room to send scrap, pay to repair their door or reinforce it. Allies you help return the favour, and every boss kill pays the whole team. Keep everyone alive for ★★, and kill every boss <b>with at least one neighbour still alive</b> for ★★★.</li>
+      <li><b>Grab a room</b> before the timer runs out: click a free (green) apartment.</li>
+      <li><b>Rest on your bed</b> to earn scrap. <b>Upgrade the bed</b> to earn faster.</li>
+      <li><b>Click the floor</b> to build turrets and gadgets. Click them again to upgrade.</li>
+      <li>Bosses smash doors: <b>Repair</b> yours or <b>upgrade</b> it before it breaks.</li>
+      <li>Throw a <b>Flashbang</b> to stun bosses and a <b>Molotov</b> to burn them.</li>
+      <li><b>Help your neighbours:</b> click their room to send scrap or fix their door.</li>
+      <li>Survive until <b>dawn</b> or <b>kill every boss</b> to win. ★★ everyone alive · ★★★ every boss dead with a neighbour still alive.</li>
     </ol>
     <p class="note">Hotkeys: Q Flashbang · E Molotov · B bed · R repair · U door · 0-9 build · P pause · Z zoom · Esc close menu · Mouse wheel / pinch to zoom · drag to pan.</p>
   </div>
@@ -152,8 +153,10 @@
     <div class="intro-desc" id="intro-desc"></div>
     <div class="intro-unlock" id="intro-unlock"></div>
     <div class="intro-hero" id="intro-hero"></div>
-    <button class="btn big" id="btn-start">I'm ready!</button>
-    <button class="btn ad" id="btn-headstart"><img src="assets/img/i_ad.png" alt=""> Head start: +<span id="hs-n">100</span> scrap</button>
+    <div class="row intro-btns">
+      <button class="btn big" id="btn-start">Start night</button>
+      <button class="btn ad" id="btn-headstart"><img src="assets/img/i_ad.png" alt=""> +<span id="hs-n">100</span> scrap</button>
+    </div>
   </div>
 </div>
 
@@ -172,8 +175,8 @@
     <div id="res-stars"><img src="assets/img/i_star.png" alt=""><img src="assets/img/i_star.png" alt=""><img src="assets/img/i_star.png" alt=""></div>
     <div id="res-sub"></div>
     <div id="res-stats"></div>
-    <div id="res-medals"><img src="assets/img/i_medal.png" alt=""><span id="res-medal-n">+0</span></div>
-    <button class="btn ad" id="btn-double"><img src="assets/img/i_ad.png" alt=""> Double medals</button>
+    <div class="res-reward"><div id="res-medals"><img src="assets/img/i_medal.png" alt=""><span id="res-medal-n">+0</span></div>
+    <button class="btn ad" id="btn-double"><img src="assets/img/i_ad.png" alt=""> Double</button></div>
     <div class="row">
       <button class="btn ghost" id="btn-res-menu">Menu</button>
       <button class="btn" id="btn-retry">Retry</button>

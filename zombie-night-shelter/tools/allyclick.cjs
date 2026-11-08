@@ -7,7 +7,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   await page.evaluate(() => { localStorage.clear(); }); await page.reload();
   await page.waitForSelector('#title.show');
   await page.evaluate(() => { const d = document.getElementById('daily'); if (d) d.classList.remove('show'); });
-  await page.click('#btn-play'); await page.waitForSelector('#intro.show'); await page.click('#btn-start');
+  await page.click('#btn-play'); await page.waitForFunction(() => window.__app.screen === 'game');
   await sleep(300);
   // put the player straight into a free room via the sim
   await page.evaluate(() => { window.__app.game.autoPlayer = true; });

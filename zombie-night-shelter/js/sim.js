@@ -421,7 +421,12 @@ export class Game {
     this.t += dt;
     if (this.phase === 'rush') {
       this.phaseT -= dt;
-      if (this.phaseT <= 0) this._endRush();
+      // everyone is inside: don't make people wait out the timer. The leftover rush time moves into the
+      // build phase (which runs at PACE), so pre-boss earnings stay the same but the wait is shorter.
+      const settled = this.survivors.every((q) => q.state === 'inroom' || q.state === 'dead');
+      this.settledT = settled ? (this.settledT || 0) + dt : 0;
+      if (this.settledT > 1.2 && this.phaseT > 0) { const left = this.phaseT; this._endRush(); if (this.phase === 'grace') this.phaseT += left; }
+      else if (this.phaseT <= 0) this._endRush();
     } else if (this.phase === 'grace') {
       this.phaseT -= dt;
       if (this.phaseT <= 0) this._wakeBoss();

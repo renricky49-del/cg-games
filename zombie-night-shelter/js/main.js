@@ -11,6 +11,7 @@ import { HUD } from './ui.js';
 const $ = (id) => document.getElementById(id);
 const DEFAULT_SAVE = { v: 1, stars: {}, medals: 0, perks: {}, skin: 's0', music: true, sfx: true, shake: true, tutDone: false, bestEndless: 0, nightsPlayed: 0, lastNight: 1 };
 const ENDLESS_UNLOCK = 6;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 const App = {
   save: null, game: null, renderer: null, hud: null,
@@ -24,6 +25,7 @@ const App = {
     this.renderer = new Renderer($('game'));
     this.renderer.resize();
     this.hud = new HUD(this);
+    this.fitUI();
     await Promise.all([loadImages((f) => { $('load-fill').style.width = Math.round(f * 100) + '%'; }), sdkP]);
     try { await document.fonts.load('20px "Lilita One"'); } catch (e) { /* noop */ }
     const saved = await CG.load();
@@ -41,7 +43,7 @@ const App = {
     CG.loadingStop();
     this.bindUI();
     this.bindInput();
-    window.addEventListener('resize', () => { this.renderer.resize(); this.hud.layout(); });
+    window.addEventListener('resize', () => { this.renderer.resize(); this.fitUI(); });
     document.addEventListener('visibilitychange', () => { if (document.hidden && this.screen === 'game' && !this.paused && this.game && !this.isOver()) this.pause(true); });
     this.showTitle();
     let last = performance.now();
@@ -56,11 +58,37 @@ const App = {
 
   persist() { CG.save(this.save); },
 
+  // ---------------------------------------------------------------- responsive UI
+  // The HUD is laid out for ~1100x620 and scaled to the iframe (CrazyGames: 800x450 … 1920x1080, phones).
+  fitUI() {
+    const W = window.innerWidth, H = window.innerHeight, portrait = W / H < 0.85;
+    const k = portrait ? clamp(W / 600, 0.6, 1.1) : clamp(Math.min(W / 1100, H / 620), 0.62, 1.35);
+    this.uiK = k;
+    document.documentElement.style.setProperty('--k', k.toFixed(3));
+    document.body.classList.toggle('portrait', portrait);
+    this.fitPanels();
+    if (this.hud) this.hud.layout();
+  },
+  // every open card is scaled so it is always fully visible; list screens keep their width and scroll inside
+  fitPanels() {
+    const W = window.innerWidth, H = window.innerHeight, big = clamp(Math.min(W / 1280, H / 720), 1, 1.5);
+    document.querySelectorAll('.screen.show > .panel, .screen.show > .title-inner').forEach((el) => {
+      el.style.transform = 'none'; el.style.maxHeight = '';
+      const w = el.offsetWidth, h = el.offsetHeight; if (!w || !h) return;
+      let f;
+      if (el.classList.contains('scroll')) { f = Math.min(big, (W - 16) / w); el.style.maxHeight = Math.floor((H - 20) / f) + 'px'; }
+      else f = Math.min(big, (H - 16) / h, (W - 16) / w);
+      el.style.transform = `scale(${f.toFixed(3)})`;
+    });
+  },
+
   // ---------------------------------------------------------------- screens
   show(id) {
     // the daily-supplies popup sits on top of the title screen
     document.querySelectorAll('.screen').forEach((s) => s.classList.toggle('show', s.id === id || (id === 'daily' && s.id === 'title')));
     this.screen = id || 'game';
+    if (id) $('toasts').style.top = '14px';
+    this.fitPanels();
   },
   showTitle() {
     this.show('title');
@@ -174,7 +202,7 @@ const App = {
   },
 
   // ---------------------------------------------------------------- game flow
-  async startNight(idx, skipAd) {
+  async startNight(idx, skipAd, direct) {
     // midgame ad between nights (never on the first night of a session, max every 3 minutes)
     if (!skipAd && this.sessionNights > 0 && performance.now() - this.lastAdTime > 180000) {
       this.lastAdTime = performance.now();
@@ -188,20 +216,21 @@ const App = {
     const names = [...new Set(kinds.slice(1))].map((k) => BOSSES[k].name.replace(/^The /, ''));
     $('intro-name').textContent = idx < 0 ? 'The Endless Horde' : `${B.name} leads the pack`;
     const allSame = kinds.every((k) => k === kinds[0]);
-    $('intro-desc').textContent = idx < 0 ? 'Bosses keep coming, more of them every other wave. How many waves can you hold?'
-      : allSame && kinds.length > 2 ? `${B.desc} ${kinds.length} of them at once, and the first one hunts YOUR door.`
-        : `${B.desc} With it: ${names.join(', ')}. ${B.name} hunts YOUR door.`;
+    $('intro-desc').textContent = idx < 0 ? 'Bosses keep coming, more every other wave. How long can you hold?'
+      : allSame ? `${B.desc} The first one hunts YOUR door.`
+        : `${B.desc} With it: ${names.join(', ')}.`;
     const newB = idx < 0 ? null : BUILD_ORDER.filter((t) => BUILDINGS[t].unlock === night.n).map((t) => BUILDINGS[t].name)
       .concat(Object.values(ABILITIES).filter((a) => a.unlock === night.n).map((a) => `${a.name} (${a.key})`));
-    $('intro-unlock').textContent = newB && newB.length ? 'New: ' + newB.join(', ') + '!' : '';
+    $('intro-unlock').textContent = !newB || !newB.length ? '' : night.n === 1 ? 'Turrets, traps & a Flashbang unlocked!' : 'New: ' + newB.join(', ') + '!';
     const HS = SKINS.find((q) => q.id === this.save.skin) || SKINS[0], H = HEROES[HS.id];
-    $('intro-hero').innerHTML = `<img src="assets/img/${HS.id}.png" alt=""><span><b>${HS.name} · ${H.title}</b><br>${H.desc}</span>`;
+    $('intro-hero').innerHTML = `<img src="assets/img/${HS.id}.png" alt=""><span><b>${HS.name} · ${H.title}:</b> ${H.desc}</span>`;
     this.prepareGame(night);
     const hs = $('btn-headstart'); hs.classList.remove('off');
-    hs.innerHTML = `<img src="assets/img/i_ad.png" alt=""> Head start: +${this.headStartAmount()} scrap`;
+    hs.innerHTML = `<img src="assets/img/i_ad.png" alt=""> +${this.headStartAmount()} scrap`;
     this.applyAdsOff();
-    this.show('intro');
     $('hud').classList.add('hidden');
+    if (direct) { this.beginPlay(); return; } // first ever play: straight into the tutorial night, one click from the title
+    this.show('intro');
   },
 
   prepareGame(night) {
@@ -223,7 +252,7 @@ const App = {
     CG.gameplayStart();
     this.sessionNights++;
     this.save.nightsPlayed++;
-    this.hud.banner(this.game.endless ? 'ENDLESS!' : 'GRAB A ROOM!', 'Before the timer runs out', 2.2);
+    if (!this.hud.tut) this.hud.banner(this.game.endless ? 'ENDLESS!' : 'GRAB A ROOM!', 'Before the timer runs out', 2.2);
     Audio.play('alarm');
   },
 
@@ -340,7 +369,10 @@ const App = {
     this.lastMedals = medals; this.doubled = false;
     $('res-title').textContent = g.endless ? 'The horde got you!' : r.won ? (r.killed ? 'BOSSES DOWN!' : 'You saw the dawn!') : 'Overrun!';
     $('res-title').className = r.won || g.endless ? '' : 'red';
-    $('res-sub').textContent = g.endless ? `Waves survived: ${r.wave - 1}  ·  Best: ${this.save.bestEndless}` : r.won ? (r.stars < 3 ? (r.stars < 2 ? 'Tip: keep every ally alive for ★★ (click their room to help), kill all bosses with a neighbour still alive for ★★★' : (r.killed && !r.alliesAlive ? 'All neighbours fell — keep at least one alive for ★★★' : 'Kill all bosses (with a neighbour alive) for ★★★')) : 'Perfect night!') : (r.reason || 'Your door was broken.');
+    $('res-sub').textContent = g.endless ? `Waves survived: ${r.wave - 1}  ·  Best: ${this.save.bestEndless}`
+      : r.won ? (r.stars >= 3 ? 'Perfect night!' : r.stars < 2 ? '★★: keep every neighbour alive. Click their room to help!'
+        : r.killed && !r.alliesAlive ? '★★★: keep at least one neighbour alive.' : '★★★: kill every boss.')
+        : (r.reason || 'Your door was broken.') + ' Upgrade your door earlier!';
     const stars = $('res-stars').children;
     for (let i = 0; i < 3; i++) {
       stars[i].classList.remove('on');
@@ -349,15 +381,11 @@ const App = {
     $('res-stars').style.display = g.endless ? 'none' : 'flex';
     const t = Math.floor(r.realTime != null ? r.realTime : r.time);
     $('res-stats').innerHTML = [
-      ['Time survived', `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`],
-      ['Scrap earned', fmt(r.earned)],
-      ['Survivors alive', `${r.alive}/${g.survivors.length}`],
-      ['Boss level', r.bossLvl],
       ['Bosses defeated', g.endless ? String(r.bossesKilled || 0) : `${r.bossesKilled || 0}/${g.bosses.length}`],
-      ['Zombies defeated', r.minions],
-      ['Times you helped allies', r.aid],
-      ['Times allies helped you', r.aidReceived],
-    ].map(([a, b]) => `<span>${a}</span><span>${b}</span>`).join('');
+      ['Neighbours alive', `${r.alliesAlive}/${g.survivors.length - 1}`],
+      ['Scrap earned', fmt(r.earned)],
+      g.endless || !r.won ? ['Time survived', `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`] : ['Zombies defeated', r.minions],
+    ].concat(r.aid ? [['Times you helped', r.aid]] : []).map(([a, b]) => `<span>${a}</span><span>${b}</span>`).join('');
     $('res-medal-n').textContent = '+' + medals;
     $('btn-double').classList.toggle('hidden', medals <= 0);
     $('btn-double').classList.remove('off');
@@ -401,7 +429,7 @@ const App = {
   bindUI() {
     const click = (id, fn) => $(id).addEventListener('click', (e) => { Audio.unlock(); Audio.play('click'); fn(e); });
     click('btn-play', () => {
-      if (!this.save.tutDone) this.startNight(0, true);
+      if (!this.save.tutDone) this.startNight(0, true, !this.save.nightsPlayed);
       else this.startNight(this.nextNightIndex());
     });
     click('btn-nights', () => this.showNights());

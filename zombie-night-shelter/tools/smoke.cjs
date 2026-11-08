@@ -10,10 +10,8 @@ const OUT = process.argv[2] || '.';
   await page.goto('http://localhost:8123/index.html');
   await page.waitForSelector('#title.show', { timeout: 15000 });
   await page.screenshot({ path: OUT + '/01_title.png' });
-  await page.click('#btn-play');
-  await page.waitForSelector('#intro.show');
-  await page.screenshot({ path: OUT + '/02_intro.png' });
-  await page.click('#btn-start');
+  await page.click('#btn-play'); // first play goes straight into the tutorial night (no intro card)
+  await page.waitForFunction(() => window.__app.screen === 'game');
   await page.waitForTimeout(600);
   await page.screenshot({ path: OUT + '/03_rush.png' });
   // click the nearest free room
