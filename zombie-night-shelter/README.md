@@ -23,6 +23,8 @@ localStorage saves). To upload: zip the **contents** of this folder (index.html 
 | `node tools/endless_test.mjs` | Headless endless-mode runs (waves survived / duration). |
 | `node tools/playtest.cjs <outdir>` | Browser test (server on :8123): Night 1 via real clicks/hotkeys (claim room, click bed, B, build menu, info panel) then AI fast-forward to the results screen; a loss with the rewarded Continue flow; menus; frame-time check; iPhone portrait + landscape. Fails on any console error. |
 | `node tools/layoutfit.cjs` | Layout check (server on :8123) at CrazyGames iframe sizes 800x450, 907x510, 1077x606, 1216x684, 1366x768, 1920x1080 and phones 390x844 / 844x390: every button of every screen (title, menus, daily, intro, HUD, pause, continue, results) fully on screen, no overlap between HUD parts. |
+| `node tools/cgsim.cjs [dir]` | **Platform simulation** (needs internet): the game in a cross-origin iframe with the real CrazyGames SDK talking to a scripted parent frame. Checks the `crazygames` code path that localhost never exercises: load time when the platform is slow to answer, loadingStart/Stop + gameplayStart/Stop events, Basic Launch (ads off: no rewarded buttons, no dead "continue" screen) and Full Launch (rewarded continue), missing files, Reset inside an iframe. |
+| `node tools/newbie.mjs [runs] [from] [to] [kinds]` | How the first nights feel for scripted humans: `naive` (slow, tutorial only), `decent`, `idle` (must lose). Prints win %, night length, when the door is first hit, lowest door HP. |
 | `node tools/trailer.cjs landscape\|portrait <dir>` + `tools/trailer.sh <dir>` | Record the CrazyGames preview videos frame by frame and stitch them (cover first frame, cross-fades, no audio). |
 | `tools/package.sh` | Build `dist/last-door-standing.zip` for upload. |
 | `node tools/perf.cjs <outdir>` | Late-night (Night 11, maxed perks) frame time + heap measurement. |
@@ -58,8 +60,11 @@ tools/                Test + asset pipeline scripts (not needed at runtime)
 rate, projectiles, income, cooldowns and the dawn timer all scale together, so balance is unchanged but nights play
 twice as fast. All numbers below are in game-seconds; the HUD shows real seconds.
 
-**One night:** Room rush (22 s real, normal speed; 40 s on the tutorial night) → 38 game-s (19 s real) to build → the boss
-wakes and walks out of the stairwell lair → dawn timer (170–300 game-s = 85–150 s real) or kill the boss.
+**One night:** Room rush (up to 22 s real; it ends as soon as everyone is inside, usually ~7 s) → 19 s real to build while
+weak **scout zombies** already shuffle to the doors (half of them to the player's; every kill pays scrap) → the bosses
+wake, and the lead boss always goes for the player's door first → dawn timer (170–300 game-s = 85–150 s real) or kill
+every boss. Everyone starts with 50 scrap, so the first bed upgrade and Nail Gun are immediate. Nights 1–3 have
+tougher but softer-hitting bosses (`hpMul`/`dmgMul`) so the first fights last ~60 s instead of ending in 15.
 Typical real lengths with modest perks: Night 1 ≈ 1:15, Night 4 ≈ 1:55, Night 7 ≈ 2:30, Night 12 ≈ 2:55. Your door breaking = loss (one rewarded
 continue per night).
 
@@ -173,4 +178,14 @@ portrait phones get `body.portrait`. Every modal card is scaled to fit (`App.fit
 The top bar compacts its boss cards when it would overflow. Messages share one lane (`HUD.placeMessages`): tutorial
 coach card above the action bar (or under the HUD when its target is down there), toasts under the HUD, banner in
 the upper play area. `tools/layoutfit.cjs` guards all of this.
+
+## Platform robustness (found with `tools/cgsim.cjs`)
+- Loading never waits on the SDK for more than 5 s and never on the adblock check (it can take 5 s on the platform).
+- Ads-off sessions (Basic Launch, kids mode, adblock) are detected at init: rewarded buttons are hidden and the
+  "continue" offer is skipped, so no button is ever without effect. An ad request that never answers times out.
+- `confirm()` is blocked inside cross-origin iframes: "Reset progress" is a two-click button instead.
+- `happytime()` only on the first 3-star clear of a night. Audio is muted while the tab is hidden.
+- Hallway movement uses physical key positions (ZQSD on AZERTY works); space/arrows never scroll the page.
+- Adaptive quality (`App.watchPerf` → `Renderer.lowerQuality`): below ~25 fps for 6 s the canvas resolution drops
+  (dpr 2 → 1.5 → 1), then light pools and half the particles are switched off.
 

@@ -6,7 +6,7 @@
   --k: 1;   /* HUD scale, set from the viewport by js (ui.js fitUI) */
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body { margin: 0; height: 100%; overflow: hidden; background: #12131b; color: var(--text); font-family: var(--font); user-select: none; -webkit-user-select: none; touch-action: none; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #12131b; color: var(--text); font-family: var(--font); user-select: none; -webkit-user-select: none; touch-action: none; -moz-user-select: none; -ms-user-select: none; -webkit-touch-callout: none; overscroll-behavior: none; }
 canvas#game { position: fixed; inset: 0; display: block; cursor: default; }
 #vignette { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(4,3,12,0.5) 100%); }
 canvas#game.pointer { cursor: pointer; }
@@ -180,6 +180,7 @@ canvas#game.aim { cursor: crosshair; }
 .btn.big { font-size: 32px; padding: 12px 48px; }
 .btn.ghost { background: var(--panel2); color: var(--text); box-shadow: 0 5px 0 #17122b; border: 2px solid var(--line); }
 .btn.danger { color: #ff9c90; }
+.btn.danger.sure { background: #8a2b2b; color: #fff; border-color: #ff6a5a; }
 .btn.ad { background: linear-gradient(#6fd0ff, #2f8fd0); color: #062033; box-shadow: 0 5px 0 #1d5a85; display: inline-flex; align-items: center; gap: 8px; justify-content: center; }
 .btn.ad img { width: 30px; height: 30px; }
 .btn.off { filter: grayscale(1) brightness(0.7); pointer-events: none; }
@@ -280,8 +281,18 @@ body.portrait #boss-boxes .boss-box { flex-direction: column; gap: 3px; padding:
 body.portrait #boss-boxes .boss-mini { display: block; }
 body.portrait #dawn-moon { display: none; }
 body.portrait #boss-boxes { gap: 3px; }
+body.portrait #boss-boxes .boss-portrait { width: 40px; height: 40px; }
+body.portrait #boss-boxes .boss-portrait img { width: 36px; height: 36px; }
+body.portrait #boss-boxes.compact .boss-box { padding: 2px 2px 3px; }
+body.portrait #boss-boxes.compact .boss-portrait { width: 30px; height: 30px; }
+body.portrait #boss-boxes.compact .boss-portrait img { width: 27px; height: 27px; }
+body.portrait #boss-boxes.compact .boss-mini { width: 30px; }
+body.portrait #boss-boxes.compact .boss-lvl { min-width: 16px; height: 16px; font-size: 10px; right: -4px; bottom: -4px; }
 body.portrait .pill small { display: none; }
 body.portrait #hud-bottom { gap: 4px; padding: 4px; max-width: calc(98vw / var(--k)); flex-wrap: wrap; justify-content: center; width: max-content; }
 body.portrait .act .key { display: none; }
 body.portrait #build-menu { width: 252px; }
 body.portrait .bm-list { grid-template-columns: repeat(3, 1fr); }
+/* touch screens: bigger top buttons (they are scaled down with the HUD) */
+@media (pointer: coarse) { .ibtn { width: 54px; height: 54px; font-size: 21px; } .close { width: 48px; height: 48px; } }
+

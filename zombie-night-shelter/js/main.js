@@ -39,16 +39,23 @@ const App = {
     CG.onMuteChange = (m) => { Audio.sdkMuted = m; Audio.applyMute(); };
     CG.onAdStart = () => { this.adPause = true; Audio.adMuted = true; Audio.applyMute(); CG.gameplayStop(); };
     CG.onAdEnd = () => { this.adPause = false; Audio.adMuted = false; Audio.applyMute(); if (this.screen === 'game' && !this.paused) CG.gameplayStart(); };
+    CG.onAdsOff = () => this.applyAdsOff();
+    this.applyAdsOff();
     Audio.musicOn = this.save.music; Audio.sfxOn = this.save.sfx; this.renderer.noShake = !this.save.shake;
     CG.loadingStop();
     this.bindUI();
     this.bindInput();
     window.addEventListener('resize', () => { this.renderer.resize(); this.fitUI(); });
-    document.addEventListener('visibilitychange', () => { if (document.hidden && this.screen === 'game' && !this.paused && this.game && !this.isOver()) this.pause(true); });
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && this.screen === 'game' && !this.paused && this.game && !this.isOver()) this.pause(true);
+      Audio.setHidden(document.hidden); // no music from a hidden tab / backgrounded phone browser
+    });
+    window.addEventListener('contextmenu', (e) => e.preventDefault());
     this.showTitle();
     let last = performance.now();
     const loop = (now) => {
-      const dt = Math.min(0.1, (now - last) / 1000); last = now;
+      this.rawDt = (now - last) / 1000;
+      const dt = Math.min(0.1, this.rawDt); last = now;
       this.frame(dt);
       requestAnimationFrame(loop);
     };
@@ -114,7 +121,7 @@ const App = {
   },
   async claimDaily(double) {
     const d = this.dailyPending; if (!d) return;
-    if (double) { const ok = await CG.requestAd('rewarded'); if (!ok) { this.toast('Ad not available right now', 'bad'); return; } }
+    if (double) { const ok = await CG.requestAd("rewarded"); if (!ok) { this.toast("No ad available right now", "bad"); this.applyAdsOff(); return; } }
     this.dailyPending = null;
     const n = d.n * (double ? 2 : 1);
     this.save.medals += n; this.save.lastDaily = d.today; this.save.dailyStreak = d.streak; this.persist();
@@ -266,8 +273,22 @@ const App = {
   resume() { this.paused = false; this.show(null); CG.gameplayStart(); },
   isOver() { return this.game && (this.game.phase === 'won' || this.game.phase === 'lost'); },
 
+  // Adaptive quality: if the device stays below ~25 fps while playing, lower the render quality one step
+  // (resolution first, then effects). 30 Hz displays / low-power modes do not trigger it.
+  watchPerf() {
+    const dt = this.rawDt || 0;
+    if (dt > 0.5 || document.hidden) return; // tab switches
+    this.perfT = (this.perfT || 0) + dt; this.perfN = (this.perfN || 0) + 1;
+    if (this.perfT < 3) return;
+    const avg = this.perfT / this.perfN; this.perfT = 0; this.perfN = 0;
+    if (!this.perfWarm) { this.perfWarm = true; return; } // skip the first window (asset decoding, first paints)
+    this.perfSlow = avg > 0.040 ? (this.perfSlow || 0) + 1 : 0;
+    if (this.perfSlow >= 2) { this.perfSlow = 0; this.renderer.lowerQuality(); }
+  },
+
   frame(dt) {
     const g = this.game, R = this.renderer;
+    if (g && this.screen === 'game' && !this.paused && !this.adPause) this.watchPerf();
     if (g && this.screen === 'game' && !this.paused && !this.adPause) {
       const sdt = dt * this.speed;
       const steps = Math.ceil(sdt / (1 / 60));
@@ -327,7 +348,7 @@ const App = {
         case 'aid': if (ev.s.isPlayer || ev.o.isPlayer) Audio.play(ev.kind === 'gift' ? 'coin' : 'repair'); break;
         case 'teamBounty': if (ev.s.isPlayer) Audio.play('coin', 1.4); break;
         case 'lie': if (ev.s.isPlayer) Audio.play('lie'); break;
-        case 'win': Audio.stopMusic(true); Audio.play('win'); CG.happytime(); break;
+        case 'win': Audio.stopMusic(true); Audio.play('win'); break;
         case 'lose': Audio.stopMusic(true); Audio.play('lose'); break;
         case 'minionSpawn': if (near(ev.x, ev.y)) Audio.play('groan'); break;
         case 'chargeHit': Audio.play('chargeHit', 1); break;
@@ -342,7 +363,7 @@ const App = {
     const g = this.game;
     this.resultsShown = true;
     CG.gameplayStop();
-    if (g.phase === 'lost' && !g.continueUsed && g.player.room && g.lostReason.includes('door')) {
+    if (g.phase === 'lost' && !g.continueUsed && !CG.adsOff && g.player.room && g.lostReason.includes('door')) {
       this.show('continue');
       return;
     }
@@ -360,6 +381,7 @@ const App = {
       const prev = this.save.stars[night.n] || 0;
       medals = 2 + r.stars * 2 + (prev === 0 ? 4 : 0);
       if (r.stars > prev) this.save.stars[night.n] = r.stars;
+      if (r.stars === 3 && prev < 3) CG.happytime();
       if (night.n === 1) this.save.tutDone = true;
     } else {
       medals = r.time > 60 ? 1 : 0;
@@ -404,7 +426,11 @@ const App = {
   async rewarded(kind) {
     const g = this.game;
     const ok = await CG.requestAd('rewarded');
-    if (!ok) { this.toast(CG.adsOff ? 'Ads are not available right now' : 'Ad not available right now', 'bad'); this.applyAdsOff(); return false; }
+    if (!ok) {
+      this.toast('No ad available right now', 'bad'); this.applyAdsOff();
+      if (kind === 'continue' && this.screen === 'continue') this.showResults(); // never leave a dead "continue" screen
+      return false;
+    }
     if (kind === 'headstart' && g && !g.headStartUsed) {
       g.headStartUsed = true; g.player.scrap += this.headStartAmount(); g.player.earned += this.headStartAmount();
       $('btn-headstart').classList.add('off'); $('btn-headstart').innerHTML = `<img src="assets/img/i_ad.png" alt=""> +${this.headStartAmount()} scrap ready!`;
@@ -452,7 +478,13 @@ const App = {
     $('pause-music').onchange = (e) => setMusic(e.target.checked);
     $('pause-sfx').onchange = (e) => setSfx(e.target.checked);
     click('btn-reset', () => {
-      if (!confirm('Reset all progress? This cannot be undone.')) return;
+      const rb = $('btn-reset');
+      if (!rb.classList.contains('sure')) { // browsers block confirm() inside game iframes: ask with a second click
+        rb.classList.add('sure'); rb.textContent = 'Click again to erase everything';
+        clearTimeout(this.resetT); this.resetT = setTimeout(() => { rb.classList.remove('sure'); rb.textContent = 'Reset progress'; }, 4000);
+        return;
+      }
+      clearTimeout(this.resetT); rb.classList.remove('sure'); rb.textContent = 'Reset progress';
       const keep = { music: this.save.music, sfx: this.save.sfx };
       this.save = Object.assign({}, DEFAULT_SAVE, keep, { stars: {}, perks: {} });
       this.persist(); this.toast('Progress reset'); this.showTitle();
@@ -538,6 +570,7 @@ const App = {
     cv.addEventListener('pointerleave', () => { this.mouse = null; this.renderer.hover = null; this.hud.hideTip(); });
     const keys = new Set();
     const moveKeys = { w: [0, -1], arrowup: [0, -1], s: [0, 1], arrowdown: [0, 1], a: [-1, 0], arrowleft: [-1, 0], d: [1, 0], arrowright: [1, 0] };
+    const CODE = { KeyW: 'w', KeyA: 'a', KeyS: 's', KeyD: 'd', ArrowUp: 'arrowup', ArrowDown: 'arrowdown', ArrowLeft: 'arrowleft', ArrowRight: 'arrowright' };
     const applyMove = () => {
       const g = this.game; if (!g) return;
       let vx = 0, vy = 0;
@@ -552,13 +585,16 @@ const App = {
         if (k === 'p' && this.screen === 'pause') this.resume();
         return;
       }
-      if (moveKeys[k]) { keys.add(k); applyMove(); e.preventDefault(); return; }
+      if (k === ' ' || k.startsWith('arrow')) e.preventDefault(); // never scroll the page
+      // running for a room: physical WASD positions, so ZQSD (AZERTY) works too; once inside, keys are hotkeys by label
+      const mk = this.game.player.state === 'corridor' ? CODE[e.code] : null;
+      if (mk) { keys.add(mk); applyMove(); return; }
       if (k === 'escape') { if (this.hud.aiming) { this.hud.aiming = null; this.renderer.aim = null; $('game').classList.remove('aim'); return; } if (this.hud.menuOpen()) this.hud.closeMenus(); return; }
       if (k === 'p') { this.pause(); return; }
       if (e.repeat) return;
       this.hud.hotkey(k);
     });
-    window.addEventListener('keyup', (e) => { const k = e.key.toLowerCase(); if (keys.delete(k)) applyMove(); });
+    window.addEventListener('keyup', (e) => { const a = keys.delete(CODE[e.code]), b2 = keys.delete(e.key.toLowerCase()); if (a || b2) applyMove(); });
     window.addEventListener('blur', () => { keys.clear(); applyMove(); });
   },
 

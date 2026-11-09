@@ -588,6 +588,7 @@ export class HUD {
     if (ev.type === 'build' && ev.s.isPlayer && T.step === 3) { T.step = 4; T.t = 0; }
     if (ev.type === 'bossWake' && T.step < 5) { T.step = 5; T.t = 0; }
     if ((ev.type === 'repair' || (ev.type === 'upgrade' && ev.what === 'door')) && ev.s && ev.s.isPlayer && T.step === 5) { T.step = 6; T.t = 0; }
+    if (ev.type === 'ability' && T.step === 6) { T.step = 6.5; T.t = 0; }
   }
   // one-time nudge the first time an ally is in trouble
   helpHint() {
@@ -606,9 +607,12 @@ export class HUD {
     if (T.step >= 5 && !g.bosses.some((b) => b.alive)) T.step = 7;
     if (T.step === 2 && room && room.bedLvl >= 2) T.step = 3;
     if (T.step === 3 && room && room.buildings.length) { T.step = 4; T.t = 0; }
+    if (T.step === 4 && !g.scouts) T.t = 0; // the "zombies!" line waits for the first scout
     if (T.step === 4 && T.t > 7) T.step = 4.5;
-    if (T.step === 5 && T.t > 15) { T.step = 6; T.t = 0; }
-    if (T.step === 6 && T.t > 11) { T.step = 7; }
+    const hit = room && room.hitT < 2.5;
+    if (T.step === 5) { if (hit) T.hitSeen = true; if (T.t > (T.hitSeen ? 14 : 24)) { T.step = 6; T.t = 0; } }
+    if (T.step === 6 && T.t > 14) { T.step = 6.5; T.t = 0; }
+    if (T.step === 6.5 && T.t > 7) { T.step = 7; }
     switch (T.step) {
       case 0: {
         text = 'Zombies are coming! <b>Click a green room</b> to hide inside.';
@@ -628,10 +632,15 @@ export class HUD {
         }
         break;
       }
-      case 4: text = 'Turrets also guard your <b>neighbours</b>. Click their room to help them.'; break;
-      case 4.5: text = 'Keep upgrading. <b>The bosses wake up soon!</b>'; break;
-      case 5: text = 'Door getting hit? <b>Repair</b> it or <b>upgrade</b> it.'; el = $('act-repair'); break;
-      case 6: text = 'Throw a <b>Flashbang</b> to stun a boss mid-swing.'; el = $('act-flash'); break;
+      case 4: text = g.scouts ? 'Zombies! Your turret shoots them. <b>Every kill pays scrap.</b>' : 'Nice! <b>Keep building</b> — the first zombies are almost here.'; break;
+      case 4.5: text = 'Build more turrets and <b>upgrade your door</b> before the bosses wake!'; break;
+      case 5: {
+        if (!T.hitSeen) { text = 'The bosses are coming for <b>your door</b>. Get ready!'; break; }
+        const cr = g.canRepair(s);
+        text = 'Your door is under attack! <b>Repair</b> it or <b>upgrade</b> it.'; el = cr.ok || !g.canDoor(s).ok ? $('act-repair') : $('act-door'); break;
+      }
+      case 6: text = 'Click <b>Flashbang</b>, then click a boss to stun it.'; el = $('act-flash'); break;
+      case 6.5: text = 'Neighbour in trouble? <b>Click their room</b> to help.'; break;
       default: box.classList.add('hidden'); arrow.classList.add('hidden'); this.tut = null; return;
     }
     box.classList.remove('hidden');

@@ -17,41 +17,52 @@ export const CG = {
   onAdStart: null,   // set by game: pause + mute
   onAdEnd: null,     // set by game: resume + unmute
   onMuteChange: null,
+  onAdsOff: null,    // set by game: hide rewarded-ad buttons
+  loading: false,
 
-  async init() {
-    try {
-      const S = window.CrazyGames && window.CrazyGames.SDK;
-      if (S) {
-        await S.init();
-        this.sdk = S;
-        this.env = S.environment || 'crazygames';
-        // 'local' (localhost) and 'disabled' (not on CrazyGames) run in standalone mode with simulated ads
-        if (this.env === 'disabled' || this.env === 'local') this.sdk = null;
-        if (this.sdk && this.sdk.ad && this.sdk.ad.hasAdblock) {
-          try { if (await this.sdk.ad.hasAdblock()) this.adsOff = true; } catch (e) { /* ignore */ }
-        }
-        if (this.sdk && this.sdk.game && this.sdk.game.addSettingsChangeListener) {
-          try {
-            this.sdk.game.addSettingsChangeListener((s) => {
-              if (this.onMuteChange && s && typeof s.muteAudio === 'boolean') this.onMuteChange(s.muteAudio);
-            });
-          } catch (e) { /* ignore */ }
-        }
-      }
-    } catch (e) {
-      console.warn('[cg] SDK init failed, running standalone');
-      this.sdk = null;
-    }
-    this.ready = true;
+  // Never blocks the loading screen for long: the SDK gets 5 s, after that the game starts and the SDK is adopted when it arrives.
+  init() {
+    const S = window.CrazyGames && window.CrazyGames.SDK;
+    if (!S) { this.ready = true; return Promise.resolve(); }
+    const adopt = S.init().then(() => this._adopt(S)).catch(() => { console.warn('[cg] SDK init failed, running standalone'); this.sdk = null; });
+    return Promise.race([adopt, new Promise((r) => setTimeout(r, 5000))]).then(() => { this.ready = true; });
   },
+  _adopt(S) {
+    let env = 'disabled';
+    try { env = S.environment || 'crazygames'; } catch (e) { env = 'disabled'; }
+    this.env = env;
+    // 'local' (localhost) and 'disabled' (not on CrazyGames) run in standalone mode with simulated ads
+    if (env === 'disabled' || env === 'local') { this.sdk = null; return; }
+    this.sdk = S;
+    if (this.loading) { try { S.game.loadingStart(); } catch (e) { /* noop */ } }
+    if (this.inGameplay) { try { S.game.gameplayStart(); } catch (e) { /* noop */ } }
+    // Ads can be unavailable for the whole session (Basic Launch, kids mode, adblock): learn it early so no
+    // rewarded button is ever shown without effect. Reads the init info defensively; adError stays the fallback.
+    try {
+      const info = S.instance && (S.instance.initializeReply || (S.instance.ad && S.instance.ad.initInfo));
+      const pl = info && info.adsAllowedByPlacement && info.adsAllowedByPlacement.rewarded;
+      if (pl != null) { if (pl.allowed === false) this._adsOff(); } else if (info && info.launchFlow === 'basic') this._adsOff();
+    } catch (e) { /* ignore */ }
+    try { // adblock check in the background (it can take seconds): never awaited during loading
+      if (S.ad && S.ad.hasAdblock) S.ad.hasAdblock().then((v) => { if (v) this._adsOff(); }).catch(() => {});
+    } catch (e) { /* ignore */ }
+    try {
+      if (S.game && S.game.addSettingsChangeListener) {
+        S.game.addSettingsChangeListener((st) => {
+          if (this.onMuteChange && st && typeof st.muteAudio === 'boolean') this.onMuteChange(st.muteAudio);
+        });
+      }
+    } catch (e) { /* ignore */ }
+  },
+  _adsOff() { this.adsOff = true; if (this.onAdsOff) this.onAdsOff(); },
 
   get sdkMuted() {
     try { return !!(this.sdk && this.sdk.game && this.sdk.game.settings && this.sdk.game.settings.muteAudio); }
     catch (e) { return false; }
   },
 
-  loadingStart() { try { this.sdk && this.sdk.game.loadingStart(); } catch (e) { /* noop */ } },
-  loadingStop() { try { this.sdk && this.sdk.game.loadingStop(); } catch (e) { /* noop */ } },
+  loadingStart() { this.loading = true; try { this.sdk && this.sdk.game.loadingStart(); } catch (e) { /* noop */ } },
+  loadingStop() { this.loading = false; try { this.sdk && this.sdk.game.loadingStop(); } catch (e) { /* noop */ } },
 
   gameplayStart() {
     if (this.inGameplay) return;
@@ -72,21 +83,26 @@ export const CG = {
       this.adActive = true;
       let done = false;
       const start = () => { if (this.onAdStart) this.onAdStart(); };
+      // always un-pause when an ad ends; the promise resolves only once
       const finish = (ok) => {
-        if (done) return; done = true;
         this.adActive = false;
         if (this.onAdEnd) this.onAdEnd();
-        resolve(ok);
+        if (!done) { done = true; resolve(ok); }
       };
       if (this.sdk) {
+        // safety net: if the platform never answers, the game must not stay frozen
+        // (15 s for the ad to start, 3 min to finish; an ad that still starts late pauses and un-pauses normally)
+        let started = false;
+        setTimeout(() => { if (!started && !done) finish(false); }, 15000);
+        setTimeout(() => { if (!done) finish(false); }, 180000);
         try {
           this.sdk.ad.requestAd(type, {
-            adStarted: start,
+            adStarted: () => { started = true; start(); },
             adFinished: () => finish(true),
             adError: (err) => {
               const code = err && err.code;
               console.warn('[cg] ad error', code);
-              if (code === 'adsDisabled' || code === 'adblock' || code === 'adsDisabledBasicLaunch') this.adsOff = true;
+              if (code === 'adsDisabled' || code === 'adblock' || code === 'adsDisabledBasicLaunch') this._adsOff();
               finish(false);
             },
           });

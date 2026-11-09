@@ -9,7 +9,7 @@ Grab an apartment, lock the door and build turrets! Survive the zombie boss unti
 ## Long description
 The zombies are coming and the whole apartment floor is running for cover!
 
-**Last Door Standing** is a cartoony idle tower defense game. When the night begins you and three other survivors have 22 seconds to dash down the hallway and claim an apartment. Once you're inside, the door slams shut — and that door is your life bar.
+**Last Door Standing** is a cartoony idle tower defense game. When the night begins you and three other survivors dash down the hallway to claim an apartment. Once you're inside, the door slams shut — and that door is your life bar.
 
 Lie down on your bed to earn scrap every second, then spend it wisely:
 

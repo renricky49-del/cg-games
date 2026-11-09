@@ -35,6 +35,7 @@ export class Renderer {
     this.darkness = 0.5;
     this.throws = []; this.flashT = 0; this.aim = null;
     this.dmgAcc = new Map(); // per-enemy damage summed into one number every ~0.3 s (less clutter)
+    this.maxDpr = 2; this.q = 0; this.lowFx = false; // adaptive quality (see lowerQuality)
     this.backdrop = makeBackdrop();
   }
 
@@ -46,7 +47,7 @@ export class Renderer {
   }
 
   resize() {
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const dpr = Math.min(this.maxDpr, window.devicePixelRatio || 1);
     this.dpr = dpr;
     const w = window.innerWidth, h = window.innerHeight;
     this.vw = w; this.vh = h;
@@ -54,6 +55,16 @@ export class Renderer {
     this.cv.style.width = w + 'px'; this.cv.style.height = h + 'px';
     this.light.width = Math.ceil(w / 4); this.light.height = Math.ceil(h / 4);
     if (this.g) { this.cam.fit = this.fitScale(); this.clampCam(); }
+  }
+
+  // Called by the app when the device cannot keep up (< ~25 fps for a few seconds): each step trades sharpness
+  // or effects for speed. Returns false when there is nothing left to lower.
+  lowerQuality() {
+    const real = window.devicePixelRatio || 1;
+    if (this.q === 0 && Math.min(this.maxDpr, real) > 1.5) { this.q = 1; this.maxDpr = 1.5; this.resize(); return true; }
+    if (this.q <= 1 && Math.min(this.maxDpr, real) > 1) { this.q = 2; this.maxDpr = 1; this.resize(); return true; }
+    if (!this.lowFx) { this.q = 3; this.lowFx = true; return true; } // flat night tint instead of light pools, fewer particles
+    return false;
   }
 
   fitScale() {
@@ -307,7 +318,8 @@ export class Renderer {
   fpx(world, minScreen = 13) { return Math.round(Math.max(world, minScreen / this.cam.z)); }
   shake(a) { if (this.noShake) return; this.cam.shake = Math.min(18, Math.max(this.cam.shake, a)); }
   burst(x, y, n, color, spd, life, kind) {
-    if (this.particles.length > 600) return;
+    if (this.particles.length > (this.lowFx ? 160 : 600)) return;
+    if (this.lowFx) n = Math.ceil(n / 2);
     for (let i = 0; i < n; i++) {
       const a = Math.random() * TAU, v = spd * (0.3 + Math.random() * 0.7);
       this.particles.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - (kind === 'smoke' ? 0.6 : 0), life: life * (0.6 + Math.random() * 0.6), max: life, color, kind, size: kind === 'smoke' ? 0.18 + Math.random() * 0.15 : 0.06 + Math.random() * 0.06, rot: Math.random() * 6 });
@@ -752,6 +764,11 @@ export class Renderer {
       ctx.fillStyle = gr; ctx.fillRect(0, 0, this.vw, this.vh);
     } else this.dawnT = 0;
     if (this.darkness < 0.02) return;
+    if (this.lowFx) { // cheap mode: one flat tint, no per-light gradients
+      ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+      ctx.fillStyle = `rgba(${tint},${this.darkness * 0.55})`; ctx.fillRect(0, 0, this.vw, this.vh);
+      return;
+    }
     L.globalCompositeOperation = 'source-over';
     L.clearRect(0, 0, w, h);
     L.fillStyle = `rgba(${tint},${this.darkness})`; L.fillRect(0, 0, w, h);

@@ -6,26 +6,32 @@
 
 ---
 
-## ★ 重新提交（被以“质量不达标”拒绝后）
+## ★ 重新提交（第二次被以“整体质量不达标”拒绝后）
 
-上次被拒的主要原因，我用 CrazyGames 的标准 iframe 尺寸（devicePixelRatio 1）复现了：
-- 800×450、907×510、1077×606 下，开局卡片的 **Start 按钮在屏幕外**，游戏根本开始不了；
-- 907×510 下，右上角的 **暂停 / 缩放按钮被挤出屏幕**；
-- 横屏手机上，**结算页按钮在屏幕外**；
-- 教程框、横幅、提示、悬停说明 **互相叠在一起**。
+**提交前先确认一件事：** 开发者后台 Last Door Standing 条目里的游戏文件，必须是这份 `dist/last-door-standing.zip`。
+预览时应该看到 “Last Door Standing” 的加载条，右侧显示 **SDK 已检测到**、总大小约 **3.3 MB**。
+如果看到的是别的游戏（比如 Fortress Front）、大小不是 3.3 MB、或者提示 “SDK not currently detected”，说明传错包了，先删掉重新上传。
 
-这些现在都已修好。新加的 `tools/layoutfit.cjs` 会在 8 种尺寸下检查每个界面的每个按钮都在屏幕内、HUD 各部分不重叠：旧版本 6 项失败，新版本 127 项全部通过。
+这一轮查出并修掉的问题（都是之前本地测试覆盖不到的）：
+
+1. **开局太闷**：真人节奏下，第 1 晚前 43 秒什么都不发生，然后 Boss 只打邻居的门、17 秒被打死，玩家自己的门一下没被碰过就通关了。
+   现在：进房间就有 50 废料可用；锁门后几秒就有小僵尸上门（击杀给废料）；头目 Boss 从第 1 晚起就直奔玩家的门；前 3 晚 Boss 更耐打但伤害更低，战斗持续约 1 分钟。
+2. **平台上加载慢**：游戏在等 SDK 的广告拦截检测（平台上最多 5 秒）。现在不等了，模拟平台环境下约 1 秒进标题。
+3. **Basic Launch（广告关闭）下有“死按钮”**：门被打破后弹出的“看广告继续”点了没反应。现在广告不可用时直接进结算，所有广告按钮一开始就隐藏。
+4. **iframe 里“重置进度”无效**：浏览器会屏蔽跨域 iframe 里的 `confirm()` 弹窗。改成了按两次确认。
+5. **低配设备卡顿**：加了自动降画质（低于约 25 帧时自动降分辨率和特效）。
+6. 其他：`loadingStart` 之前没有真正发出去；`happytime` 改为只在首次三星时触发；切到后台时静音；AZERTY 键盘可以用 ZQSD 跑动。
 
 提交表单如果有“给审核的备注 / Notes for QA”，可以直接粘贴这段：
 
 ```
-Thanks for the feedback. This update is a full quality pass:
-- Layout: the whole UI now scales to the iframe. Every screen and button fits at 800x450, 907x510, 1077x606, 1216x684, 1366x768, 1920x1080 and on phones (portrait and landscape). Previously the Start and results buttons could be off-screen on small iframes.
-- Readability: one message lane (no more overlapping tutorial / banners / toasts / tooltips), shorter texts, combined damage numbers.
-- First minute: PLAY starts the tutorial night immediately (1 click), the tutorial is shorter and skippable, and there is no waiting once every survivor has found a room.
-- Visuals: new rooftop backdrop and building shadow, redrawn stairwell, softer wall shadows, cleaner door and boss bars.
-- Ads: rewarded ads only outside active gameplay; all ad buttons hide when ads are unavailable (Basic Launch / adblock).
-- Performance: steady 60 FPS, ~10 MB JS heap.
+Thanks for the feedback. This update is a full quality pass on gameplay, layout and platform integration:
+- Gameplay: there is action from the first seconds of every night. Scout zombies reach the doors during the build phase (kills pay scrap), the lead boss attacks the player's own door from Night 1, and early boss fights last about a minute instead of ending in 15 seconds. Players start with enough scrap for a first bed upgrade and turret, and nobody waits once every survivor has a room.
+- Layout: the whole UI scales to the iframe. Every screen and button fits at 800x450, 907x510, 1077x606, 1216x684, 1366x768, 1920x1080 and on phones (portrait and landscape).
+- Readability: one message lane (no overlapping tutorial / banners / toasts / tooltips), shorter texts, combined damage numbers.
+- First minute: PLAY starts the tutorial night immediately (1 click); the tutorial is short and skippable.
+- Platform: loads in about 1 second on CrazyGames, reports loadingStart/Stop and gameplayStart/Stop, hides every rewarded-ad button when ads are disabled (Basic Launch / adblock), and lowers render quality automatically on slow devices.
+- Visuals: rooftop backdrop and building shadow, redrawn stairwell, softer wall shadows, cleaner door and boss bars.
 ```
 
 ## 0. 要上传的文件（全部已备好）
@@ -91,7 +97,7 @@ Grab an apartment, lock the door and build turrets! Survive the zombie bosses un
 ```
 The zombies are coming and the whole apartment floor is running for cover!
 
-Last Door Standing is a cartoony idle tower defense game. When the night begins you and three other survivors have 22 seconds to dash down the hallway and claim an apartment. Once you're inside, the door slams shut – and that door is your life bar.
+Last Door Standing is a cartoony idle tower defense game. When the night begins you and three other survivors dash down the hallway to claim an apartment. Once you're inside, the door slams shut – and that door is your life bar.
 
 Lie down on your bed to earn scrap every second, then spend it wisely:
 - Upgrade your bed to double your income – but fancy beds need a sturdier door first.

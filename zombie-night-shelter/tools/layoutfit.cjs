@@ -7,7 +7,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const b = await chromium.launch();
   let fails = 0, checks = 0;
   for (const [W, H] of SIZES) {
-    const p = await b.newPage({ viewport: { width: W, height: H } });
+    const p = await b.newPage({ viewport: { width: W, height: H }, hasTouch: W < 900 && (W < 500 || H < 500), isMobile: W < 500 || H < 400 });
     const errs = []; p.on('pageerror', (e) => errs.push(e.message));
     await p.goto('http://localhost:8123/index.html');
     await p.waitForSelector('#title.show');
@@ -35,8 +35,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     await p.evaluate(() => { const A = window.__app; A.save.nightsPlayed = 2; A.save.lastDaily = '2000-01-01'; A.showTitle(); }); await sleep(150);
     await inside('daily', '#daily button, #daily .day');
     await p.evaluate(() => { window.__app.dailyPending = null; window.__app.save.lastDaily = new Date().toISOString().slice(0, 10); window.__app.save.tutDone = true; window.__app.showTitle(); });
-    // intro of a 5-boss night
-    await p.evaluate(() => window.__app.startNight(12, true)); await sleep(250);
+    // intro of a 6-boss night (the widest HUD)
+    await p.evaluate(() => window.__app.startNight(18, true)); await sleep(250);
     await inside('intro', '#intro button, #intro .intro-name');
     await p.evaluate(() => window.__app.beginPlay());
     await p.evaluate(() => { const g = window.__app.game; g.autoPlayer = true; window.__app.speed = 6; });

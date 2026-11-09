@@ -2,7 +2,7 @@
 import {
   RUSH_TIME, GRACE_TIME, PACE, AI_COUNT, AID_FRAC, AID_FRAC_REPAIR, AID_CD, TEAM_BOUNTY_S, MAX_BED, MAX_DOOR, bedIncome, bedCost, bedDoorReq,
   doorMaxHp, doorCost, repairCost, REPAIR_FRAC, REPAIR_CD,
-  BUILDINGS, HEROES, upgradeCost, totalSpent, turretStats, BOSSES, bossBase, bossKinds, nightKinds, GROUP_HP, GROUP_DMG, HUNT_CHANCE, ABILITIES, CRATE_EVERY, CRATE_LIFE, MINION_WAVE, minionWaveSize, BOSS_LVL_HP, BOSS_LVL_DMG, bossXpNeed,
+  BUILDINGS, HEROES, upgradeCost, totalSpent, turretStats, BOSSES, bossBase, bossKinds, nightKinds, GROUP_HP, GROUP_DMG, HUNT_CHANCE, ABILITIES, CRATE_EVERY, CRATE_LIFE, MINION_WAVE, START_SCRAP, SCOUT, minionWaveSize, BOSS_LVL_HP, BOSS_LVL_DMG, bossXpNeed,
   PERSONALITIES, AI_NAMES,
 } from './data.js';
 import { buildMap } from './map.js';
@@ -72,7 +72,8 @@ export class Game {
         pers: isPlayer ? PERSONALITIES[3] : pers[(i - 1) % pers.length],
         aiT: 0, goal: null, targetRoom: null, decideDelay: 0, walkT: 0, vx: 0, vy: 0, deadT: 0,
       };
-      if (isPlayer) s.scrap = 25 * (this.perks.start || 0) + ((HEROES[s.skin] || {}).startScrap || 0);
+      s.scrap = START_SCRAP;
+      if (isPlayer) s.scrap += 25 * (this.perks.start || 0) + ((HEROES[s.skin] || {}).startScrap || 0);
       if (isPlayer) s.speed *= (HEROES[s.skin] || {}).speed || 1;
       if (!isPlayer) s.decideDelay = 0.4 + this.rng() * 2.5 * s.pers.react;
       this.survivors.push(s);
@@ -421,14 +422,15 @@ export class Game {
     this.t += dt;
     if (this.phase === 'rush') {
       this.phaseT -= dt;
-      // everyone is inside: don't make people wait out the timer. The leftover rush time moves into the
-      // build phase (which runs at PACE), so pre-boss earnings stay the same but the wait is shorter.
+      // everyone is inside: the doors lock right away, nobody waits out the timer
       const settled = this.survivors.every((q) => q.state === 'inroom' || q.state === 'dead');
       this.settledT = settled ? (this.settledT || 0) + dt : 0;
-      if (this.settledT > 1.2 && this.phaseT > 0) { const left = this.phaseT; this._endRush(); if (this.phase === 'grace') this.phaseT += left; }
-      else if (this.phaseT <= 0) this._endRush();
+      if ((this.settledT > 1 && this.phaseT > 0) || this.phaseT <= 0) this._endRush();
     } else if (this.phase === 'grace') {
       this.phaseT -= dt;
+      // scouts: weak zombies while the bosses sleep (half of them go for the player's door)
+      this.scoutT = (this.scoutT == null ? SCOUT.first : this.scoutT) - dt;
+      if (this.scoutT <= 0 && this.phaseT > 3) { this.scoutT = SCOUT.every; this._spawnScout(); }
       if (this.phaseT <= 0) this._wakeBoss();
     } else if (this.phase === 'night') {
       this.stats.timeSurvived += dt;
@@ -553,10 +555,11 @@ export class Game {
   _makeBoss(kind, diff, hpF = 1, dmgF = 1, lvl = 1) {
     const B = BOSSES[kind], base = bossBase(diff);
     const lm = Math.pow(BOSS_LVL_HP, lvl - 1), dm = Math.pow(BOSS_LVL_DMG, lvl - 1);
-    const hp = base.hp * B.hp * hpF * lm;
+    const N = this.night || {};
+    const hp = base.hp * B.hp * hpF * lm * (N.hpMul || 1);
     return {
       id: NEXT_ID++, kind: 'boss', variant: kind, sprite: B.sprite, name: B.name,
-      x: this.map.lair.sx, y: this.map.lair.sy, hp, maxHp: hp, dmg: base.dmg * B.dmg * dmgF * dm, baseSpeed: B.speed,
+      x: this.map.lair.sx, y: this.map.lair.sy, hp, maxHp: hp, dmg: base.dmg * B.dmg * dmgF * dm * (N.dmgMul || 1), baseSpeed: B.speed,
       state: 'sleep', target: null, atkCd: 1, lvl, xp: 0, r: Math.min(1.25, 0.8 + 0.035 * (lvl - 1)), dir: 0, slow: 0, hitFlash: 0,
       recentDmg: 0, switchT: 4, abilityT: 8, howlT: 18, retreats: 0, chargeMul: 1, charging: false, walkT: 0,
       armor: !!B.armor, def: B, alive: true, pause: 0,
@@ -569,6 +572,21 @@ export class Game {
     for (const b of this.bosses) { b.state = 'seek'; b.pause = b.wakeDelay || 0; }
     this.emit('bossWake', { boss: this.bosses[0], bosses: this.bosses });
     for (const s of this.survivors) if (s.minionPending) this._spawnMinionFrom(s);
+  }
+
+  _spawnScout() {
+    const n = this.endless ? 4 : this.night.n;
+    const ref = { maxHp: Math.min(SCOUT.hpMax, SCOUT.hp + SCOUT.hpUp * (n - 1)), dmg: SCOUT.dmg + SCOUT.dmgUp * (n - 1) };
+    const m = this._makeMinion(1.8 + this.rng() * 2.2, 7.9 + this.rng() * 1.2, ref, 1, 1, 'minion' + Math.floor(this.rng() * 4));
+    m.scout = true; m.rise = 0.5;
+    this.scouts = (this.scouts || 0) + 1;
+    const pr = this.player.room;
+    // the very first one, and then every other one, heads for the player's door
+    if (pr && pr.alive && this.player.state === 'inroom' && (this.scouts === 1 || this.rng() < SCOUT.playerShare)) {
+      const d = pr.doors.reduce((a, b) => (dist(m.x, m.y, b.fx, b.fy) < dist(m.x, m.y, a.fx, a.fy) ? b : a));
+      m.target = { room: pr, door: d }; m.state = 'walk';
+    }
+    this.emit('minionSpawn', { m, x: m.x, y: m.y, scout: true });
   }
 
   _spawnMinionFrom(s) {
@@ -613,8 +631,9 @@ export class Game {
   _pickBossTarget(e, exclude) {
     const opts = this._doorTargets().filter((o) => !exclude || o.room !== exclude);
     if (!opts.length) return null;
-    // the hunter goes straight for the player's door most of the time (not in the tutorial's first minute)
-    if (e.hunter && !(this.tutorial && this.stats.timeSurvived < 70) && this.rng() < HUNT_CHANCE) {
+    // the hunter goes straight for the player's door: always with its first pick of the night, then most of the time
+    if (e.hunter && (!e.huntedOnce || this.rng() < HUNT_CHANCE)) {
+      e.huntedOnce = true;
       const mine = opts.filter((o) => o.room.owner.isPlayer);
       if (mine.length) return mine.reduce((a, b) => (b.door.hp < a.door.hp ? b : a));
     }
@@ -625,8 +644,6 @@ export class Game {
       const def = this.doorDefense(o.door) / Math.max(1, e.maxHp / 25); // how fast turrets here kill me
       const ttb = o.door.hp / Math.max(1, e.dmg); // hits to break
       let s = ttb * 0.06 + frac * 0.8 + def * 0.9 + dist(e.x, e.y, o.door.fx, o.door.fy) * 0.02 + this.rng() * 0.6;
-      if (this.tutorial && o.room.owner.isPlayer && this.stats.timeSurvived < 70) s += 5;
-      if (this.night.n === 2 && o.room.owner.isPlayer && this.stats.timeSurvived < 30) s += 2;
       // the hunter prefers the player's door (not during the tutorial's first minute)
       // split up: avoid the door the other boss is already working on
       if (e.group && e.group.some((q) => q !== e && q.alive && q.target && q.target.room === o.room)) s += 3;
@@ -879,7 +896,7 @@ export class Game {
       // targeting: prefer enemies hitting my room, then the boss, then nearest
       let tgt = null, ts = 1e9;
       for (const e of this.enemies) {
-        if (!e.alive || e.rise > 0) continue;
+        if (!e.alive || e.rise > 0 || e.state === 'sleep') continue;
         const d = dist(b.x, b.y, e.x, e.y);
         if (d > st.range + e.r * 0.5) continue;
         let s = d;

@@ -51,9 +51,10 @@ export const Audio = {
     if (this.wantMusic) { const w = this.wantMusic; this.wantMusic = null; this.startMusic(w); }
     for (const n of ['roar', 'smash', 'groan', 'win', 'lose', ...new Set(Object.values(SAMPLE_SFX).map((x) => x[0]))]) this.loadBuf(`assets/audio/${n}.mp3`).then((b) => { this.samples[n] = b; });
   },
+  setHidden(h) { this.hidden = h; this.applyMute(); },
   applyMute() {
     if (!this.ctx) return;
-    const muted = this.adMuted || this.sdkMuted;
+    const muted = this.adMuted || this.sdkMuted || this.hidden;
     this.master.gain.setTargetAtTime(muted ? 0 : 1, this.ctx.currentTime, 0.05);
     this.musicGain.gain.setTargetAtTime(this.musicOn ? 0.38 : 0, this.ctx.currentTime, 0.1);
     this.sfxGain.gain.value = this.sfxOn ? 0.6 : 0;
